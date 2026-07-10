@@ -1,5 +1,6 @@
 export const races = [
   {
+    competitionId: "2027-outdoors",
     round: 1,
     name: "Fox Raceway",
     location: "Pala, California",
@@ -10,6 +11,7 @@ export const races = [
     image: "/images/tracks/fox-raceway.png",
   },
   {
+    competitionId: "2027-outdoors",
     round: 2,
     name: "Prairie City SVRA",
     location: "Rancho Cordova, California",
@@ -20,6 +22,7 @@ export const races = [
     image: "/images/tracks/fox-raceway.png",
   },
   {
+    competitionId: "2027-outdoors",
     round: 3,
     name: "Thunder Valley",
     location: "Lakewood, Colorado",
@@ -30,6 +33,7 @@ export const races = [
     image: "/images/tracks/fox-raceway.png",
   },
   {
+    competitionId: "2027-outdoors",
     round: 4,
     name: "High Point",
     location: "Mount Morris, Pennsylvania",
@@ -40,6 +44,7 @@ export const races = [
     image: "/images/tracks/fox-raceway.png",
   },
   {
+    competitionId: "2027-outdoors",
     round: 5,
     name: "RedBud",
     location: "Buchanan, Michigan",
@@ -50,6 +55,7 @@ export const races = [
     image: "/images/tracks/fox-raceway.png",
   },
   {
+    competitionId: "2027-outdoors",
     round: 6,
     name: "Southwick",
     location: "Southwick, Massachusetts",
@@ -60,6 +66,7 @@ export const races = [
     image: "/images/tracks/fox-raceway.png",
   },
   {
+    competitionId: "2027-outdoors",
     round: 7,
     name: "Spring Creek",
     location: "Millville, Minnesota",
@@ -70,6 +77,7 @@ export const races = [
     image: "/images/tracks/fox-raceway.png",
   },
   {
+    competitionId: "2027-outdoors",
     round: 8,
     name: "Washougal",
     location: "Washougal, Washington",
@@ -80,6 +88,7 @@ export const races = [
     image: "/images/tracks/fox-raceway.png",
   },
   {
+    competitionId: "2027-outdoors",
     round: 9,
     name: "Unadilla",
     location: "New Berlin, New York",
@@ -90,6 +99,7 @@ export const races = [
     image: "/images/tracks/fox-raceway.png",
   },
   {
+    competitionId: "2027-outdoors",
     round: 10,
     name: "Budds Creek",
     location: "Mechanicsville, Maryland",
@@ -100,6 +110,7 @@ export const races = [
     image: "/images/tracks/fox-raceway.png",
   },
   {
+    competitionId: "2027-outdoors",
     round: 11,
     name: "Ironman",
     location: "Crawfordsville, Indiana",
