@@ -1,6 +1,20 @@
-export const races = [
+export type Race = {
+  competitionId: string;
+  round: number;
+  name: string;
+  location: string;
+  raceDate: string;
+  pickLock: string;
+  pickLockDisplay: string;
+  wildcardPosition: number;
+  pointsMultiplier: number;
+  image: string;
+  estimated: boolean;
+};
+
+export const races: Race[] = [
   // =========================================================
-  // 2027 SUPERCROSS — ESTIMATED FROM THE 2025 SCHEDULE PATTERN
+  // 2027 SUPERCROSS — ESTIMATED SCHEDULE
   // =========================================================
 
   {
@@ -12,6 +26,7 @@ export const races = [
     pickLock: "2027-01-09T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 8,
+    pointsMultiplier: 1,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },
@@ -24,6 +39,7 @@ export const races = [
     pickLock: "2027-01-16T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 12,
+    pointsMultiplier: 1,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },
@@ -36,6 +52,7 @@ export const races = [
     pickLock: "2027-01-23T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 9,
+    pointsMultiplier: 1,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },
@@ -48,6 +65,7 @@ export const races = [
     pickLock: "2027-01-30T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 14,
+    pointsMultiplier: 1,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },
@@ -60,6 +78,7 @@ export const races = [
     pickLock: "2027-02-06T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 7,
+    pointsMultiplier: 1,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },
@@ -72,6 +91,7 @@ export const races = [
     pickLock: "2027-02-13T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 11,
+    pointsMultiplier: 1,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },
@@ -84,6 +104,7 @@ export const races = [
     pickLock: "2027-02-20T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 15,
+    pointsMultiplier: 1,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },
@@ -96,6 +117,7 @@ export const races = [
     pickLock: "2027-02-27T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 10,
+    pointsMultiplier: 1,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },
@@ -108,6 +130,7 @@ export const races = [
     pickLock: "2027-03-06T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 13,
+    pointsMultiplier: 1,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },
@@ -120,6 +143,7 @@ export const races = [
     pickLock: "2027-03-20T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 8,
+    pointsMultiplier: 1,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },
@@ -132,6 +156,7 @@ export const races = [
     pickLock: "2027-03-27T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 12,
+    pointsMultiplier: 1,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },
@@ -144,6 +169,7 @@ export const races = [
     pickLock: "2027-04-03T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 9,
+    pointsMultiplier: 1,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },
@@ -156,6 +182,7 @@ export const races = [
     pickLock: "2027-04-10T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 14,
+    pointsMultiplier: 1,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },
@@ -168,6 +195,7 @@ export const races = [
     pickLock: "2027-04-17T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 7,
+    pointsMultiplier: 1,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },
@@ -180,6 +208,7 @@ export const races = [
     pickLock: "2027-04-24T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 11,
+    pointsMultiplier: 1,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },
@@ -192,6 +221,7 @@ export const races = [
     pickLock: "2027-05-01T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 15,
+    pointsMultiplier: 1,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },
@@ -204,12 +234,13 @@ export const races = [
     pickLock: "2027-05-08T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 10,
+    pointsMultiplier: 1,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },
 
   // =========================================================
-  // 2027 PRO MOTOCROSS — PLACEHOLDER SCHEDULE
+  // 2027 PRO MOTOCROSS — ESTIMATED SCHEDULE
   // =========================================================
 
   {
@@ -221,6 +252,7 @@ export const races = [
     pickLock: "2027-05-29T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 7,
+    pointsMultiplier: 1,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },
@@ -233,6 +265,7 @@ export const races = [
     pickLock: "2027-06-05T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 11,
+    pointsMultiplier: 1,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },
@@ -245,6 +278,7 @@ export const races = [
     pickLock: "2027-06-12T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 9,
+    pointsMultiplier: 1,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },
@@ -257,6 +291,7 @@ export const races = [
     pickLock: "2027-06-19T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 14,
+    pointsMultiplier: 1,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },
@@ -269,6 +304,7 @@ export const races = [
     pickLock: "2027-07-03T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 8,
+    pointsMultiplier: 1,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },
@@ -281,6 +317,7 @@ export const races = [
     pickLock: "2027-07-10T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 13,
+    pointsMultiplier: 1,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },
@@ -293,6 +330,7 @@ export const races = [
     pickLock: "2027-07-17T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 10,
+    pointsMultiplier: 1,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },
@@ -305,6 +343,7 @@ export const races = [
     pickLock: "2027-07-24T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 15,
+    pointsMultiplier: 1,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },
@@ -317,6 +356,7 @@ export const races = [
     pickLock: "2027-08-14T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 12,
+    pointsMultiplier: 1,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },
@@ -329,6 +369,7 @@ export const races = [
     pickLock: "2027-08-21T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 7,
+    pointsMultiplier: 1,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },
@@ -341,12 +382,13 @@ export const races = [
     pickLock: "2027-08-28T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 11,
+    pointsMultiplier: 1,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },
 
   // =========================================================
-  // 2027 SMX PLAYOFFS — ESTIMATED FROM THE 2025 PATTERN
+  // 2027 SMX PLAYOFFS — ESTIMATED SCHEDULE
   // =========================================================
 
   {
@@ -358,6 +400,7 @@ export const races = [
     pickLock: "2027-09-04T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 13,
+    pointsMultiplier: 1,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },
@@ -370,6 +413,7 @@ export const races = [
     pickLock: "2027-09-11T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 8,
+    pointsMultiplier: 1.5,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },
@@ -382,6 +426,7 @@ export const races = [
     pickLock: "2027-09-18T10:00:00",
     pickLockDisplay: "10:00 AM",
     wildcardPosition: 12,
+    pointsMultiplier: 2,
     image: "/images/tracks/fox-raceway.png",
     estimated: true,
   },

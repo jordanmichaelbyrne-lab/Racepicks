@@ -6,6 +6,7 @@ import {
   getCompetition,
 } from "../../data/competitions";
 import { races } from "../../data/races";
+import { getMaximumRoundPoints } from "../../data/scoring";
 
 type CompetitionPageProps = {
   params: Promise<{
@@ -71,6 +72,42 @@ export default async function CompetitionPage({
             </span>
           </div>
 
+          <div className="mt-10 rounded-3xl border border-zinc-800 bg-zinc-950 p-8">
+            <p className="text-sm font-black uppercase tracking-[0.3em] text-orange-500">
+              Scoring
+            </p>
+
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-2xl border border-zinc-800 bg-black p-5">
+                <p className="text-sm text-zinc-500">1st Place</p>
+                <p className="mt-2 text-3xl font-black">25 pts</p>
+              </div>
+
+              <div className="rounded-2xl border border-zinc-800 bg-black p-5">
+                <p className="text-sm text-zinc-500">2nd Place</p>
+                <p className="mt-2 text-3xl font-black">22 pts</p>
+              </div>
+
+              <div className="rounded-2xl border border-zinc-800 bg-black p-5">
+                <p className="text-sm text-zinc-500">3rd Place</p>
+                <p className="mt-2 text-3xl font-black">20 pts</p>
+              </div>
+
+              <div className="rounded-2xl border border-orange-500/40 bg-orange-500/10 p-5">
+                <p className="text-sm text-orange-400">Wildcard</p>
+                <p className="mt-2 text-3xl font-black">25 pts</p>
+              </div>
+            </div>
+
+            {competition.discipline === "smx" && (
+              <p className="mt-6 text-zinc-400">
+                SMX Playoff 1 uses standard scoring, Playoff 2 uses a 1.5×
+                multiplier, and the SMX Final uses a 2× multiplier. Half-point
+                results are rounded up to the nearest whole point.
+              </p>
+            )}
+          </div>
+
           {competitionRaces.length > 0 ? (
             <div className="mt-12 grid gap-5">
               {competitionRaces.map((race) => (
@@ -92,6 +129,22 @@ export default async function CompetitionPage({
                     <p className="mt-2 text-zinc-400">
                       {race.location} • {race.raceDate}
                     </p>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <span className="rounded-full bg-zinc-900 px-3 py-1 text-xs font-bold text-zinc-300">
+                        {race.pointsMultiplier}× Multiplier
+                      </span>
+
+                      <span className="rounded-full bg-zinc-900 px-3 py-1 text-xs font-bold text-zinc-300">
+                        {getMaximumRoundPoints(race.pointsMultiplier)} Max Points
+                      </span>
+
+                      {race.estimated && (
+                        <span className="rounded-full bg-yellow-500/10 px-3 py-1 text-xs font-bold text-yellow-400">
+                          Estimated Schedule
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="md:text-right">
@@ -111,8 +164,7 @@ export default async function CompetitionPage({
               <h2 className="text-3xl font-black">Schedule coming soon</h2>
 
               <p className="mx-auto mt-4 max-w-xl text-zinc-400">
-                The official 2027 schedule has not been added yet. This page is
-                ready for the rounds once they are confirmed.
+                The official 2027 schedule has not been added yet.
               </p>
             </div>
           )}
