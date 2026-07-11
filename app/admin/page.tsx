@@ -48,7 +48,7 @@ export default async function AdminPage() {
       description:
         "Import, review and publish the confirmed 450 rider entry list.",
       status: "Not Imported",
-      href: "/admin/entries",
+      href: "/admin/entry-list",
     },
     {
       title: "Wildcard",

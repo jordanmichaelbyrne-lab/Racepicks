@@ -1,10 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Navbar from "../components/Navbar";
 import { races } from "../data/races";
-import { riders } from "../data/riders";
+import { createClient } from "../lib/supabase/client";
+
+type Rider = {
+  id: string;
+  full_name: string;
+  race_number: number | null;
+  team_name: string | null;
+};
 
 type PickKey = "first" | "second" | "third" | "wildcard";
 
@@ -12,6 +19,33 @@ type Picks = Record<PickKey, string>;
 
 export default function PicksPage() {
   const nextRace = races[0];
+  const picksLocked =
+  new Date(nextRace.pickLock).getTime() <= Date.now();
+  const supabase = createClient();
+  const [availableRiders, setAvailableRiders] = useState<Rider[]>([]);
+  useEffect(() => {
+  async function loadRiders() {
+    const { data } = await supabase
+  .from("event_entries")
+  .select(`
+    rider:riders (
+      id,
+      full_name,
+      race_number,
+      team_name
+    )
+  `)
+  .eq("confirmed", true);
+
+    if (data) {
+  setAvailableRiders(
+    data.map((entry) => entry.rider).filter(Boolean)
+  );
+}
+  }
+
+  loadRiders();
+}, []);
 
   const [picks, setPicks] = useState<Picks>({
     first: "",
@@ -115,6 +149,7 @@ export default function PicksPage() {
                   </div>
 
                   <select
+                    disabled={picksLocked}
                     value={picks[field.key]}
                     onChange={(event) =>
                       updatePick(field.key, event.target.value)
@@ -123,9 +158,9 @@ export default function PicksPage() {
                   >
                     <option value="">Select rider</option>
 
-                    {riders.map((rider) => (
-                      <option key={rider.id} value={rider.name}>
-                        #{rider.number} — {rider.name} — {rider.team}
+                    {availableRiders.map((rider) => (
+                      <option key={rider.id} value={rider.full_name}>
+                        #{rider.race_number} — {rider.full_name} — {rider.team_name}
                       </option>
                     ))}
                   </select>
@@ -142,14 +177,23 @@ export default function PicksPage() {
 
           <button
             type="button"
+disabled={picksLocked}
             onClick={submitPicks}
-            className="mt-8 w-full rounded-full bg-orange-500 px-10 py-5 text-xl font-black text-black transition hover:scale-[1.01] hover:bg-orange-400"
+            className={`mt-8 w-full rounded-full px-10 py-5 text-xl font-black transition ${
+  picksLocked
+    ? "cursor-not-allowed bg-zinc-700 text-zinc-400"
+    : "bg-orange-500 text-black hover:scale-[1.01] hover:bg-orange-400"
+}`}
           >
-            Submit Picks
+            {picksLocked ? "Picks Locked" : "Submit Picks"}
           </button>
 
           <p className="mt-5 text-center text-sm text-zinc-500">
-            Picks can be changed until the round closes.
+            <p className="mt-5 text-center text-sm text-zinc-500">
+  {picksLocked
+    ? `Picks locked at ${new Date(nextRace.pickLock).toLocaleString()}.`
+    : `Picks close ${new Date(nextRace.pickLock).toLocaleString()}.`}
+</p>
           </p>
         </section>
       </div>
