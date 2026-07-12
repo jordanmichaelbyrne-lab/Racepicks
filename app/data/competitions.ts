@@ -37,7 +37,7 @@ export const competitions: Competition[] = [
     id: "2027-smx",
     year: 2027,
     name: "2027 SuperMotocross World Championship",
-    shortName: "2027 SMX",
+    shortName: "2027 SMX Championship",
     discipline: "smx",
     status: "upcoming",
     roundCount: 3,
