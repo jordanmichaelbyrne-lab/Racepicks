@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import { createClient } from "../lib/supabase/client";
 
 export default function Navbar() {
   const router = useRouter();
-  const supabase = createClient();
+
+  const supabase = useMemo(() => createClient(), []);
 
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -16,10 +17,10 @@ export default function Navbar() {
   useEffect(() => {
     async function loadUser() {
       const {
-        data: { user },
+        data: { user: currentUser },
       } = await supabase.auth.getUser();
 
-      setUser(user);
+      setUser(currentUser);
       setIsLoading(false);
     }
 
@@ -50,6 +51,14 @@ export default function Navbar() {
     user?.email?.split("@")[0] ||
     "Account";
 
+  const initials = displayName
+    .split(" ")
+    .filter(Boolean)
+    .map((name) => name[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
     <nav className="flex items-center justify-between gap-6 py-2">
       <Link
@@ -64,7 +73,10 @@ export default function Navbar() {
           Next Race
         </Link>
 
-        <Link href="/leaderboard" className="transition hover:text-white">
+        <Link
+          href="/leaderboard"
+          className="transition hover:text-white"
+        >
           Leaderboard
         </Link>
 
@@ -83,9 +95,16 @@ export default function Navbar() {
         <div className="flex items-center gap-3">
           <Link
             href="/account"
-            className="hidden text-sm font-bold text-zinc-300 transition hover:text-white sm:block"
+            aria-label="Open player dashboard"
+            className="flex items-center gap-3 rounded-full transition hover:opacity-80"
           >
-            {displayName}
+            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-orange-500 bg-orange-500/10 text-sm font-black text-orange-400">
+              {initials}
+            </div>
+
+            <span className="hidden text-sm font-bold text-zinc-300 sm:block">
+              {displayName}
+            </span>
           </Link>
 
           <button
