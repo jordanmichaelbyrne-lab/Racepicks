@@ -1,7 +1,8 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useState } from "react";
 import { savePicks } from "./actions";
+import RiderPicker from "./RiderPicker";
 
 type Rider = {
   id: string;
@@ -38,17 +39,6 @@ export default function PicksForm({
   const [isSuccess, setIsSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const sortedRiders = useMemo(
-    () =>
-      [...riders].sort((firstRider, secondRider) => {
-        const firstNumber = firstRider.race_number ?? 9999;
-        const secondNumber = secondRider.race_number ?? 9999;
-
-        return firstNumber - secondNumber;
-      }),
-    [riders]
-  );
-
   function updatePick(position: PickKey, riderId: string) {
     setMessage("");
     setIsSuccess(false);
@@ -59,18 +49,13 @@ export default function PicksForm({
     }));
   }
 
-  function isRiderUsedElsewhere(
-    position: PickKey,
-    riderId: string
-  ) {
-    if (!riderId) {
-      return false;
-    }
-
-    return Object.entries(picks).some(
-      ([pickPosition, selectedRiderId]) =>
-        pickPosition !== position && selectedRiderId === riderId
-    );
+  function getUnavailableRiderIds(position: PickKey) {
+    return Object.entries(picks)
+      .filter(
+        ([pickPosition, riderId]) =>
+          pickPosition !== position && Boolean(riderId)
+      )
+      .map(([, riderId]) => riderId);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -168,32 +153,16 @@ export default function PicksForm({
             </span>
           </div>
 
-          <select
-            required
-            value={picks[section.key]}
-            onChange={(event) =>
-              updatePick(section.key, event.target.value)
+          <RiderPicker
+            riders={riders}
+            selectedRiderId={picks[section.key]}
+            unavailableRiderIds={getUnavailableRiderIds(
+              section.key
+            )}
+            onSelect={(riderId) =>
+              updatePick(section.key, riderId)
             }
-            className="mt-5 w-full rounded-2xl border border-zinc-700 bg-black px-4 py-4 text-white outline-none transition focus:border-orange-500"
-          >
-            <option value="">Select a rider</option>
-
-            {sortedRiders.map((rider) => (
-              <option
-                key={rider.id}
-                value={rider.id}
-                disabled={isRiderUsedElsewhere(
-                  section.key,
-                  rider.id
-                )}
-              >
-                #{rider.race_number ?? "—"} — {rider.full_name}
-                {rider.manufacturer
-                  ? ` — ${rider.manufacturer}`
-                  : ""}
-              </option>
-            ))}
-          </select>
+          />
         </div>
       ))}
 
