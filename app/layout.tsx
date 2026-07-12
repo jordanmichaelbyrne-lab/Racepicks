@@ -14,33 +14,24 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Racepicks.",
-
   description:
-    "Australia's Supercross and Motocross tipping competition.",
+    "Australia's Supercross, Motocross and SMX tipping competition.",
 
   openGraph: {
     title: "Racepicks.",
     description:
-      "Australia's Supercross and Motocross tipping competition.",
+      "Australia's Supercross, Motocross and SMX tipping competition.",
     url: "https://racepicks.app",
     siteName: "Racepicks.",
-    images: [
-      {
-        url: "/images/share.jpg",
-        width: 1200,
-        height: 630,
-      },
-    ],
     locale: "en_AU",
     type: "website",
   },
 
   twitter: {
-    card: "summary_large_image",
+    card: "summary",
     title: "Racepicks.",
     description:
-      "Australia's Supercross and Motocross tipping competition.",
-    images: ["/images/share.jpg"],
+      "Australia's Supercross, Motocross and SMX tipping competition.",
   },
 };
 
