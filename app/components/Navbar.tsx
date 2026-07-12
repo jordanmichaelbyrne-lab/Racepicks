@@ -8,7 +8,6 @@ import { createClient } from "../lib/supabase/client";
 
 export default function Navbar() {
   const router = useRouter();
-
   const supabase = useMemo(() => createClient(), []);
 
   const [user, setUser] = useState<User | null>(null);
@@ -47,24 +46,24 @@ export default function Navbar() {
   }
 
   const displayName: string =
-  typeof user?.user_metadata?.display_name === "string" &&
-  user.user_metadata.display_name.trim()
-    ? user.user_metadata.display_name
-    : user?.email?.split("@")[0] || "Account";
+    typeof user?.user_metadata?.display_name === "string" &&
+    user.user_metadata.display_name.trim()
+      ? user.user_metadata.display_name
+      : user?.email?.split("@")[0] || "Account";
 
   const initials = displayName
     .split(" ")
     .filter(Boolean)
-    .map((name) => name[0])
+    .map((name: string) => name[0])
     .join("")
     .slice(0, 2)
     .toUpperCase();
 
   return (
-    <nav className="flex items-center justify-between gap-6 py-2">
+    <nav className="flex w-full items-center justify-between gap-3 py-2">
       <Link
         href="/"
-        className="text-3xl font-black tracking-tight text-white"
+        className="shrink-0 text-2xl font-black tracking-tight text-white sm:text-3xl"
       >
         Racepicks
       </Link>
@@ -91,19 +90,20 @@ export default function Navbar() {
       </div>
 
       {isLoading ? (
-        <div className="h-10 w-24 rounded-full border border-zinc-800" />
+        <div className="h-10 w-10 shrink-0 rounded-full border border-zinc-800" />
       ) : user ? (
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <Link
             href="/account"
             aria-label="Open player dashboard"
-            className="flex items-center gap-3 rounded-full transition hover:opacity-80"
+            title="Player dashboard"
+            className="flex shrink-0 items-center gap-3 rounded-full transition hover:opacity-80"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-orange-500 bg-orange-500/10 text-sm font-black text-orange-400">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-orange-500 bg-orange-500/10 text-sm font-black text-orange-400">
               {initials}
             </div>
 
-            <span className="hidden text-sm font-bold text-zinc-300 sm:block">
+            <span className="hidden text-sm font-bold text-zinc-300 lg:block">
               {displayName}
             </span>
           </Link>
@@ -111,13 +111,14 @@ export default function Navbar() {
           <button
             type="button"
             onClick={handleSignOut}
-            className="rounded-full border border-zinc-700 px-5 py-2 text-sm font-bold text-white transition hover:bg-zinc-900"
+            className="shrink-0 rounded-full border border-zinc-700 px-3 py-2 text-xs font-bold text-white transition hover:bg-zinc-900 sm:px-5 sm:text-sm"
           >
-            Sign Out
+            <span className="sm:hidden">Out</span>
+            <span className="hidden sm:inline">Sign Out</span>
           </button>
         </div>
       ) : (
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <Link
             href="/signup"
             className="hidden text-sm font-bold text-zinc-300 transition hover:text-white sm:block"
@@ -127,7 +128,7 @@ export default function Navbar() {
 
           <Link
             href="/login"
-            className="rounded-full border border-zinc-700 px-5 py-2 text-sm font-bold text-white transition hover:bg-zinc-900"
+            className="rounded-full border border-zinc-700 px-4 py-2 text-sm font-bold text-white transition hover:bg-zinc-900 sm:px-5"
           >
             Sign In
           </Link>
