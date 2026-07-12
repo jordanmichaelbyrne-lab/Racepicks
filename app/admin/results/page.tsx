@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
-import { saveResults } from "./actions";
+import { saveResults, scoreEvent } from "./actions";
 
 type Event = {
   id: string;
@@ -33,6 +33,7 @@ type PageProps = {
   searchParams: Promise<{
     event?: string;
     saved?: string;
+    scored?: string;
   }>;
 };
 
@@ -200,6 +201,11 @@ export default async function AdminResultsPage({
         {params.saved === "true" && (
           <div className="mt-8 rounded-xl border border-green-900 bg-green-950/40 px-5 py-4 text-sm font-semibold text-green-400">
             Results saved successfully.
+            {params.scored === "true" && (
+  <div className="mt-8 rounded-xl border border-orange-900 bg-orange-950/40 px-5 py-4 text-sm font-semibold text-orange-400">
+    Round scored successfully. The leaderboard has been updated.
+  </div>
+)}
           </div>
         )}
 
@@ -277,52 +283,68 @@ export default async function AdminResultsPage({
                     </p>
                   </div>
                 ) : (
-                  <form action={saveResults} className="mt-8 space-y-5">
-                    <input
-                      type="hidden"
-                      name="event_id"
-                      value={selectedEvent.id}
-                    />
+  <>
+    <form action={saveResults} className="mt-8 space-y-5">
+      <input
+        type="hidden"
+        name="event_id"
+        value={selectedEvent.id}
+      />
 
-                    {resultFields.map((field) => (
-                      <div key={field.name}>
-                        <label
-                          htmlFor={field.name}
-                          className="text-xs font-semibold uppercase tracking-widest text-neutral-400"
-                        >
-                          {field.label}
-                        </label>
+      {resultFields.map((field) => (
+        <div key={field.name}>
+          <label
+            htmlFor={field.name}
+            className="text-xs font-semibold uppercase tracking-widest text-neutral-400"
+          >
+            {field.label}
+          </label>
 
-                        <select
-                          id={field.name}
-                          name={field.name}
-                          required
-                          defaultValue={field.value}
-                          className="mt-2 w-full rounded-xl border border-neutral-700 bg-neutral-900 px-4 py-4 text-lg font-bold outline-none transition focus:border-orange-500"
-                        >
-                          <option value="">Select rider</option>
+          <select
+            id={field.name}
+            name={field.name}
+            required
+            defaultValue={field.value}
+            className="mt-2 w-full rounded-xl border border-neutral-700 bg-neutral-900 px-4 py-4 text-lg font-bold outline-none transition focus:border-orange-500"
+          >
+            <option value="">Select rider</option>
 
-                          {riders.map((rider) => (
-                            <option key={rider.id} value={rider.id}>
-                              #{rider.race_number ?? "—"} —{" "}
-                              {rider.full_name}
-                              {rider.team_name
-                                ? ` — ${rider.team_name}`
-                                : ""}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    ))}
+            {riders.map((rider) => (
+              <option key={rider.id} value={rider.id}>
+                #{rider.race_number ?? "—"} — {rider.full_name}
+                {rider.team_name ? ` — ${rider.team_name}` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+      ))}
 
-                    <button
-                      type="submit"
-                      className="w-full rounded-xl bg-orange-500 px-7 py-4 font-black uppercase text-black transition hover:bg-orange-400"
-                    >
-                      Publish Results
-                    </button>
-                  </form>
-                )}
+      <button
+        type="submit"
+        className="w-full rounded-xl bg-orange-500 px-7 py-4 font-black uppercase text-black transition hover:bg-orange-400"
+      >
+        Publish Results
+      </button>
+    </form>
+
+    {existingResult && (
+      <form action={scoreEvent} className="mt-4">
+        <input
+          type="hidden"
+          name="event_id"
+          value={selectedEvent.id}
+        />
+
+        <button
+          type="submit"
+          className="w-full rounded-xl border border-orange-500 px-7 py-4 font-black uppercase text-orange-500 transition hover:bg-orange-500 hover:text-black"
+        >
+          Calculate Scores
+        </button>
+      </form>
+    )}
+  </>
+)}
               </section>
             )}
           </>
