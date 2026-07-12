@@ -50,12 +50,23 @@ export default async function LeaderboardPage() {
     return (
       <main className="min-h-screen bg-neutral-950 px-4 py-12 text-white">
         <div className="mx-auto max-w-5xl">
-          <h1 className="text-4xl font-black uppercase">Leaderboard</h1>
+
+          <Link
+            href="/"
+            className="mb-8 inline-block text-sm font-bold text-neutral-400 transition hover:text-orange-500"
+          >
+            ← Back to Race Centre
+          </Link>
+
+          <h1 className="text-4xl font-black uppercase">
+            Leaderboard
+          </h1>
 
           <div className="mt-8 rounded-2xl border border-red-900 bg-red-950/40 p-6">
             <p className="font-semibold text-red-300">
               The leaderboard could not be loaded.
             </p>
+
             <p className="mt-2 text-sm text-red-400">
               Check the server terminal for the Supabase error.
             </p>
@@ -71,6 +82,14 @@ export default async function LeaderboardPage() {
   return (
     <main className="min-h-screen bg-neutral-950 px-4 py-12 text-white sm:px-6">
       <div className="mx-auto max-w-5xl">
+
+        <Link
+          href="/"
+          className="mb-8 inline-block text-sm font-bold text-neutral-400 transition hover:text-orange-500"
+        >
+          ← Back to Race Centre
+        </Link>
+
         <div className="mb-8">
           <p className="mb-2 text-xs font-semibold uppercase tracking-[0.3em] text-orange-500">
             2027 Championship
@@ -111,13 +130,17 @@ export default async function LeaderboardPage() {
               Players
             </p>
 
-            <p className="mt-2 text-xl font-bold">{leaderboard.length}</p>
+            <p className="mt-2 text-xl font-bold">
+              {leaderboard.length}
+            </p>
           </div>
         </div>
 
         {leaderboard.length === 0 ? (
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-8 text-center">
-            <h2 className="text-xl font-bold">No players yet</h2>
+            <h2 className="text-xl font-bold">
+              No players yet
+            </h2>
 
             <p className="mt-2 text-sm text-neutral-400">
               Player profiles will appear here after users sign up.
