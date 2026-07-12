@@ -21,14 +21,15 @@ export default function SignUpPage() {
     setIsSubmitting(true);
 
     const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          display_name: displayName,
-        },
-      },
-    });
+  email,
+  password,
+  options: {
+    data: {
+      display_name: displayName,
+    },
+    emailRedirectTo: `${window.location.origin}/login`,
+  },
+});
 
     if (error) {
       setMessage(error.message);
