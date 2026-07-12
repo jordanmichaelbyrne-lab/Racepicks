@@ -1,319 +1,198 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import Navbar from "../components/Navbar";
-import { races } from "../data/races";
-import { createClient } from "../lib/supabase/client";
+import { createClient } from "../lib/supabase/server";
+import PicksForm from "./PicksForm";
 
 type Rider = {
   id: string;
   full_name: string;
   race_number: number | null;
   team_name: string | null;
+  manufacturer: string | null;
 };
 
-type EventEntryRow = {
+type EventEntry = {
   rider: Rider | Rider[] | null;
 };
 
-type PickKey = "first" | "second" | "third" | "wildcard";
+export default async function PicksPage() {
+  const supabase = await createClient();
 
-type Picks = Record<PickKey, string>;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-export default function PicksPage() {
-  const nextRace = races[0];
-
-  const [availableRiders, setAvailableRiders] = useState<Rider[]>([]);
-  const [loadingRiders, setLoadingRiders] = useState(true);
-
-  const [timeRemaining, setTimeRemaining] = useState("");
-  const [picksLocked, setPicksLocked] = useState(false);
-
-  const [picks, setPicks] = useState<Picks>({
-    first: "",
-    second: "",
-    third: "",
-    wildcard: "",
-  });
-
-  const [message, setMessage] = useState("");
-
-  useEffect(() => {
-    async function loadRiders() {
-      const supabase = createClient();
-
-      const { data, error } = await supabase
-        .from("event_entries")
-        .select(`
-          rider:riders (
-            id,
-            full_name,
-            race_number,
-            team_name
-          )
-        `)
-        .eq("confirmed", true);
-
-      if (error) {
-        console.error("Could not load entry-list riders:", error);
-        setMessage("Could not load the rider list. Please refresh the page.");
-        setLoadingRiders(false);
-        return;
-      }
-
-      const rows = (data ?? []) as EventEntryRow[];
-
-      const riders = rows
-        .flatMap((entry) => {
-          if (Array.isArray(entry.rider)) {
-            return entry.rider;
-          }
-
-          return entry.rider ? [entry.rider] : [];
-        })
-        .filter(
-          (rider, index, allRiders) =>
-            allRiders.findIndex((item) => item.id === rider.id) === index
-        )
-        .sort((a, b) => {
-          const numberA = a.race_number ?? Number.MAX_SAFE_INTEGER;
-          const numberB = b.race_number ?? Number.MAX_SAFE_INTEGER;
-
-          if (numberA !== numberB) {
-            return numberA - numberB;
-          }
-
-          return a.full_name.localeCompare(b.full_name);
-        });
-
-      setAvailableRiders(riders);
-      setLoadingRiders(false);
-    }
-
-    loadRiders();
-  }, []);
-
-  useEffect(() => {
-    function updateCountdown() {
-      const lockDate = new Date(nextRace.pickLock);
-      const difference = lockDate.getTime() - Date.now();
-
-      if (difference <= 0) {
-        setPicksLocked(true);
-        setTimeRemaining("Locked");
-        return;
-      }
-
-      setPicksLocked(false);
-
-      const days = Math.floor(
-        difference / (1000 * 60 * 60 * 24)
-      );
-
-      const hours = Math.floor(
-        (difference / (1000 * 60 * 60)) % 24
-      );
-
-      const minutes = Math.floor(
-        (difference / (1000 * 60)) % 60
-      );
-
-      setTimeRemaining(`${days}d ${hours}h ${minutes}m`);
-    }
-
-    updateCountdown();
-
-    const interval = window.setInterval(updateCountdown, 60000);
-
-    return () => {
-      window.clearInterval(interval);
-    };
-  }, [nextRace.pickLock]);
-
-  function updatePick(key: PickKey, riderId: string) {
-    if (picksLocked) {
-      return;
-    }
-
-    setPicks((current) => ({
-      ...current,
-      [key]: riderId,
-    }));
-
-    setMessage("");
+  if (!user) {
+    redirect("/login");
   }
 
-  function submitPicks() {
-    if (picksLocked) {
-      setMessage("Picks are locked for this round.");
-      return;
-    }
+  // Find the next event currently open for picks.
+  const { data: currentEvent, error: eventError } = await supabase
+    .from("events")
+    .select(
+      `
+        id,
+        series,
+        season,
+        round_number,
+        venue,
+        status,
+        race_date,
+        wildcard_position,
+        points_multiplier
+      `
+    )
+    .eq("status", "open")
+    .order("race_date", { ascending: true })
+    .limit(1)
+    .maybeSingle();
 
-    const selectedRiders = Object.values(picks);
+  if (eventError) {
+    throw new Error(eventError.message);
+  }
 
-    if (selectedRiders.some((riderId) => riderId === "")) {
-      setMessage("Please select a rider for every position.");
-      return;
-    }
+  if (!currentEvent) {
+    return (
+      <main className="min-h-screen bg-black text-white">
+        <div className="mx-auto max-w-7xl px-6 py-8">
+          <Navbar />
 
-    if (new Set(selectedRiders).size !== selectedRiders.length) {
-      setMessage("Each rider can only be selected once.");
-      return;
-    }
+          <section className="mx-auto max-w-3xl py-20 text-center">
+            <p className="text-sm font-black uppercase tracking-[0.35em] text-orange-500">
+              Racepicks
+            </p>
 
-    setMessage(
-      "Picks look good. Saving them to your account comes next."
+            <h1 className="mt-4 text-5xl font-black">
+              Picks are currently closed
+            </h1>
+
+            <p className="mt-5 text-lg text-zinc-400">
+              The next event will appear here when picks go live.
+            </p>
+
+            <Link
+              href="/"
+              className="mt-8 inline-block rounded-full border border-zinc-700 px-7 py-3 font-black transition hover:border-orange-500"
+            >
+              Back to Homepage
+            </Link>
+          </section>
+        </div>
+      </main>
     );
   }
 
-  const pickFields: {
-    key: PickKey;
-    label: string;
-    description: string;
-  }[] = [
-    {
-      key: "first",
-      label: "1st Place",
-      description: "Choose the rider you think will win.",
-    },
-    {
-      key: "second",
-      label: "2nd Place",
-      description: "Choose the rider you think will finish second.",
-    },
-    {
-      key: "third",
-      label: "3rd Place",
-      description: "Choose the rider you think will finish third.",
-    },
-    {
-      key: "wildcard",
-      label: `Wildcard — ${nextRace.wildcardPosition}th Place`,
-      description: `Choose the rider you think will finish ${nextRace.wildcardPosition}th.`,
-    },
-  ];
+  // Load the confirmed riders for this exact event.
+  const { data: entryData, error: entriesError } = await supabase
+    .from("event_entries")
+    .select(
+      `
+        rider:riders (
+          id,
+          full_name,
+          race_number,
+          team_name,
+          manufacturer
+        )
+      `
+    )
+    .eq("event_id", currentEvent.id)
+    .eq("confirmed", true);
+
+  if (entriesError) {
+    throw new Error(entriesError.message);
+  }
+
+  const entries = (entryData ?? []) as EventEntry[];
+
+  const riders: Rider[] = entries
+    .map((entry) => {
+      if (Array.isArray(entry.rider)) {
+        return entry.rider[0] ?? null;
+      }
+
+      return entry.rider;
+    })
+    .filter((rider): rider is Rider => Boolean(rider))
+    .sort((firstRider, secondRider) => {
+      const firstNumber = firstRider.race_number ?? 9999;
+      const secondNumber = secondRider.race_number ?? 9999;
+
+      return firstNumber - secondNumber;
+    });
+
+  const wildcardPosition = currentEvent.wildcard_position;
+  const pointsMultiplier = Number(currentEvent.points_multiplier ?? 1);
 
   return (
     <main className="min-h-screen bg-black text-white">
       <div className="mx-auto max-w-7xl px-6 py-8">
         <Navbar />
 
-        <section className="mx-auto max-w-4xl py-16">
-          <Link
-            href="/"
-            className="text-sm font-bold text-zinc-400 transition hover:text-white"
-          >
-            ← Back to next race
-          </Link>
-
-          <p className="mt-10 text-sm font-black uppercase tracking-[0.4em] text-orange-500">
-            Round {nextRace.round}
+        <section className="mx-auto max-w-3xl py-14">
+          <p className="text-sm font-black uppercase tracking-[0.35em] text-orange-500">
+            Enter Picks
           </p>
 
-          <h1 className="mt-4 text-5xl font-black tracking-tight md:text-7xl">
-            Enter Your Picks
+          <h1 className="mt-4 text-5xl font-black uppercase tracking-tight md:text-7xl">
+            {currentEvent.venue}
           </h1>
 
-          <p className="mt-4 text-xl text-zinc-400">
-            {nextRace.name} • {nextRace.location}
+          <p className="mt-4 text-lg text-zinc-400">
+            {currentEvent.season} {currentEvent.series} • Round{" "}
+            {currentEvent.round_number}
           </p>
 
-          <div className="mt-8 rounded-3xl border border-orange-500/30 bg-orange-500/10 p-6 text-center">
-            <p className="text-sm font-bold uppercase tracking-widest text-orange-500">
-              Picks Close
-            </p>
+          <div className="mt-8 grid gap-4 sm:grid-cols-3">
+            <div className="rounded-3xl border border-zinc-800 bg-zinc-950 p-6">
+              <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
+                Riders Available
+              </p>
 
-            <h2 className="mt-2 text-4xl font-black">
-              {timeRemaining || "Loading..."}
-            </h2>
+              <p className="mt-3 text-4xl font-black">{riders.length}</p>
+            </div>
 
-            <p className="mt-3 text-zinc-400">
-              {nextRace.pickLockDisplay}
-            </p>
-          </div>
+            <div className="rounded-3xl border border-orange-500/40 bg-orange-500/10 p-6">
+              <p className="text-xs font-bold uppercase tracking-widest text-orange-400">
+                Wildcard
+              </p>
 
-          {loadingRiders ? (
-            <div className="mt-10 rounded-3xl border border-zinc-800 bg-zinc-950 p-8 text-center">
-              <p className="font-bold text-zinc-300">
-                Loading the rider list...
+              <p className="mt-3 text-4xl font-black">
+                {wildcardPosition
+                  ? `${wildcardPosition}th`
+                  : "Pending"}
               </p>
             </div>
-          ) : availableRiders.length === 0 ? (
-            <div className="mt-10 rounded-3xl border border-zinc-800 bg-zinc-950 p-8 text-center">
-              <h2 className="text-2xl font-black">
-                Rider list coming soon
+
+            <div className="rounded-3xl border border-zinc-800 bg-zinc-950 p-6">
+              <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
+                Multiplier
+              </p>
+
+              <p className="mt-3 text-4xl font-black">
+                {pointsMultiplier}×
+              </p>
+            </div>
+          </div>
+
+          {riders.length >= 4 && wildcardPosition ? (
+            <PicksForm
+  eventId={currentEvent.id}
+  riders={riders}
+  wildcardPosition={wildcardPosition}
+/>
+          ) : (
+            <div className="mt-10 rounded-3xl border border-yellow-500/30 bg-yellow-500/10 p-8 text-center">
+              <h2 className="text-2xl font-black text-yellow-300">
+                Entry list not ready
               </h2>
 
               <p className="mt-3 text-zinc-400">
-                The confirmed gate has not been published yet.
+                At least four confirmed riders and a wildcard position are
+                required before players can submit picks.
               </p>
             </div>
-          ) : (
-            <>
-              <div className="mt-10 space-y-5">
-                {pickFields.map((field) => (
-                  <div
-                    key={field.key}
-                    className="rounded-3xl border border-zinc-800 bg-zinc-950 p-6"
-                  >
-                    <div className="grid gap-5 md:grid-cols-[1fr_1.2fr] md:items-center">
-                      <div>
-                        <h2 className="text-2xl font-black">
-                          {field.label}
-                        </h2>
-
-                        <p className="mt-2 text-zinc-400">
-                          {field.description}
-                        </p>
-                      </div>
-
-                      <select
-                        disabled={picksLocked}
-                        value={picks[field.key]}
-                        onChange={(event) =>
-                          updatePick(field.key, event.target.value)
-                        }
-                        className="w-full rounded-2xl border border-zinc-700 bg-black px-5 py-4 text-lg font-bold text-white outline-none transition focus:border-orange-500 disabled:cursor-not-allowed disabled:border-zinc-800 disabled:bg-zinc-900 disabled:text-zinc-500"
-                      >
-                        <option value="">Select rider</option>
-
-                        {availableRiders.map((rider) => (
-                          <option key={rider.id} value={rider.id}>
-                            #{rider.race_number ?? "—"} —{" "}
-                            {rider.full_name}
-                            {rider.team_name
-                              ? ` — ${rider.team_name}`
-                              : ""}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {message && (
-                <div className="mt-6 rounded-2xl border border-orange-500/40 bg-orange-500/10 px-5 py-4 text-center font-bold text-orange-300">
-                  {message}
-                </div>
-              )}
-
-              <button
-                type="button"
-                disabled={picksLocked}
-                onClick={submitPicks}
-                className="mt-8 w-full rounded-full bg-orange-500 px-10 py-5 text-xl font-black text-black transition hover:scale-[1.01] hover:bg-orange-400 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400 disabled:hover:scale-100"
-              >
-                {picksLocked ? "Picks Locked" : "Submit Picks"}
-              </button>
-
-              <p className="mt-5 text-center text-sm text-zinc-500">
-                {picksLocked
-                  ? "Picks are locked for this round."
-                  : "Picks can be changed until the lock time shown above."}
-              </p>
-            </>
           )}
         </section>
       </div>
