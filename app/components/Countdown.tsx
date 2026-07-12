@@ -16,10 +16,9 @@ export default function Countdown({ targetDate }: CountdownProps) {
   });
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      const now = new Date().getTime();
+    function updateCountdown() {
+      const now = Date.now();
       const target = new Date(targetDate).getTime();
-
       const difference = target - now;
 
       if (difference <= 0) {
@@ -31,8 +30,7 @@ export default function Countdown({ targetDate }: CountdownProps) {
           expired: true,
         });
 
-        clearInterval(timer);
-        return;
+        return false;
       }
 
       setTimeLeft({
@@ -42,50 +40,56 @@ export default function Countdown({ targetDate }: CountdownProps) {
         seconds: Math.floor((difference / 1000) % 60),
         expired: false,
       });
+
+      return true;
+    }
+
+    updateCountdown();
+
+    const timer = window.setInterval(() => {
+      const shouldContinue = updateCountdown();
+
+      if (!shouldContinue) {
+        window.clearInterval(timer);
+      }
     }, 1000);
 
-    return () => clearInterval(timer);
+    return () => window.clearInterval(timer);
   }, [targetDate]);
 
   if (timeLeft.expired) {
     return (
-      <p className="text-2xl font-black text-red-500">
-        PICKS CLOSED
-      </p>
+      <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-4 text-center">
+        <p className="text-xl font-black uppercase tracking-widest text-red-400 sm:text-2xl">
+          Picks Closed
+        </p>
+      </div>
     );
   }
 
+  const countdownItems = [
+    { label: "Days", value: timeLeft.days },
+    { label: "Hours", value: timeLeft.hours },
+    { label: "Minutes", value: timeLeft.minutes },
+    { label: "Seconds", value: timeLeft.seconds },
+  ];
+
   return (
-    <div className="grid grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+      {countdownItems.map((item) => (
+        <div
+          key={item.label}
+          className="rounded-2xl border border-white/10 bg-black/35 px-3 py-4 text-center backdrop-blur sm:px-4 sm:py-5"
+        >
+          <p className="text-3xl font-black tabular-nums sm:text-4xl lg:text-5xl">
+            {String(item.value).padStart(2, "0")}
+          </p>
 
-      <div>
-        <p className="text-5xl font-black">{timeLeft.days}</p>
-        <p className="text-xs uppercase tracking-widest text-zinc-500">
-          Days
-        </p>
-      </div>
-
-      <div>
-        <p className="text-5xl font-black">{timeLeft.hours}</p>
-        <p className="text-xs uppercase tracking-widest text-zinc-500">
-          Hours
-        </p>
-      </div>
-
-      <div>
-        <p className="text-5xl font-black">{timeLeft.minutes}</p>
-        <p className="text-xs uppercase tracking-widest text-zinc-500">
-          Minutes
-        </p>
-      </div>
-
-      <div>
-        <p className="text-5xl font-black">{timeLeft.seconds}</p>
-        <p className="text-xs uppercase tracking-widest text-zinc-500">
-          Seconds
-        </p>
-      </div>
-
+          <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-500 sm:text-xs">
+            {item.label}
+          </p>
+        </div>
+      ))}
     </div>
   );
 }
