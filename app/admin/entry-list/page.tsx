@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
-import { saveEventEntries } from "./actions";
+import {
+  importRacerXEntryList,
+  saveEventEntries,
+} from "./actions";
 
 type Event = {
   id: string;
@@ -27,6 +30,8 @@ type PageProps = {
   searchParams: Promise<{
     event?: string;
     saved?: string;
+    imported?: string;
+    importError?: string;
   }>;
 };
 
@@ -147,6 +152,18 @@ export default async function EntryListPage({
             Entry list saved successfully.
           </div>
         )}
+        {params.imported && (
+  <div className="mt-8 rounded-xl border border-green-900 bg-green-950/40 px-5 py-4 text-sm font-semibold text-green-400">
+    Racer X import completed successfully. {params.imported} riders were
+    imported and selected for this event.
+  </div>
+)}
+
+{params.importError && (
+  <div className="mt-8 rounded-xl border border-red-900 bg-red-950/40 px-5 py-4 text-sm font-semibold text-red-400">
+    Import failed: {params.importError}
+  </div>
+)}
 
         {events.length === 0 ? (
           <section className="mt-10 rounded-2xl border border-neutral-800 bg-neutral-950 p-10 text-center">
@@ -196,6 +213,47 @@ export default async function EntryListPage({
 
             {selectedEvent && (
               <section className="mt-8">
+                <form
+  action={importRacerXEntryList}
+  className="mb-8 rounded-2xl border border-neutral-800 bg-neutral-950 p-6"
+>
+  <input
+    type="hidden"
+    name="event_id"
+    value={selectedEvent.id}
+  />
+
+  <label
+    htmlFor="entry_list_url"
+    className="text-xs font-semibold uppercase tracking-widest text-neutral-400"
+  >
+    Racer X Entry List URL
+  </label>
+
+  <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+    <input
+      id="entry_list_url"
+      name="entry_list_url"
+      type="url"
+      required
+      placeholder="https://racerxonline.com/mx/2026/southwick/450/entry-list"
+      className="min-w-0 flex-1 rounded-xl border border-neutral-700 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-orange-500"
+    />
+
+    <button
+      type="submit"
+      className="rounded-xl bg-orange-500 px-7 py-3 font-black uppercase text-black transition hover:bg-orange-400"
+    >
+      Import Entry List
+    </button>
+  </div>
+
+  <p className="mt-3 text-sm text-neutral-500">
+    This will update the master rider database and replace the selected
+    event’s current confirmed entry list. Review the riders before
+    publishing.
+  </p>
+</form>
                 <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-widest text-orange-500">
