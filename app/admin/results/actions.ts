@@ -159,9 +159,7 @@ export async function scoreEvent(formData: FormData) {
       second_points: secondPoints,
       third_points: thirdPoints,
       wildcard_points: wildcardPoints,
-      round_points:
-        firstPoints + secondPoints + thirdPoints + wildcardPoints,
-      created_at: new Date().toISOString(),
+      
     };
   });
 
