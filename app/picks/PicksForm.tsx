@@ -16,25 +16,24 @@ type PicksFormProps = {
   eventId: string;
   riders: Rider[];
   wildcardPosition: number;
+  initialPicks: Picks;
+  hasSavedPicks: boolean;
 };
 
 type PickKey = "first" | "second" | "third" | "wildcard";
 
 type Picks = Record<PickKey, string>;
 
-const emptyPicks: Picks = {
-  first: "",
-  second: "",
-  third: "",
-  wildcard: "",
-};
+
 
 export default function PicksForm({
   eventId,
   riders,
   wildcardPosition,
+  initialPicks,
+  hasSavedPicks,
 }: PicksFormProps) {
-  const [picks, setPicks] = useState<Picks>(emptyPicks);
+  const [picks, setPicks] = useState<Picks>(initialPicks);
   const [message, setMessage] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -240,7 +239,7 @@ export default function PicksForm({
           type="submit"
           className="w-full rounded-full bg-orange-500 px-8 py-4 text-lg font-black text-black transition hover:bg-orange-400"
         >
-          Review My Picks
+          {hasSavedPicks ? "Review Updated Picks" : "Review My Picks"}
         </button>
       </form>
 
@@ -322,7 +321,11 @@ export default function PicksForm({
                 onClick={handleConfirmPicks}
                 className="rounded-full bg-orange-500 px-7 py-4 font-black text-black transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {isSubmitting ? "Saving Picks..." : "I’m Locked In"}
+                {isSubmitting
+  ? "Saving Picks..."
+  : hasSavedPicks
+    ? "Update My Picks"
+    : "I’m Locked In"}
               </button>
             </div>
           </div>

@@ -125,6 +125,31 @@ export default async function PicksPage() {
   const wildcardPosition = currentEvent.wildcard_position;
   const pointsMultiplier = Number(currentEvent.points_multiplier ?? 1);
 
+  const { data: savedPicks, error: savedPicksError } = await supabase
+  .from("picks")
+  .select(
+    `
+      first_rider_id,
+      second_rider_id,
+      third_rider_id,
+      wildcard_rider_id,
+      updated_at
+    `
+  )
+  .eq("user_id", user.id)
+  .eq("event_id", currentEvent.id)
+  .maybeSingle();
+
+if (savedPicksError) {
+  throw new Error(savedPicksError.message);
+}
+const initialPicks = {
+  first: savedPicks?.first_rider_id ?? "",
+  second: savedPicks?.second_rider_id ?? "",
+  third: savedPicks?.third_rider_id ?? "",
+  wildcard: savedPicks?.wildcard_rider_id ?? "",
+};
+
   return (
     <main className="min-h-screen bg-black text-white">
       <div className="mx-auto max-w-7xl px-6 py-8">
@@ -181,7 +206,10 @@ export default async function PicksPage() {
   eventId={currentEvent.id}
   riders={riders}
   wildcardPosition={wildcardPosition}
+  initialPicks={initialPicks}
+  hasSavedPicks={Boolean(savedPicks)}
 />
+
           ) : (
             <div className="mt-10 rounded-3xl border border-yellow-500/30 bg-yellow-500/10 p-8 text-center">
               <h2 className="text-2xl font-black text-yellow-300">
