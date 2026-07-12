@@ -31,18 +31,19 @@ export default async function PicksPage() {
   const { data: currentEvent, error: eventError } = await supabase
     .from("events")
     .select(
-      `
-        id,
-        series,
-        season,
-        round_number,
-        venue,
-        status,
-        race_date,
-        wildcard_position,
-        points_multiplier
-      `
-    )
+  `
+    id,
+    series,
+    season,
+    round_number,
+    venue,
+    status,
+    race_date,
+    picks_close_at,
+    wildcard_position,
+    points_multiplier
+  `
+)
     .eq("status", "open")
     .order("race_date", { ascending: true })
     .limit(1)
@@ -202,10 +203,11 @@ const initialPicks = {
           </div>
 
           {riders.length >= 4 && wildcardPosition ? (
-            <PicksForm
+          <PicksForm
   eventId={currentEvent.id}
   riders={riders}
   wildcardPosition={wildcardPosition}
+  picksCloseAt={currentEvent.picks_close_at}
   initialPicks={initialPicks}
   hasSavedPicks={Boolean(savedPicks)}
 />

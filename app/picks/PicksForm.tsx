@@ -1,8 +1,7 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { savePicks } from "./actions";
-import RiderPicker from "./RiderPicker";
 
 type Rider = {
   id: string;
@@ -12,325 +11,287 @@ type Rider = {
   manufacturer: string | null;
 };
 
-type PicksFormProps = {
-  eventId: string;
-  riders: Rider[];
-  wildcardPosition: number;
-  initialPicks: Picks;
-  hasSavedPicks: boolean;
-};
-
 type PickKey = "first" | "second" | "third" | "wildcard";
 
 type Picks = Record<PickKey, string>;
 
+type PicksFormProps = {
+  eventId: string;
+  riders: Rider[];
+  wildcardPosition: number;
+  picksCloseAt: string;
+  initialPicks: Picks;
+  hasSavedPicks: boolean;
+};
 
+type MessageState = {
+  type: "success" | "error";
+  text: string;
+} | null;
 
 export default function PicksForm({
   eventId,
   riders,
   wildcardPosition,
+  picksCloseAt,
   initialPicks,
   hasSavedPicks,
 }: PicksFormProps) {
   const [picks, setPicks] = useState<Picks>(initialPicks);
-  const [message, setMessage] = useState("");
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isReviewing, setIsReviewing] = useState(false);
+  const [picksLocked, setPicksLocked] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState("");
+  const [message, setMessage] = useState<MessageState>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedPreviously, setSavedPreviously] = useState(hasSavedPicks);
 
-  function updatePick(position: PickKey, riderId: string) {
-    setMessage("");
-    setIsSuccess(false);
-    setIsReviewing(false);
+  useEffect(() => {
+    function updateCountdown() {
+      const lockDate = new Date(picksCloseAt);
+      const lockTime = lockDate.getTime();
 
-    setPicks((currentPicks) => ({
-      ...currentPicks,
-      [position]: riderId,
-    }));
-  }
+      if (Number.isNaN(lockTime)) {
+        setPicksLocked(true);
+        setTimeRemaining("Lock time unavailable");
+        return;
+      }
 
-  function getUnavailableRiderIds(position: PickKey) {
-    return Object.entries(picks)
-      .filter(
-        ([pickPosition, riderId]) =>
-          pickPosition !== position && Boolean(riderId)
-      )
-      .map(([, riderId]) => riderId);
-  }
+      const difference = lockTime - Date.now();
 
-  function getRider(riderId: string) {
-    return riders.find((rider) => rider.id === riderId);
-  }
+      if (difference <= 0) {
+        setPicksLocked(true);
+        setTimeRemaining("Locked");
+        return;
+      }
 
-  function validatePicks() {
-    const selectedRiders = Object.values(picks);
+      setPicksLocked(false);
 
-    if (selectedRiders.some((riderId) => !riderId)) {
-      setMessage("Please select all four riders.");
-      setIsSuccess(false);
-      return false;
+      const days = Math.floor(
+        difference / (1000 * 60 * 60 * 24)
+      );
+
+      const hours = Math.floor(
+        (difference / (1000 * 60 * 60)) % 24
+      );
+
+      const minutes = Math.floor(
+        (difference / (1000 * 60)) % 60
+      );
+
+      setTimeRemaining(`${days}d ${hours}h ${minutes}m`);
     }
 
-    if (new Set(selectedRiders).size !== selectedRiders.length) {
-      setMessage("Each rider can only be selected once.");
-      setIsSuccess(false);
-      return false;
+    updateCountdown();
+
+    const interval = window.setInterval(updateCountdown, 60000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [picksCloseAt]);
+
+  const formattedCloseTime = useMemo(() => {
+    const closeDate = new Date(picksCloseAt);
+
+    if (Number.isNaN(closeDate.getTime())) {
+      return "Closing time unavailable";
     }
 
-    return true;
-  }
+    return new Intl.DateTimeFormat("en-AU", {
+      timeZone: "Australia/Brisbane",
+      weekday: "long",
+      day: "numeric",
+      month: "short",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+      timeZoneName: "short",
+    }).format(closeDate);
+  }, [picksCloseAt]);
 
-  function handleReview(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    setMessage("");
-    setIsSuccess(false);
-
-    if (!validatePicks()) {
-      return;
-    }
-
-    setIsReviewing(true);
-  }
-
-  async function handleConfirmPicks() {
-    if (!validatePicks()) {
-      setIsReviewing(false);
-      return;
-    }
-
-    setIsSubmitting(true);
-    setMessage("");
-
-    const result = await savePicks({
-      eventId,
-      firstRiderId: picks.first,
-      secondRiderId: picks.second,
-      thirdRiderId: picks.third,
-      wildcardRiderId: picks.wildcard,
-    });
-
-    setMessage(result.message);
-    setIsSuccess(result.success);
-    setIsSubmitting(false);
-
-    if (result.success) {
-      setIsReviewing(false);
-    }
-  }
-
-  const pickSections: Array<{
+  const pickFields: {
     key: PickKey;
     label: string;
-    points: number;
-    accent?: boolean;
-  }> = [
+    description: string;
+  }[] = [
     {
       key: "first",
       label: "1st Place",
-      points: 25,
+      description: "Who wins it?",
     },
     {
       key: "second",
       label: "2nd Place",
-      points: 22,
+      description: "Who finishes runner-up?",
     },
     {
       key: "third",
       label: "3rd Place",
-      points: 20,
+      description: "Who grabs the final podium spot?",
     },
     {
       key: "wildcard",
-      label: `Wildcard — ${wildcardPosition}th Place`,
-      points: 25,
-      accent: true,
+      label: `Wildcard — ${wildcardPosition}th`,
+      description: `Who finishes in ${wildcardPosition}th place?`,
     },
   ];
 
-  const reviewRows: Array<{
-    key: PickKey;
-    shortLabel: string;
-    fullLabel: string;
-  }> = [
-    {
-      key: "first",
-      shortLabel: "1ST",
-      fullLabel: "1st Place",
-    },
-    {
-      key: "second",
-      shortLabel: "2ND",
-      fullLabel: "2nd Place",
-    },
-    {
-      key: "third",
-      shortLabel: "3RD",
-      fullLabel: "3rd Place",
-    },
-    {
-      key: "wildcard",
-      shortLabel: "WC",
-      fullLabel: `Wildcard — ${wildcardPosition}th`,
-    },
-  ];
+  function updatePick(key: PickKey, riderId: string) {
+    if (picksLocked || isSaving) {
+      return;
+    }
+
+    setPicks((current) => ({
+      ...current,
+      [key]: riderId,
+    }));
+
+    setMessage(null);
+  }
+
+  async function handleSubmit() {
+    if (picksLocked) {
+      setMessage({
+        type: "error",
+        text: "Picks are locked for this round.",
+      });
+      return;
+    }
+
+    const selectedRiderIds = Object.values(picks);
+
+    if (selectedRiderIds.some((riderId) => riderId === "")) {
+      setMessage({
+        type: "error",
+        text: "Choose a rider for all four positions.",
+      });
+      return;
+    }
+
+    if (new Set(selectedRiderIds).size !== selectedRiderIds.length) {
+      setMessage({
+        type: "error",
+        text: "Each rider can only be selected once.",
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    setMessage(null);
+
+    try {
+      const result = await savePicks({
+        eventId,
+        firstRiderId: picks.first,
+        secondRiderId: picks.second,
+        thirdRiderId: picks.third,
+        wildcardRiderId: picks.wildcard,
+      });
+
+      setMessage({
+        type: result.success ? "success" : "error",
+        text: result.message,
+      });
+
+      if (result.success) {
+        setSavedPreviously(true);
+      }
+    } catch (error) {
+      console.error("Pick submission error:", error);
+
+      setMessage({
+        type: "error",
+        text: "Something went wrong while saving your picks.",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   return (
-    <>
-      <form onSubmit={handleReview} className="mt-10 space-y-5">
-        {pickSections.map((section) => (
-          <div
-            key={section.key}
-            className={
-              section.accent
-                ? "rounded-3xl border border-orange-500/50 bg-orange-500/10 p-6"
-                : "rounded-3xl border border-zinc-800 bg-zinc-950 p-6"
-            }
-          >
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p
-                  className={
-                    section.accent
-                      ? "text-sm font-black uppercase tracking-[0.25em] text-orange-400"
-                      : "text-sm font-black uppercase tracking-[0.25em] text-zinc-400"
-                  }
-                >
-                  {section.label}
-                </p>
+    <section className="mt-10">
+      <div className="rounded-3xl border border-orange-500/30 bg-orange-500/10 p-6 text-center">
+        <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
+          Picks Close
+        </p>
 
-                <p className="mt-2 text-sm text-zinc-500">
-                  Worth {section.points} points
+        <h2 className="mt-3 text-4xl font-black">
+          {timeRemaining || "Loading..."}
+        </h2>
+
+        <p className="mt-3 text-sm text-zinc-400">
+          {formattedCloseTime}
+        </p>
+      </div>
+
+      <div className="mt-8 space-y-5">
+        {pickFields.map((field) => (
+          <div
+            key={field.key}
+            className="rounded-3xl border border-zinc-800 bg-zinc-950 p-6"
+          >
+            <div className="grid gap-5 md:grid-cols-[1fr_1.2fr] md:items-center">
+              <div>
+                <h2 className="text-2xl font-black">{field.label}</h2>
+
+                <p className="mt-2 text-zinc-400">
+                  {field.description}
                 </p>
               </div>
 
-              <span className="rounded-full bg-black px-4 py-2 text-sm font-black">
-                {section.points} pts
-              </span>
-            </div>
+              <select
+                value={picks[field.key]}
+                disabled={picksLocked || isSaving}
+                onChange={(event) =>
+                  updatePick(field.key, event.target.value)
+                }
+                className="w-full rounded-2xl border border-zinc-700 bg-black px-5 py-4 text-lg font-bold text-white outline-none transition focus:border-orange-500 disabled:cursor-not-allowed disabled:border-zinc-800 disabled:bg-zinc-900 disabled:text-zinc-500"
+              >
+                <option value="">Select rider</option>
 
-            <RiderPicker
-              riders={riders}
-              selectedRiderId={picks[section.key]}
-              unavailableRiderIds={getUnavailableRiderIds(
-                section.key
-              )}
-              onSelect={(riderId) =>
-                updatePick(section.key, riderId)
-              }
-            />
+                {riders.map((rider) => (
+                  <option key={rider.id} value={rider.id}>
+                    #{rider.race_number ?? "—"} — {rider.full_name}
+                    {rider.team_name ? ` — ${rider.team_name}` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         ))}
+      </div>
 
-        {message && (
-          <div
-            className={
-              isSuccess
-                ? "rounded-2xl border border-green-500/40 bg-green-500/10 px-5 py-4 text-sm font-bold text-green-300"
-                : "rounded-2xl border border-red-500/40 bg-red-500/10 px-5 py-4 text-sm font-bold text-red-300"
-            }
-          >
-            {message}
-          </div>
-        )}
-
-        <button
-          type="submit"
-          className="w-full rounded-full bg-orange-500 px-8 py-4 text-lg font-black text-black transition hover:bg-orange-400"
+      {message && (
+        <div
+          className={`mt-6 rounded-2xl border px-5 py-4 text-center font-bold ${
+            message.type === "success"
+              ? "border-green-500/40 bg-green-500/10 text-green-300"
+              : "border-orange-500/40 bg-orange-500/10 text-orange-300"
+          }`}
         >
-          {hasSavedPicks ? "Review Updated Picks" : "Review My Picks"}
-        </button>
-      </form>
-
-      {isReviewing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 px-4 py-8 backdrop-blur-sm">
-          <div className="max-h-full w-full max-w-2xl overflow-y-auto rounded-3xl border border-zinc-700 bg-zinc-950 p-6 shadow-2xl sm:p-8">
-            <p className="text-xs font-black uppercase tracking-[0.35em] text-orange-500">
-              Final Check
-            </p>
-
-            <h2 className="mt-3 text-4xl font-black uppercase tracking-tight sm:text-5xl">
-              Your Picks
-            </h2>
-
-            <p className="mt-3 text-zinc-400">
-              Happy with your lineup? You can still update your picks
-              while the event remains open.
-            </p>
-
-            <div className="mt-8 overflow-hidden rounded-2xl border border-zinc-800">
-              {reviewRows.map((row) => {
-                const rider = getRider(picks[row.key]);
-
-                return (
-                  <div
-                    key={row.key}
-                    className={
-                      row.key === "wildcard"
-                        ? "flex items-center gap-4 border-t border-orange-500/40 bg-orange-500/10 p-5"
-                        : "flex items-center gap-4 border-b border-zinc-800 bg-black p-5 last:border-b-0"
-                    }
-                  >
-                    <div
-                      className={
-                        row.key === "wildcard"
-                          ? "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-orange-500 font-black text-black"
-                          : "flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-zinc-900 font-black text-white"
-                      }
-                    >
-                      {row.shortLabel}
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
-                        {row.fullLabel}
-                      </p>
-
-                      <p className="mt-1 text-xl font-black text-white">
-                        #{rider?.race_number ?? "—"}{" "}
-                        {rider?.full_name ?? "No rider selected"}
-                      </p>
-
-                      <p className="mt-1 truncate text-sm text-zinc-400">
-                        {rider?.manufacturer ??
-                          "Unknown manufacturer"}
-                        {rider?.team_name
-                          ? ` • ${rider.team_name}`
-                          : ""}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="mt-8 grid gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                disabled={isSubmitting}
-                onClick={() => setIsReviewing(false)}
-                className="rounded-full border border-zinc-700 px-7 py-4 font-black text-white transition hover:border-white disabled:opacity-50"
-              >
-                Go Back
-              </button>
-
-              <button
-                type="button"
-                disabled={isSubmitting}
-                onClick={handleConfirmPicks}
-                className="rounded-full bg-orange-500 px-7 py-4 font-black text-black transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isSubmitting
-  ? "Saving Picks..."
-  : hasSavedPicks
-    ? "Update My Picks"
-    : "I’m Locked In"}
-              </button>
-            </div>
-          </div>
+          {message.text}
         </div>
       )}
-    </>
+
+      <button
+        type="button"
+        disabled={picksLocked || isSaving}
+        onClick={handleSubmit}
+        className="mt-8 w-full rounded-full bg-orange-500 px-10 py-5 text-xl font-black text-black transition hover:scale-[1.01] hover:bg-orange-400 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400 disabled:hover:scale-100"
+      >
+        {picksLocked
+          ? "Picks Locked"
+          : isSaving
+            ? "Saving..."
+            : savedPreviously
+              ? "Update Picks"
+              : "Lock In Picks"}
+      </button>
+
+      <p className="mt-5 text-center text-sm text-zinc-500">
+        {picksLocked
+          ? "Picks are locked for this round."
+          : "You can update your picks until the closing time above."}
+      </p>
+    </section>
   );
 }
