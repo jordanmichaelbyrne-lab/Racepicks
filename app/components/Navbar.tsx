@@ -46,10 +46,11 @@ export default function Navbar() {
     router.refresh();
   }
 
-  const displayName =
-    user?.user_metadata?.display_name ||
-    user?.email?.split("@")[0] ||
-    "Account";
+  const displayName: string =
+  typeof user?.user_metadata?.display_name === "string" &&
+  user.user_metadata.display_name.trim()
+    ? user.user_metadata.display_name
+    : user?.email?.split("@")[0] || "Account";
 
   const initials = displayName
     .split(" ")
