@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createClient } from "../lib/supabase/server";
 
 type SavePicksInput = {
@@ -67,10 +68,15 @@ export async function savePicks(
     };
   }
 
-  // Confirm that the event is currently open.
+  /*
+   * Check the event on the server.
+   *
+   * This prevents somebody bypassing the disabled button in the browser
+   * and submitting picks after the official closing time.
+   */
   const { data: event, error: eventError } = await supabase
     .from("events")
-    .select("id, status")
+    .select("id, status, picks_close_at")
     .eq("id", eventId)
     .single();
 
@@ -88,15 +94,47 @@ export async function savePicks(
     };
   }
 
-  // Confirm all selected riders belong to this event's entry list.
-  const { data: confirmedEntries, error: entriesError } = await supabase
-    .from("event_entries")
-    .select("rider_id")
-    .eq("event_id", eventId)
-    .eq("confirmed", true)
-    .in("rider_id", selectedRiderIds);
+  if (!event.picks_close_at) {
+    return {
+      success: false,
+      message: "The pick closing time has not been configured.",
+    };
+  }
+
+  const picksCloseAt = new Date(event.picks_close_at);
+
+  if (Number.isNaN(picksCloseAt.getTime())) {
+    console.error(
+      "Invalid picks_close_at value:",
+      event.picks_close_at
+    );
+
+    return {
+      success: false,
+      message: "The pick closing time is invalid.",
+    };
+  }
+
+  if (Date.now() >= picksCloseAt.getTime()) {
+    return {
+      success: false,
+      message:
+        "Picks are locked for this round. The closing time has passed.",
+    };
+  }
+
+  // Confirm all four riders are still on this event's published entry list.
+  const { data: confirmedEntries, error: entriesError } =
+    await supabase
+      .from("event_entries")
+      .select("rider_id")
+      .eq("event_id", eventId)
+      .eq("confirmed", true)
+      .in("rider_id", selectedRiderIds);
 
   if (entriesError) {
+    console.error("Entry-list validation error:", entriesError);
+
     return {
       success: false,
       message: "The entry list could not be checked.",
@@ -115,11 +153,14 @@ export async function savePicks(
     return {
       success: false,
       message:
-        "One or more selected riders are no longer on the confirmed entry list.",
+        "One or more selected riders are no longer lining up. Please update your picks.",
     };
   }
 
-  // Upsert means submitting again updates the existing picks.
+  /*
+   * One pick row per user and event.
+   * Submitting again before the cutoff updates the existing selection.
+   */
   const { error: saveError } = await supabase.from("picks").upsert(
     {
       user_id: user.id,
@@ -143,6 +184,9 @@ export async function savePicks(
       message: `Your picks could not be saved: ${saveError.message}`,
     };
   }
+
+  revalidatePath("/picks");
+  revalidatePath("/account");
 
   return {
     success: true,
