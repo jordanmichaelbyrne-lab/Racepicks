@@ -14,11 +14,7 @@ type Rider = {
 };
 
 type EventEntryRow = {
-  event_id: string;
-  rider:
-    | Rider
-    | Rider[]
-    | null;
+  rider: Rider | Rider[] | null;
 };
 
 type PickKey = "first" | "second" | "third" | "wildcard";
@@ -50,7 +46,6 @@ export default function PicksPage() {
       const { data, error } = await supabase
         .from("event_entries")
         .select(`
-          event_id,
           rider:riders (
             id,
             full_name,
@@ -62,14 +57,14 @@ export default function PicksPage() {
 
       if (error) {
         console.error("Could not load entry-list riders:", error);
-        setMessage("Could not load the rider list. Please try again.");
+        setMessage("Could not load the rider list. Please refresh the page.");
         setLoadingRiders(false);
         return;
       }
 
-      const entryRows = (data ?? []) as EventEntryRow[];
+      const rows = (data ?? []) as EventEntryRow[];
 
-      const riders = entryRows
+      const riders = rows
         .flatMap((entry) => {
           if (Array.isArray(entry.rider)) {
             return entry.rider;
@@ -101,35 +96,12 @@ export default function PicksPage() {
 
   useEffect(() => {
     function updateCountdown() {
-      const raceDate = new Date(nextRace.date);
-
-      const brisbaneRaceDate = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Australia/Brisbane",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }).format(raceDate);
-
-      const [year, month, day] = brisbaneRaceDate
-        .split("-")
-        .map(Number);
-
-      /*
-       * Picks lock at 10:00 PM Brisbane time on the Saturday
-       * before the Sunday race.
-       *
-       * Brisbane is UTC+10 all year, so:
-       * Saturday 10:00 PM Brisbane = Saturday 12:00 PM UTC.
-       */
-      const lockDate = new Date(
-        Date.UTC(year, month - 1, day - 1, 12, 0, 0)
-      );
-
+      const lockDate = new Date(nextRace.pickLock);
       const difference = lockDate.getTime() - Date.now();
 
       if (difference <= 0) {
         setPicksLocked(true);
-        setTimeRemaining("Picks are locked");
+        setTimeRemaining("Locked");
         return;
       }
 
@@ -154,8 +126,10 @@ export default function PicksPage() {
 
     const interval = window.setInterval(updateCountdown, 60000);
 
-    return () => window.clearInterval(interval);
-  }, [nextRace.date]);
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [nextRace.pickLock]);
 
   function updatePick(key: PickKey, riderId: string) {
     if (picksLocked) {
@@ -251,13 +225,11 @@ export default function PicksPage() {
             </p>
 
             <h2 className="mt-2 text-4xl font-black">
-              {picksLocked
-                ? "Locked"
-                : timeRemaining || "Loading..."}
+              {timeRemaining || "Loading..."}
             </h2>
 
             <p className="mt-3 text-zinc-400">
-              Saturday 10:00 PM Brisbane time
+              {nextRace.pickLockDisplay}
             </p>
           </div>
 
@@ -339,7 +311,7 @@ export default function PicksPage() {
               <p className="mt-5 text-center text-sm text-zinc-500">
                 {picksLocked
                   ? "Picks are locked for this round."
-                  : "Picks can be changed until Saturday at 10:00 PM Brisbane time."}
+                  : "Picks can be changed until the lock time shown above."}
               </p>
             </>
           )}

@@ -129,11 +129,13 @@ export async function updateRider(formData: FormData) {
     raceNumberValue === "" ? null : Number.parseInt(raceNumberValue, 10);
 
   if (
-    raceNumberValue !== "" &&
-    (!Number.isInteger(raceNumber) || raceNumber < 0)
-  ) {
-    throw new Error("Race number must be a valid number.");
-  }
+  raceNumberValue !== "" &&
+  (raceNumber === null ||
+    !Number.isInteger(raceNumber) ||
+    raceNumber < 0)
+) {
+  throw new Error("Race number must be a valid number.");
+}
 
   const { error } = await supabase
     .from("riders")
