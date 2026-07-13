@@ -33,6 +33,12 @@ type ScoreRow = {
   events: EventDetails | EventDetails[] | null;
 };
 
+type AllScoreRow = {
+  user_id: string;
+  event_id: string;
+  round_points: number;
+};
+
 type PageProps = {
   params: Promise<{
     userId: string;
@@ -61,7 +67,31 @@ function getPositionLabel(position: number) {
   if (position === 2) return "2nd";
   if (position === 3) return "3rd";
 
+  const lastTwoDigits = position % 100;
+
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 13) {
+    return `${position}th`;
+  }
+
+  const lastDigit = position % 10;
+
+  if (lastDigit === 1) return `${position}st`;
+  if (lastDigit === 2) return `${position}nd`;
+  if (lastDigit === 3) return `${position}rd`;
+
   return `${position}th`;
+}
+
+function getRecentFormStyle(points: number) {
+  if (points >= 70) {
+    return "border-green-500/40 bg-green-500/10 text-green-300";
+  }
+
+  if (points >= 40) {
+    return "border-orange-500/40 bg-orange-500/10 text-orange-300";
+  }
+
+  return "border-neutral-700 bg-neutral-800 text-neutral-300";
 }
 
 export default async function PlayerHistoryPage({
@@ -74,6 +104,7 @@ export default async function PlayerHistoryPage({
     { data: profile, error: profileError },
     { data: scoreData, error: scoresError },
     { data: leaderboardData, error: leaderboardError },
+    { data: allScoreData, error: allScoresError },
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -114,6 +145,10 @@ export default async function PlayerHistoryPage({
       )
       .order("total_points", { ascending: false })
       .order("user_id", { ascending: true }),
+
+    supabase
+      .from("scores")
+      .select("user_id, event_id, round_points"),
   ]);
 
   if (profileError || !profile) {
@@ -126,6 +161,10 @@ export default async function PlayerHistoryPage({
 
   if (leaderboardError) {
     console.error("Leaderboard loading error:", leaderboardError);
+  }
+
+  if (allScoresError) {
+    console.error("Round winner loading error:", allScoresError);
   }
 
   const player = profile as PlayerProfile;
@@ -141,6 +180,8 @@ export default async function PlayerHistoryPage({
       new Date(eventB?.race_date ?? 0).getTime()
     );
   });
+
+  const allScores = (allScoreData ?? []) as AllScoreRow[];
 
   const playerSummary = leaderboardRows.find(
     (row) => row.user_id === userId
@@ -163,10 +204,21 @@ export default async function PlayerHistoryPage({
     playerSummary?.best_round ??
     Math.max(0, ...scores.map((score) => score.round_points));
 
-  const averageRound =
-    roundsScored > 0
-      ? Math.round((totalPoints / roundsScored) * 10) / 10
-      : 0;
+  const firstHits = scores.filter(
+    (score) => score.first_points > 0
+  ).length;
+
+  const secondHits = scores.filter(
+    (score) => score.second_points > 0
+  ).length;
+
+  const thirdHits = scores.filter(
+    (score) => score.third_points > 0
+  ).length;
+
+  const wildcardHits = scores.filter(
+    (score) => score.wildcard_points > 0
+  ).length;
 
   const perfectRounds = scores.filter(
     (score) =>
@@ -176,18 +228,31 @@ export default async function PlayerHistoryPage({
       score.wildcard_points === 25
   ).length;
 
-  const correctPodiumPicks = scores.reduce(
-    (total, score) =>
-      total +
-      Number(score.first_points > 0) +
-      Number(score.second_points > 0) +
-      Number(score.third_points > 0),
-    0
-  );
+  const highestScoreByEvent = new Map<string, number>();
 
-  const wildcardHits = scores.filter(
-    (score) => score.wildcard_points > 0
-  ).length;
+  for (const score of allScores) {
+    const currentHighest =
+      highestScoreByEvent.get(score.event_id) ?? 0;
+
+    if (score.round_points > currentHighest) {
+      highestScoreByEvent.set(
+        score.event_id,
+        score.round_points
+      );
+    }
+  }
+
+  const roundWins = scores.filter((score) => {
+    const highestScore =
+      highestScoreByEvent.get(score.event_id) ?? 0;
+
+    return (
+      score.round_points > 0 &&
+      score.round_points === highestScore
+    );
+  }).length;
+
+  const recentForm = [...scores].reverse().slice(0, 5);
 
   const initials =
     getInitials(player.display_name) || "RP";
@@ -279,30 +344,50 @@ export default async function PlayerHistoryPage({
           </div>
         </section>
 
-        <section className="mt-6 grid gap-4 sm:grid-cols-4">
+        <section className="mt-6 grid gap-4 sm:grid-cols-3">
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-5">
             <p className="text-xs font-bold uppercase tracking-widest text-neutral-500">
-              Average
+              Round Wins
             </p>
 
             <p className="mt-2 text-xl font-black">
-              {averageRound} pts
+              {roundWins}
             </p>
           </div>
 
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-5">
             <p className="text-xs font-bold uppercase tracking-widest text-neutral-500">
-              Podium Hits
+              🥇 First Picks
             </p>
 
             <p className="mt-2 text-xl font-black">
-              {correctPodiumPicks}
+              {firstHits}
             </p>
           </div>
 
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-5">
             <p className="text-xs font-bold uppercase tracking-widest text-neutral-500">
-              Wildcards
+              🥈 Second Picks
+            </p>
+
+            <p className="mt-2 text-xl font-black">
+              {secondHits}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-5">
+            <p className="text-xs font-bold uppercase tracking-widest text-neutral-500">
+              🥉 Third Picks
+            </p>
+
+            <p className="mt-2 text-xl font-black">
+              {thirdHits}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-5">
+            <p className="text-xs font-bold uppercase tracking-widest text-neutral-500">
+              ⭐ Wildcards
             </p>
 
             <p className="mt-2 text-xl font-black">
@@ -319,6 +404,42 @@ export default async function PlayerHistoryPage({
               {perfectRounds}
             </p>
           </div>
+        </section>
+
+        <section className="mt-8 rounded-3xl border border-neutral-800 bg-neutral-900 p-6">
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
+            Recent Form
+          </p>
+
+          <h2 className="mt-2 text-xl font-black uppercase">
+            Last Five Rounds
+          </h2>
+
+          {recentForm.length === 0 ? (
+            <p className="mt-4 text-sm text-neutral-500">
+              Recent form will appear after scores are calculated.
+            </p>
+          ) : (
+            <div className="mt-5 flex flex-wrap gap-3">
+              {recentForm.map((score) => {
+                const event = getEvent(score);
+
+                return (
+                  <div
+                    key={score.event_id}
+                    title={`${event?.venue ?? "Race"} · ${
+                      score.round_points
+                    } points`}
+                    className={`flex h-16 min-w-16 items-center justify-center rounded-2xl border px-4 text-xl font-black ${getRecentFormStyle(
+                      score.round_points
+                    )}`}
+                  >
+                    {score.round_points}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
 
         <section className="mt-8 overflow-hidden rounded-3xl border border-neutral-800 bg-neutral-900">
