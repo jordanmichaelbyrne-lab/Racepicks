@@ -88,6 +88,8 @@ export default function Navbar() {
           News
         </Link>
       </div>
+      
+      <Link href="/results">Results</Link>
 
       {isLoading ? (
         <div className="h-10 w-10 shrink-0 rounded-full border border-zinc-800" />
