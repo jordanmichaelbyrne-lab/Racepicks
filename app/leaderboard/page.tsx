@@ -154,7 +154,7 @@ export default async function LeaderboardPage() {
   const leaderboard = (data ?? []) as LeaderboardPlayer[];
   const leader = leaderboard[0];
   const topThree = leaderboard.slice(0, 3);
-  const remainingPlayers = leaderboard.slice(3);
+  const standings = leaderboard;
   const { count: completedRounds, error: completedRoundsError } =
   await supabase
     .from("events")
@@ -333,146 +333,7 @@ if (completedRoundsError) {
           </div>
         ) : (
           <>
-            <section className="mt-10">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
-                  Championship Podium
-                </p>
-
-                <h2 className="mt-2 text-2xl font-black uppercase">
-                  Top Three
-                </h2>
-              </div>
-
-              <div className="mt-6 grid gap-4 sm:grid-cols-3 sm:items-end">
-                {topThree[1] && (
-                  <Link
-                    href={`/leaderboard/${topThree[1].user_id}`}
-                    className={`group order-2 rounded-3xl border p-6 transition hover:-translate-y-1 hover:border-neutral-500 sm:order-1 ${
-                      user?.id === topThree[1].user_id
-                        ? "border-orange-500 bg-orange-500/10"
-                        : "border-neutral-700 bg-neutral-900"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-5xl">🥈</span>
-
-                      {user?.id === topThree[1].user_id && (
-                        <span className="rounded-full bg-orange-500 px-3 py-1 text-xs font-black uppercase text-black">
-                          You
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="mt-6">
-                      <PlayerAvatar
-                        player={topThree[1]}
-                        size="normal"
-                      />
-
-                      <h3 className="mt-4 text-xl font-black uppercase transition group-hover:text-orange-500">
-                        {topThree[1].display_name}
-                      </h3>
-
-                      <p className="mt-2 text-3xl font-black">
-                        {topThree[1].total_points}
-                        <span className="ml-1 text-sm text-neutral-500">
-                          pts
-                        </span>
-                      </p>
-
-                      <p className="mt-2 text-xs font-bold uppercase tracking-widest text-neutral-500">
-                        {getPointsBehindLeader(topThree[1], leader)}
-                      </p>
-                    </div>
-                  </Link>
-                )}
-
-                {topThree[0] && (
-                  <Link
-                    href={`/leaderboard/${topThree[0].user_id}`}
-                    className={`group order-1 rounded-3xl border p-7 transition hover:-translate-y-1 sm:order-2 ${
-                      user?.id === topThree[0].user_id
-                        ? "border-orange-300 bg-orange-500/20"
-                        : "border-orange-500 bg-orange-500/10"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-6xl">🥇</span>
-
-                      <span className="rounded-full bg-orange-500 px-3 py-1 text-xs font-black uppercase text-black">
-                        Leader
-                      </span>
-                    </div>
-
-                    <div className="mt-6">
-                      <PlayerAvatar
-                        player={topThree[0]}
-                        size="large"
-                      />
-
-                      <h3 className="mt-4 text-2xl font-black uppercase transition group-hover:text-orange-300">
-                        {topThree[0].display_name}
-                      </h3>
-
-                      <p className="mt-2 text-4xl font-black text-orange-500">
-                        {topThree[0].total_points}
-                        <span className="ml-1 text-sm text-neutral-400">
-                          pts
-                        </span>
-                      </p>
-
-                      <p className="mt-3 text-xs font-bold uppercase tracking-widest text-orange-300">
-                        Championship Leader
-                      </p>
-                    </div>
-                  </Link>
-                )}
-
-                {topThree[2] && (
-                  <Link
-                    href={`/leaderboard/${topThree[2].user_id}`}
-                    className={`group order-3 rounded-3xl border p-6 transition hover:-translate-y-1 hover:border-amber-700 ${
-                      user?.id === topThree[2].user_id
-                        ? "border-orange-500 bg-orange-500/10"
-                        : "border-neutral-700 bg-neutral-900"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-5xl">🥉</span>
-
-                      {user?.id === topThree[2].user_id && (
-                        <span className="rounded-full bg-orange-500 px-3 py-1 text-xs font-black uppercase text-black">
-                          You
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="mt-6">
-                      <PlayerAvatar
-                        player={topThree[2]}
-                        size="normal"
-                      />
-
-                      <h3 className="mt-4 text-xl font-black uppercase transition group-hover:text-orange-500">
-                        {topThree[2].display_name}
-                      </h3>
-
-                      <p className="mt-2 text-3xl font-black">
-                        {topThree[2].total_points}
-                        <span className="ml-1 text-sm text-neutral-500">
-                          pts
-                        </span>
-                      </p>
-
-                      <p className="mt-2 text-xs font-bold uppercase tracking-widest text-neutral-500">
-                        {getPointsBehindLeader(topThree[2], leader)}
-                      </p>
-                    </div>
-                  </Link>
-                )}
-              </div>
-            </section>
+            
 
             <section className="mt-10">
               <div>
@@ -495,8 +356,8 @@ if (completedRoundsError) {
                 </div>
 
                 <div className="divide-y divide-neutral-800">
-                  {remainingPlayers.map((player, index) => {
-                    const position = index + 4;
+                  {standings.map((player, index) => {
+    const position = index + 1;
                     const isCurrentUser = user?.id === player.user_id;
 
                     return (
