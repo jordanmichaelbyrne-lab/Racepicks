@@ -199,15 +199,17 @@ export default async function AdminResultsPage({
         </header>
 
         {params.saved === "true" && (
-          <div className="mt-8 rounded-xl border border-green-900 bg-green-950/40 px-5 py-4 text-sm font-semibold text-green-400">
-            Results saved successfully.
-            {params.scored === "true" && (
-  <div className="mt-8 rounded-xl border border-orange-900 bg-orange-950/40 px-5 py-4 text-sm font-semibold text-orange-400">
-    Round scored successfully. The leaderboard has been updated.
+  <div className="mt-8 rounded-xl border border-green-900 bg-green-950/40 px-5 py-4 text-sm font-semibold text-green-400">
+    Results saved successfully. You can now calculate the round scores.
   </div>
 )}
-          </div>
-        )}
+
+{params.scored === "true" && (
+  <div className="mt-8 rounded-xl border border-orange-900 bg-orange-950/40 px-5 py-4 text-sm font-semibold text-orange-400">
+    Round scored successfully. The championship standings have been
+    updated.
+  </div>
+)}
 
         {events.length === 0 ? (
           <section className="mt-10 rounded-2xl border border-neutral-800 bg-neutral-950 p-10 text-center">
