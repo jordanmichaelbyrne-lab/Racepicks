@@ -60,6 +60,7 @@ export default function Navbar() {
   { href: "/", label: "Next Race" },
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/results", label: "Race Results" },
+  { href: "/banter", label: "Banter" },
   { href: "/news", label: "News" },
 ];
 
