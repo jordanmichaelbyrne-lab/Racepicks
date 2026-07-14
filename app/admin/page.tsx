@@ -43,49 +43,51 @@ export default async function AdminPage() {
   );
 
   const dashboardActions = [
-    {
-      title: "Entry List",
-      description:
-        "Import, review and publish the confirmed 450 rider entry list.",
-      status: "Not Imported",
-      href: "/admin/results",
-    },
-    {
-      title: "Wildcard",
-      description:
-        "Review or change the wildcard finishing position for this round.",
-      status: `${nextRace.wildcardPosition}th Place`,
-      href: "/admin/wildcard",
-    },
-    {
-      title: "Picks Control",
-      description:
-        "Open entries, close picks and review the number of submitted players.",
-      status: "Upcoming",
-      href: "/admin/picks",
-    },
-    {
-      title: "Race Results",
-      description:
-        "Import official results and confirm the finishing order.",
-      status: "Not Imported",
-      href: "/admin/results",
-    },
-    {
-      title: "Scoring",
-      description:
-        "Calculate round scores and publish the updated leaderboard.",
-      status: "Pending",
-      href: "/admin/scoring",
-    },
-    {
-      title: "Players",
-      description:
-        "Review registered users, roles and competition participation.",
-      status: "Manage",
-      href: "/admin/players",
-    },
-  ];
+  {
+    title: "Entry List",
+    description:
+      "Import, review and publish the confirmed 450 rider entry list.",
+    status: "Manage",
+    href: "/admin/entry-list",
+  },
+  {
+    title: "Wildcard",
+    description:
+      "View or generate the automatic wildcard position for each event.",
+    status: nextRace.wildcardPosition
+      ? `${nextRace.wildcardPosition}th Place`
+      : "Not Generated",
+    href: "/admin/wildcard",
+  },
+  {
+    title: "Picks Control",
+    description:
+      "Open entries, close picks and review the number of submitted players.",
+    status: "Upcoming",
+    href: "/admin/picks",
+  },
+  {
+    title: "Race Results",
+    description:
+      "Import official race results and confirm the finishing order.",
+    status: "Not Imported",
+    href: "/admin/results",
+  },
+  {
+    title: "Scoring",
+    description:
+      "Calculate round scores and publish the updated championship standings.",
+    status: "Pending",
+    href: "/admin/scoring",
+  },
+  {
+    title: "Players",
+    description:
+      "Review registered users, admin roles and competition participation.",
+    status: "Manage",
+    href: "/admin/players",
+  },
+];
 
   return (
     <main className="min-h-screen bg-black text-white">
