@@ -57,11 +57,11 @@ export default function Navbar() {
     .toUpperCase();
 
   const navItems = [
-    { href: "/", label: "Next Race" },
-    { href: "/leaderboard", label: "Leaderboard" },
-    { href: "/results", label: "Results" },
-    { href: "/news", label: "News" },
-  ];
+  { href: "/", label: "Next Race" },
+  { href: "/leaderboard", label: "Leaderboard" },
+  { href: "/results", label: "Race Results" },
+  { href: "/news", label: "News" },
+];
 
   return (
     <nav className="flex items-center justify-between py-3">
