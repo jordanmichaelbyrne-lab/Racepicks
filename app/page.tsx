@@ -1,23 +1,131 @@
 import Link from "next/link";
 import Countdown from "./components/Countdown";
 import Navbar from "./components/Navbar";
-import { competitions, getCompetition } from "./data/competitions";
-import { races } from "./data/races";
+import { competitions } from "./data/competitions";
+import { createClient } from "./lib/supabase/server";
 
-export default function Home() {
-  const now = new Date().getTime();
+type HomeEvent = {
+  id: string;
+  competition_slug: string;
+  series: string;
+  season: number;
+  round_number: number;
+  venue: string;
+  location: string | null;
+  race_date: string;
+  picks_close_at: string;
+  wildcard_position: number | null;
+  status: string;
+};
 
-  const upcomingRaces = races
-    .filter((race) => new Date(race.pickLock).getTime() > now)
-    .sort(
-      (firstRace, secondRace) =>
-        new Date(firstRace.pickLock).getTime() -
-        new Date(secondRace.pickLock).getTime()
-    );
+function ordinal(position: number) {
+  if (position >= 11 && position <= 13) {
+    return `${position}th`;
+  }
 
-  const nextRace = upcomingRaces[0] ?? races[races.length - 1];
+  const ending = position % 10;
 
-  const activeCompetition = getCompetition(nextRace.competitionId);
+  if (ending === 1) return `${position}st`;
+  if (ending === 2) return `${position}nd`;
+  if (ending === 3) return `${position}rd`;
+
+  return `${position}th`;
+}
+
+function formatRaceDate(date: string) {
+  return new Intl.DateTimeFormat("en-AU", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Australia/Brisbane",
+  }).format(new Date(date));
+}
+
+function formatPickCloseTime(date: string) {
+  return new Intl.DateTimeFormat("en-AU", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "Australia/Brisbane",
+  }).format(new Date(date));
+}
+
+function getSeriesLabel(event: HomeEvent) {
+  if (event.series === "Motocross") {
+    return `${event.season} Pro Motocross`;
+  }
+
+  if (event.series === "SMX") {
+    return `${event.season} SMX Championship`;
+  }
+
+  if (event.series === "Supercross") {
+    return `${event.season} Supercross`;
+  }
+
+  return `${event.season} ${event.series}`;
+}
+
+function getEventBackground() {
+  return "/images/tracks/smx-hero.jpeg";
+}
+
+export default async function Home() {
+  const supabase = await createClient();
+
+  const eventFields = `
+    id,
+    competition_slug,
+    series,
+    season,
+    round_number,
+    venue,
+    location,
+    race_date,
+    picks_close_at,
+    wildcard_position,
+    status
+  `;
+
+  /*
+   * First preference:
+   * whichever event Race Control currently has set to open.
+   */
+  const { data: openEvent, error: openEventError } = await supabase
+    .from("events")
+    .select(eventFields)
+    .eq("status", "open")
+    .order("race_date", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (openEventError) {
+    throw new Error(openEventError.message);
+  }
+
+  let currentEvent = openEvent as HomeEvent | null;
+
+  /*
+   * If nothing is open, show the earliest upcoming event.
+   */
+  if (!currentEvent) {
+    const { data: upcomingEvent, error: upcomingEventError } =
+      await supabase
+        .from("events")
+        .select(eventFields)
+        .eq("status", "upcoming")
+        .gte("race_date", new Date().toISOString())
+        .order("race_date", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+    if (upcomingEventError) {
+      throw new Error(upcomingEventError.message);
+    }
+
+    currentEvent = upcomingEvent as HomeEvent | null;
+  }
 
   const competitionDescriptions: Record<string, string> = {
     supercross: "Stadium racing from January through May.",
@@ -25,35 +133,73 @@ export default function Home() {
     smx: "The season-ending SuperMotocross playoffs.",
   };
 
+  if (!currentEvent) {
+    return (
+      <main className="min-h-screen bg-black text-white">
+        <div className="mx-auto max-w-7xl px-6 py-8">
+          <Navbar />
+
+          <section className="flex min-h-[75vh] flex-col items-center justify-center text-center">
+            <p className="text-sm font-black uppercase tracking-[0.4em] text-orange-500">
+              Racepicks
+            </p>
+
+            <h1 className="mt-5 text-5xl font-black sm:text-7xl">
+              No upcoming event
+            </h1>
+
+            <p className="mt-5 max-w-xl text-lg text-zinc-400">
+              The next race will appear here once it has been added or
+              opened through Race Control.
+            </p>
+
+            <Link
+              href="/leaderboard"
+              className="mt-8 rounded-full border border-zinc-700 px-8 py-4 font-black transition hover:border-orange-500 hover:bg-orange-500 hover:text-black"
+            >
+              View Leaderboard
+            </Link>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
+  const backgroundImage = getEventBackground();
+  const picksAreOpen = currentEvent.status === "open";
+
   return (
     <main className="min-h-screen bg-black text-white">
       <section
         className="relative min-h-screen overflow-hidden bg-cover bg-center"
         style={{
-          backgroundImage: `url(${nextRace.image})`,
+          backgroundImage: `url(${backgroundImage})`,
         }}
       >
         <div className="absolute inset-0 bg-black/65" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black" />
 
-        <div className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col px-6 py-8">
+        <div className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col px-4 py-6 sm:px-6 sm:py-8">
           <Navbar />
 
-          <div className="flex flex-1 flex-col items-center justify-center py-16 text-center">
+          <div className="flex flex-1 flex-col items-center justify-center py-14 text-center sm:py-16">
             <p className="mb-3 text-sm font-black uppercase tracking-[0.4em] text-orange-500">
-              Next Event
+              {picksAreOpen ? "Current Event" : "Next Event"}
             </p>
 
             <p className="mb-5 text-sm font-bold uppercase tracking-[0.25em] text-zinc-300">
-              {activeCompetition?.shortName ?? "Racepicks"}
+              {getSeriesLabel(currentEvent)}
             </p>
 
-            <h1 className="max-w-5xl text-6xl font-black leading-none tracking-tight sm:text-7xl md:text-8xl lg:text-9xl">
-              {nextRace.name}
+            <h1 className="max-w-5xl text-6xl font-black uppercase leading-none tracking-tight sm:text-7xl md:text-8xl lg:text-9xl">
+              {currentEvent.venue}
             </h1>
 
             <p className="mt-6 text-lg font-medium text-zinc-300 md:text-2xl">
-              Round {nextRace.round} • {nextRace.location}
+              Round {currentEvent.round_number}
+              {currentEvent.location
+                ? ` • ${currentEvent.location}`
+                : ""}
             </p>
 
             <div className="mt-10 grid w-full max-w-5xl gap-4 md:grid-cols-3">
@@ -62,8 +208,8 @@ export default function Home() {
                   Race Date
                 </p>
 
-                <p className="mt-3 text-2xl font-black">
-                  {nextRace.raceDate}
+                <p className="mt-3 text-xl font-black sm:text-2xl">
+                  {formatRaceDate(currentEvent.race_date)}
                 </p>
               </div>
 
@@ -73,7 +219,9 @@ export default function Home() {
                 </p>
 
                 <p className="mt-3 text-5xl font-black">
-                  {nextRace.wildcardPosition}th
+                  {typeof currentEvent.wildcard_position === "number"
+                    ? ordinal(currentEvent.wildcard_position)
+                    : "Pending"}
                 </p>
               </div>
 
@@ -83,23 +231,28 @@ export default function Home() {
                 </p>
 
                 <p className="mt-3 text-2xl font-black">
-                  {nextRace.pickLockDisplay}
+                  {formatPickCloseTime(currentEvent.picks_close_at)}
+                </p>
+
+                <p className="mt-1 text-xs font-bold uppercase tracking-widest text-zinc-500">
+                  Brisbane time
                 </p>
               </div>
             </div>
 
-            <div className="mt-8 w-full max-w-3xl rounded-3xl border border-white/15 bg-black/55 px-6 py-8 backdrop-blur-lg md:px-10">
+            <div className="mt-8 w-full max-w-3xl rounded-3xl border border-white/15 bg-black/55 px-5 py-7 backdrop-blur-lg sm:px-6 sm:py-8 md:px-10">
               <p className="mb-6 text-sm font-black uppercase tracking-[0.4em] text-orange-500">
                 Picks Close In
               </p>
 
-              <Countdown targetDate={nextRace.pickLock} />
+              <Countdown targetDate={currentEvent.picks_close_at} />
             </div>
 
             <p className="mt-8 max-w-3xl text-base leading-7 text-zinc-300 md:text-xl">
-              Pick your 1st, 2nd and 3rd place riders, then choose the rider
-              you believe will finish in the wildcard position. Correct picks
-              earn points toward the Racepicks leaderboard.
+              Pick your 1st, 2nd and 3rd place riders, then choose the
+              rider you believe will finish in the wildcard position.
+              Correct picks earn points toward the Racepicks
+              leaderboard.
             </p>
 
             <div className="mt-8 flex w-full max-w-sm flex-col gap-4 sm:max-w-none sm:flex-row sm:justify-center">
@@ -107,7 +260,7 @@ export default function Home() {
                 href="/picks"
                 className="rounded-full bg-orange-500 px-10 py-4 text-center text-lg font-black text-black transition hover:scale-105 hover:bg-orange-400"
               >
-                Enter Picks
+                {picksAreOpen ? "Enter Picks" : "View Picks"}
               </Link>
 
               <Link
@@ -124,7 +277,7 @@ export default function Home() {
       <section className="mx-auto max-w-7xl px-6 py-20">
         <div className="text-center">
           <p className="text-sm font-black uppercase tracking-[0.35em] text-orange-500">
-            2027 Season
+            Championship Series
           </p>
 
           <h2 className="mt-4 text-4xl font-black tracking-tight md:text-6xl">
@@ -132,8 +285,8 @@ export default function Home() {
           </h2>
 
           <p className="mx-auto mt-4 max-w-2xl text-lg text-zinc-400">
-            Follow the next event from the homepage or browse each championship
-            separately.
+            Follow the current event from the homepage or browse each
+            championship separately.
           </p>
         </div>
 

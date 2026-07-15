@@ -246,6 +246,11 @@ export default async function AccountPage() {
         timeStyle: "short",
       }).format(new Date(currentPicks.updated_at))
     : null;
+    const activeSeries = currentEvent?.series;
+
+const isSupercrossActive = activeSeries === "Supercross";
+const isMotocrossActive = activeSeries === "Motocross";
+const isSmxActive = activeSeries === "SMX";
 
   return (
     <main className="min-h-screen bg-black text-white">
@@ -286,42 +291,90 @@ export default async function AccountPage() {
           </div>
 
           <div className="mt-12 grid gap-5 md:grid-cols-3">
-            <div className="rounded-3xl border border-zinc-800 bg-zinc-950 p-7">
-              <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
-                SX Championship
-              </p>
+  <div
+    className={`rounded-3xl border p-7 ${
+      isSupercrossActive
+        ? "border-orange-500/40 bg-orange-500/10"
+        : "border-zinc-800 bg-zinc-950"
+    }`}
+  >
+    <p
+      className={`text-xs font-bold uppercase tracking-widest ${
+        isSupercrossActive ? "text-orange-400" : "text-zinc-500"
+      }`}
+    >
+      SX Championship
+    </p>
 
-              <p className="mt-3 text-4xl font-black">—</p>
+    <p className="mt-3 text-4xl font-black">—</p>
 
-              <p className="mt-2 text-sm text-zinc-500">
-                Scoring coming soon
-              </p>
-            </div>
+    <p
+      className={`mt-2 text-sm ${
+        isSupercrossActive
+          ? "text-orange-300/70"
+          : "text-zinc-500"
+      }`}
+    >
+      Scoring coming soon
+    </p>
+  </div>
 
-            <div className="rounded-3xl border border-zinc-800 bg-zinc-950 p-7">
-              <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
-                MX Championship
-              </p>
+  <div
+    className={`rounded-3xl border p-7 ${
+      isMotocrossActive
+        ? "border-orange-500/40 bg-orange-500/10"
+        : "border-zinc-800 bg-zinc-950"
+    }`}
+  >
+    <p
+      className={`text-xs font-bold uppercase tracking-widest ${
+        isMotocrossActive ? "text-orange-400" : "text-zinc-500"
+      }`}
+    >
+      MX Championship
+    </p>
 
-              <p className="mt-3 text-4xl font-black">—</p>
+    <p className="mt-3 text-4xl font-black">—</p>
 
-              <p className="mt-2 text-sm text-zinc-500">
-                Scoring coming soon
-              </p>
-            </div>
+    <p
+      className={`mt-2 text-sm ${
+        isMotocrossActive
+          ? "text-orange-300/70"
+          : "text-zinc-500"
+      }`}
+    >
+      Scoring coming soon
+    </p>
+  </div>
 
-            <div className="rounded-3xl border border-orange-500/40 bg-orange-500/10 p-7">
-              <p className="text-xs font-bold uppercase tracking-widest text-orange-400">
-                SMX Championship
-              </p>
+  <div
+    className={`rounded-3xl border p-7 ${
+      isSmxActive
+        ? "border-orange-500/40 bg-orange-500/10"
+        : "border-zinc-800 bg-zinc-950"
+    }`}
+  >
+    <p
+      className={`text-xs font-bold uppercase tracking-widest ${
+        isSmxActive ? "text-orange-400" : "text-zinc-500"
+      }`}
+    >
+      SMX Championship
+    </p>
 
-              <p className="mt-3 text-4xl font-black">—</p>
+    <p className="mt-3 text-4xl font-black">—</p>
 
-              <p className="mt-2 text-sm text-orange-300/70">
-                SX + MX + SMX playoffs
-              </p>
-            </div>
-          </div>
+    <p
+      className={`mt-2 text-sm ${
+        isSmxActive
+          ? "text-orange-300/70"
+          : "text-zinc-500"
+      }`}
+    >
+      SX + MX + SMX playoffs
+    </p>
+  </div>
+</div>
 
           <section className="mt-10 rounded-3xl border border-zinc-800 bg-zinc-950 p-7 md:p-9">
             <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
