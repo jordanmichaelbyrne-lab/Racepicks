@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
-import { generateWildcard } from "./actions";
+import {
+  generateAllWildcards,
+  generateWildcard,
+  resetSeasonWildcards,
+} from "./actions";
 
 type EventRow = {
   id: string;
@@ -14,6 +18,7 @@ type EventRow = {
   wildcard_position: number | null;
   wildcard_generated_at: string | null;
   wildcard_source: string | null;
+  wildcard_locked: boolean;
 };
 
 type PageProps = {
@@ -75,7 +80,8 @@ export default async function WildcardAdminPage({
         race_date,
         wildcard_position,
         wildcard_generated_at,
-        wildcard_source
+        wildcard_source,
+        wildcard_locked
       `
     )
     .order("race_date", { ascending: true });
@@ -177,6 +183,37 @@ export default async function WildcardAdminPage({
               </div>
             </form>
 
+<section className="mt-10 rounded-3xl border border-orange-500/40 bg-orange-500/10 p-6 sm:p-8">
+  <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-400">
+    Season Setup
+  </p>
+
+  <h2 className="mt-3 text-2xl font-black uppercase sm:text-3xl">
+    Generate All 2027 Wildcards
+  </h2>
+
+  <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-400">
+    Generates balanced wildcard positions for every Supercross,
+    Motocross and SMX round. Once generated, each wildcard is locked
+    and cannot be changed through Race Control.
+  </p>
+
+  <form action={generateAllWildcards} className="mt-6">
+  <input type="hidden" name="season" value="2027" />
+
+  <button
+    type="submit"
+    className="w-full rounded-full bg-orange-500 px-7 py-4 font-black text-black transition hover:bg-orange-400"
+  >
+    Generate & Lock All 2027 Wildcards
+  </button>
+</form>
+
+  <p className="mt-3 text-center text-xs font-bold text-orange-300/70">
+    Only run this when you are ready to permanently set the season.
+  </p>
+</section>
+
             {selectedEvent && (
               <section className="mt-8 rounded-3xl border border-zinc-800 bg-zinc-950 p-7 sm:p-9">
                 <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
@@ -229,48 +266,40 @@ export default async function WildcardAdminPage({
                   </p>
                 </div>
 
-                {!selectedEvent.wildcard_position ? (
-                  <form action={generateWildcard} className="mt-6">
-                    <input
-                      type="hidden"
-                      name="event_id"
-                      value={selectedEvent.id}
-                    />
+                {selectedEvent.wildcard_locked ? (
 
-                    <button
-                      type="submit"
-                      className="w-full rounded-full bg-orange-500 px-7 py-4 font-black text-black transition hover:bg-orange-400"
-                    >
-                      Generate Wildcard
-                    </button>
-                  </form>
-                ) : (
-                  <form action={generateWildcard} className="mt-6">
-                    <input
-                      type="hidden"
-                      name="event_id"
-                      value={selectedEvent.id}
-                    />
+  <div className="mt-6 rounded-2xl border border-green-500/30 bg-green-500/10 px-5 py-4 text-center">
 
-                    <input
-                      type="hidden"
-                      name="force_regenerate"
-                      value="true"
-                    />
+    <p className="font-black text-green-300">
+      Wildcard Locked
+    </p>
 
-                    <button
-                      type="submit"
-                      className="w-full rounded-full border border-red-500/40 px-7 py-4 font-black text-red-400 transition hover:bg-red-500/10"
-                    >
-                      Regenerate Wildcard
-                    </button>
+    <p className="mt-2 text-sm text-zinc-400">
+      This wildcard has already been generated for this round.
+    </p>
 
-                    <p className="mt-3 text-center text-xs text-zinc-600">
-                      Emergency admin fallback only. Normal wildcards
-                      should never need manual changes.
-                    </p>
-                  </form>
-                )}
+  </div>
+
+) : (
+
+  <form action={generateWildcard} className="mt-6">
+
+    <input
+      type="hidden"
+      name="event_id"
+      value={selectedEvent.id}
+    />
+
+    <button
+      type="submit"
+      className="w-full rounded-full bg-orange-500 px-7 py-4 font-black text-black transition hover:bg-orange-400"
+    >
+      Generate & Lock Wildcard
+    </button>
+
+  </form>
+
+)}
               </section>
             )}
           </>
