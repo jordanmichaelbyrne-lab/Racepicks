@@ -1,7 +1,6 @@
 import Link from "next/link";
 import Countdown from "./components/Countdown";
 import Navbar from "./components/Navbar";
-import { competitions } from "./data/competitions";
 import { createClient } from "./lib/supabase/server";
 
 type HomeEvent = {
@@ -16,6 +15,24 @@ type HomeEvent = {
   picks_close_at: string;
   wildcard_position: number | null;
   status: string;
+};
+
+type SeasonEventRow = {
+  competition_slug: string;
+  series: string;
+  season: number;
+  round_number: number;
+  status: string;
+};
+
+type SeasonCompetition = {
+  slug: string;
+  series: string;
+  season: number;
+  title: string;
+  description: string;
+  roundCount: number;
+  status: "Live" | "Completed" | "Upcoming";
 };
 
 function ordinal(position: number) {
@@ -90,7 +107,7 @@ export default async function Home() {
 
   /*
    * First preference:
-   * whichever event Race Control currently has set to open.
+   * show the event currently open in Race Control.
    */
   const { data: openEvent, error: openEventError } = await supabase
     .from("events")
@@ -107,7 +124,7 @@ export default async function Home() {
   let currentEvent = openEvent as HomeEvent | null;
 
   /*
-   * If nothing is open, show the earliest upcoming event.
+   * If no event is open, show the earliest future upcoming event.
    */
   if (!currentEvent) {
     const { data: upcomingEvent, error: upcomingEventError } =
@@ -127,12 +144,9 @@ export default async function Home() {
     currentEvent = upcomingEvent as HomeEvent | null;
   }
 
-  const competitionDescriptions: Record<string, string> = {
-    supercross: "Stadium racing from January through May.",
-    outdoors: "The Pro Motocross outdoor championship.",
-    smx: "The season-ending SuperMotocross playoffs.",
-  };
-
+  /*
+   * Render a safe fallback before accessing currentEvent.season.
+   */
   if (!currentEvent) {
     return (
       <main className="min-h-screen bg-black text-white">
@@ -164,6 +178,92 @@ export default async function Home() {
       </main>
     );
   }
+
+  const activeSeason = currentEvent.season;
+
+  /*
+   * Load all competitions belonging to the active season.
+   */
+  const { data: seasonEventRows, error: seasonEventsError } =
+    await supabase
+      .from("events")
+      .select(
+        `
+          competition_slug,
+          series,
+          season,
+          round_number,
+          status
+        `
+      )
+      .eq("season", activeSeason)
+      .order("race_date", { ascending: true });
+
+  if (seasonEventsError) {
+    throw new Error(seasonEventsError.message);
+  }
+
+  const typedSeasonEvents =
+    (seasonEventRows ?? []) as SeasonEventRow[];
+
+  const seriesDescriptions: Record<string, string> = {
+    Supercross: "Stadium racing from January through May.",
+    Motocross: "The Pro Motocross outdoor championship.",
+    SMX: "The season-ending SuperMotocross playoffs.",
+  };
+
+  const seriesTitles: Record<string, string> = {
+    Supercross: `${activeSeason} Supercross`,
+    Motocross: `${activeSeason} Motocross`,
+    SMX: `${activeSeason} SMX Championship`,
+  };
+
+  const uniqueCompetitions = Array.from(
+    new Map(
+      typedSeasonEvents.map((event) => [
+        event.competition_slug,
+        {
+          slug: event.competition_slug,
+          series: event.series,
+          season: event.season,
+        },
+      ])
+    ).values()
+  );
+
+  const seasonCompetitions: SeasonCompetition[] =
+    uniqueCompetitions.map((competition) => {
+      const competitionEvents = typedSeasonEvents.filter(
+        (event) =>
+          event.competition_slug === competition.slug
+      );
+
+      const hasOpenEvent = competitionEvents.some(
+        (event) => event.status === "open"
+      );
+
+      const allCompleted =
+        competitionEvents.length > 0 &&
+        competitionEvents.every(
+          (event) => event.status === "completed"
+        );
+
+      return {
+        ...competition,
+        title:
+          seriesTitles[competition.series] ??
+          `${competition.season} ${competition.series}`,
+        description:
+          seriesDescriptions[competition.series] ??
+          "Racepicks championship competition.",
+        roundCount: competitionEvents.length,
+        status: hasOpenEvent
+          ? "Live"
+          : allCompleted
+            ? "Completed"
+            : "Upcoming",
+      };
+    });
 
   const backgroundImage = getEventBackground();
   const picksAreOpen = currentEvent.status === "open";
@@ -231,7 +331,9 @@ export default async function Home() {
                 </p>
 
                 <p className="mt-3 text-2xl font-black">
-                  {formatPickCloseTime(currentEvent.picks_close_at)}
+                  {formatPickCloseTime(
+                    currentEvent.picks_close_at
+                  )}
                 </p>
 
                 <p className="mt-1 text-xs font-bold uppercase tracking-widest text-zinc-500">
@@ -245,7 +347,9 @@ export default async function Home() {
                 Picks Close In
               </p>
 
-              <Countdown targetDate={currentEvent.picks_close_at} />
+              <Countdown
+                targetDate={currentEvent.picks_close_at}
+              />
             </div>
 
             <p className="mt-8 max-w-3xl text-base leading-7 text-zinc-300 md:text-xl">
@@ -277,7 +381,7 @@ export default async function Home() {
       <section className="mx-auto max-w-7xl px-6 py-20">
         <div className="text-center">
           <p className="text-sm font-black uppercase tracking-[0.35em] text-orange-500">
-            Championship Series
+            {activeSeason} Championship Series
           </p>
 
           <h2 className="mt-4 text-4xl font-black tracking-tight md:text-6xl">
@@ -290,36 +394,53 @@ export default async function Home() {
           </p>
         </div>
 
-        <div className="mt-12 grid gap-6 lg:grid-cols-3">
-          {competitions.map((competition) => (
+        <div
+          className={`mt-12 grid gap-6 ${
+            seasonCompetitions.length === 2
+              ? "mx-auto max-w-4xl md:grid-cols-2"
+              : "lg:grid-cols-3"
+          }`}
+        >
+          {seasonCompetitions.map((competition) => (
             <div
-              key={competition.id}
+              key={competition.slug}
               className="flex flex-col rounded-3xl border border-zinc-800 bg-zinc-950 p-8 transition hover:-translate-y-1 hover:border-orange-500/50"
             >
               <p className="text-sm font-black uppercase tracking-[0.25em] text-orange-500">
-                {competition.year}
+                {competition.season}
               </p>
 
               <h3 className="mt-4 text-3xl font-black">
-                {competition.shortName}
+                {competition.title}
               </h3>
 
-              <p className="mt-4 leading-7 text-zinc-400">
-                {competitionDescriptions[competition.discipline]}
+              <p className="mt-4 flex-1 leading-7 text-zinc-400">
+                {competition.description}
               </p>
 
               <div className="mt-6 flex items-center justify-between border-t border-zinc-800 pt-6">
                 <span className="font-bold text-zinc-300">
-                  {competition.roundCount} Rounds
+                  {competition.roundCount}{" "}
+                  {competition.roundCount === 1
+                    ? "Round"
+                    : "Rounds"}
                 </span>
 
-                <span className="rounded-full bg-zinc-900 px-3 py-1 text-xs font-bold uppercase tracking-wider text-zinc-400">
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider ${
+                    competition.status === "Live"
+                      ? "bg-green-500/10 text-green-400"
+                      : competition.status === "Completed"
+                        ? "bg-blue-500/10 text-blue-400"
+                        : "bg-zinc-900 text-zinc-400"
+                  }`}
+                >
                   {competition.status}
                 </span>
               </div>
 
               <Link
-                href={`/competitions/${competition.id}`}
+                href={`/competitions/${competition.slug}`}
                 className="mt-8 rounded-full border border-zinc-700 px-6 py-3 text-center font-black transition hover:border-orange-500 hover:bg-orange-500 hover:text-black"
               >
                 View Competition
