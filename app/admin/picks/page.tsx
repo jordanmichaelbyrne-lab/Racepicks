@@ -193,9 +193,8 @@ export default async function AdminPicksPage({
    * Admin accounts are excluded from the missing-player list.
    * Remove this filter later if admins should also count as players.
    */
-  const playerProfiles = (
-    (profilesResponse.data ?? []) as ProfileRow[]
-  ).filter((profile) => profile.role !== "admin");
+  const playerProfiles =
+  (profilesResponse.data ?? []) as ProfileRow[];
 
   const picks = (picksResponse.data ?? []) as PickRow[];
 
