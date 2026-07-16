@@ -29,7 +29,8 @@ export async function savePicks(
   if (userError || !user) {
     return {
       success: false,
-      message: "Please sign in before submitting your picks.",
+      message:
+        "Please sign in before submitting your picks.",
     };
   }
 
@@ -61,22 +62,26 @@ export async function savePicks(
     wildcardRiderId,
   ];
 
-  if (new Set(selectedRiderIds).size !== 4) {
+  if (
+    new Set(selectedRiderIds).size !==
+    selectedRiderIds.length
+  ) {
     return {
       success: false,
       message: "Each rider can only be selected once.",
     };
   }
 
-  /*
-   * Check the event on the server.
-   *
-   * This prevents somebody bypassing the disabled button in the browser
-   * and submitting picks after the official closing time.
-   */
   const { data: event, error: eventError } = await supabase
     .from("events")
-    .select("id, status, picks_close_at")
+    .select(
+      `
+        id,
+        competition_slug,
+        status,
+        picks_close_at
+      `
+    )
     .eq("id", eventId)
     .single();
 
@@ -97,7 +102,8 @@ export async function savePicks(
   if (!event.picks_close_at) {
     return {
       success: false,
-      message: "The pick closing time has not been configured.",
+      message:
+        "The pick closing time has not been configured.",
     };
   }
 
@@ -123,7 +129,6 @@ export async function savePicks(
     };
   }
 
-  // Confirm all four riders are still on this event's published entry list.
   const { data: confirmedEntries, error: entriesError } =
     await supabase
       .from("event_entries")
@@ -133,7 +138,10 @@ export async function savePicks(
       .in("rider_id", selectedRiderIds);
 
   if (entriesError) {
-    console.error("Entry-list validation error:", entriesError);
+    console.error(
+      "Entry-list validation error:",
+      entriesError
+    );
 
     return {
       success: false,
@@ -142,11 +150,13 @@ export async function savePicks(
   }
 
   const confirmedRiderIds = new Set(
-    (confirmedEntries ?? []).map((entry) => entry.rider_id)
+    (confirmedEntries ?? []).map(
+      (entry) => entry.rider_id
+    )
   );
 
-  const selectionsAreValid = selectedRiderIds.every((riderId) =>
-    confirmedRiderIds.has(riderId)
+  const selectionsAreValid = selectedRiderIds.every(
+    (riderId) => confirmedRiderIds.has(riderId)
   );
 
   if (!selectionsAreValid) {
@@ -158,23 +168,52 @@ export async function savePicks(
   }
 
   /*
-   * One pick row per user and event.
-   * Submitting again before the cutoff updates the existing selection.
+   * Ensure the player is an active member of this competition.
+   * The database trigger should also handle this, but doing it here
+   * gives the application a clear and reliable backup.
    */
-  const { error: saveError } = await supabase.from("picks").upsert(
-    {
-      user_id: user.id,
-      event_id: eventId,
-      first_rider_id: firstRiderId,
-      second_rider_id: secondRiderId,
-      third_rider_id: thirdRiderId,
-      wildcard_rider_id: wildcardRiderId,
-      updated_at: new Date().toISOString(),
-    },
-    {
-      onConflict: "user_id,event_id",
-    }
-  );
+  const { error: membershipError } = await supabase
+    .from("competition_members")
+    .upsert(
+      {
+        competition_slug: event.competition_slug,
+        user_id: user.id,
+        status: "active",
+      },
+      {
+        onConflict: "competition_slug,user_id",
+      }
+    );
+
+  if (membershipError) {
+    console.error(
+      "Competition membership error:",
+      membershipError
+    );
+
+    return {
+      success: false,
+      message:
+        "Your competition registration could not be confirmed.",
+    };
+  }
+
+  const { error: saveError } = await supabase
+    .from("picks")
+    .upsert(
+      {
+        user_id: user.id,
+        event_id: eventId,
+        first_rider_id: firstRiderId,
+        second_rider_id: secondRiderId,
+        third_rider_id: thirdRiderId,
+        wildcard_rider_id: wildcardRiderId,
+        updated_at: new Date().toISOString(),
+      },
+      {
+        onConflict: "user_id,event_id",
+      }
+    );
 
   if (saveError) {
     console.error("Pick saving error:", saveError);
@@ -185,11 +224,15 @@ export async function savePicks(
     };
   }
 
+  revalidatePath("/");
   revalidatePath("/picks");
   revalidatePath("/account");
+  revalidatePath("/admin");
+  revalidatePath("/admin/picks");
 
   return {
     success: true,
-    message: "You’re on the gate! Your picks have been saved.",
+    message:
+      "You’re on the gate! Your picks have been saved.",
   };
 }

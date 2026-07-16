@@ -29,6 +29,32 @@ type MessageState = {
   text: string;
 } | null;
 
+type PickField = {
+  key: PickKey;
+  label: string;
+  description: string;
+};
+
+function normaliseSearch(value: string) {
+  return value.toLowerCase().trim();
+}
+
+function riderLabel(rider: Rider) {
+  const number =
+    typeof rider.race_number === "number"
+      ? `#${rider.race_number}`
+      : "#—";
+
+  const details = [
+    rider.manufacturer,
+    rider.team_name,
+  ].filter(Boolean);
+
+  return `${number} — ${rider.full_name}${
+    details.length > 0 ? ` — ${details.join(" — ")}` : ""
+  }`;
+}
+
 export default function PicksForm({
   eventId,
   riders,
@@ -38,11 +64,25 @@ export default function PicksForm({
   hasSavedPicks,
 }: PicksFormProps) {
   const [picks, setPicks] = useState<Picks>(initialPicks);
+
+  const [searches, setSearches] = useState<
+    Record<PickKey, string>
+  >({
+    first: "",
+    second: "",
+    third: "",
+    wildcard: "",
+  });
+
+  const [openPicker, setOpenPicker] =
+    useState<PickKey | null>(null);
+
   const [picksLocked, setPicksLocked] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState("");
   const [message, setMessage] = useState<MessageState>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [savedPreviously, setSavedPreviously] = useState(hasSavedPicks);
+  const [savedPreviously, setSavedPreviously] =
+    useState(hasSavedPicks);
 
   useEffect(() => {
     function updateCountdown() {
@@ -77,12 +117,19 @@ export default function PicksForm({
         (difference / (1000 * 60)) % 60
       );
 
-      setTimeRemaining(`${days}d ${hours}h ${minutes}m`);
+      if (days > 0) {
+        setTimeRemaining(`${days}d ${hours}h ${minutes}m`);
+      } else {
+        setTimeRemaining(`${hours}h ${minutes}m`);
+      }
     }
 
     updateCountdown();
 
-    const interval = window.setInterval(updateCountdown, 60000);
+    const interval = window.setInterval(
+      updateCountdown,
+      60000
+    );
 
     return () => {
       window.clearInterval(interval);
@@ -108,11 +155,7 @@ export default function PicksForm({
     }).format(closeDate);
   }, [picksCloseAt]);
 
-  const pickFields: {
-    key: PickKey;
-    label: string;
-    description: string;
-  }[] = [
+  const pickFields: PickField[] = [
     {
       key: "first",
       label: "1st Place",
@@ -135,16 +178,87 @@ export default function PicksForm({
     },
   ];
 
-  function updatePick(key: PickKey, riderId: string) {
+  const selectedRiderIds = useMemo(
+    () =>
+      new Set(
+        Object.values(picks).filter(
+          (riderId) => riderId !== ""
+        )
+      ),
+    [picks]
+  );
+
+  function findRider(riderId: string) {
+    return riders.find((rider) => rider.id === riderId) ?? null;
+  }
+
+  function filteredRidersForField(fieldKey: PickKey) {
+    const query = normaliseSearch(searches[fieldKey]);
+
+    return riders.filter((rider) => {
+      const selectedElsewhere =
+        selectedRiderIds.has(rider.id) &&
+        picks[fieldKey] !== rider.id;
+
+      if (selectedElsewhere) {
+        return false;
+      }
+
+      if (!query) {
+        return true;
+      }
+
+      const searchableText = [
+        rider.full_name,
+        String(rider.race_number ?? ""),
+        rider.manufacturer ?? "",
+        rider.team_name ?? "",
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return searchableText.includes(query);
+    });
+  }
+
+  function chooseRider(
+    fieldKey: PickKey,
+    riderId: string
+  ) {
     if (picksLocked || isSaving) {
       return;
     }
 
     setPicks((current) => ({
       ...current,
-      [key]: riderId,
+      [fieldKey]: riderId,
     }));
 
+    setSearches((current) => ({
+      ...current,
+      [fieldKey]: "",
+    }));
+
+    setOpenPicker(null);
+    setMessage(null);
+  }
+
+  function clearPick(fieldKey: PickKey) {
+    if (picksLocked || isSaving) {
+      return;
+    }
+
+    setPicks((current) => ({
+      ...current,
+      [fieldKey]: "",
+    }));
+
+    setSearches((current) => ({
+      ...current,
+      [fieldKey]: "",
+    }));
+
+    setOpenPicker(fieldKey);
     setMessage(null);
   }
 
@@ -157,9 +271,11 @@ export default function PicksForm({
       return;
     }
 
-    const selectedRiderIds = Object.values(picks);
+    const chosenRiderIds = Object.values(picks);
 
-    if (selectedRiderIds.some((riderId) => riderId === "")) {
+    if (
+      chosenRiderIds.some((riderId) => riderId === "")
+    ) {
       setMessage({
         type: "error",
         text: "Choose a rider for all four positions.",
@@ -167,7 +283,10 @@ export default function PicksForm({
       return;
     }
 
-    if (new Set(selectedRiderIds).size !== selectedRiderIds.length) {
+    if (
+      new Set(chosenRiderIds).size !==
+      chosenRiderIds.length
+    ) {
       setMessage({
         type: "error",
         text: "Each rider can only be selected once.",
@@ -224,40 +343,147 @@ export default function PicksForm({
       </div>
 
       <div className="mt-8 space-y-5">
-        {pickFields.map((field) => (
-          <div
-            key={field.key}
-            className="rounded-3xl border border-zinc-800 bg-zinc-950 p-6"
-          >
-            <div className="grid gap-5 md:grid-cols-[1fr_1.2fr] md:items-center">
-              <div>
-                <h2 className="text-2xl font-black">{field.label}</h2>
+        {pickFields.map((field) => {
+          const selectedRider = findRider(picks[field.key]);
+          const matchingRiders =
+            filteredRidersForField(field.key);
+          const isOpen = openPicker === field.key;
 
-                <p className="mt-2 text-zinc-400">
-                  {field.description}
-                </p>
+          return (
+            <div
+              key={field.key}
+              className={`rounded-3xl border p-6 ${
+                field.key === "wildcard"
+                  ? "border-orange-500/30 bg-orange-500/5"
+                  : "border-zinc-800 bg-zinc-950"
+              }`}
+            >
+              <div className="grid gap-5 md:grid-cols-[1fr_1.2fr] md:items-start">
+                <div>
+                  <h2 className="text-2xl font-black">
+                    {field.label}
+                  </h2>
+
+                  <p className="mt-2 text-zinc-400">
+                    {field.description}
+                  </p>
+                </div>
+
+                <div className="relative">
+                  <button
+                    type="button"
+                    disabled={picksLocked || isSaving}
+                    onClick={() =>
+                      setOpenPicker(
+                        isOpen ? null : field.key
+                      )
+                    }
+                    className={`flex w-full items-center justify-between gap-4 rounded-2xl border bg-black px-5 py-4 text-left transition ${
+                      isOpen
+                        ? "border-orange-500"
+                        : "border-zinc-700"
+                    } disabled:cursor-not-allowed disabled:border-zinc-800 disabled:bg-zinc-900`}
+                  >
+                    <span
+                      className={
+                        selectedRider
+                          ? "font-black text-white"
+                          : "font-bold text-zinc-500"
+                      }
+                    >
+                      {selectedRider
+                        ? riderLabel(selectedRider)
+                        : "Select rider"}
+                    </span>
+
+                    <span className="text-zinc-500">
+                      {isOpen ? "▲" : "▼"}
+                    </span>
+                  </button>
+
+                  {isOpen && !picksLocked && !isSaving && (
+                    <div className="absolute left-0 right-0 z-30 mt-2 overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-950 shadow-2xl">
+                      <div className="border-b border-zinc-800 p-3">
+                        <input
+                          type="search"
+                          autoFocus
+                          value={searches[field.key]}
+                          onChange={(event) =>
+                            setSearches((current) => ({
+                              ...current,
+                              [field.key]: event.target.value,
+                            }))
+                          }
+                          placeholder="Search name or race number"
+                          className="w-full rounded-xl border border-zinc-700 bg-black px-4 py-3 font-bold text-white outline-none placeholder:text-zinc-600 focus:border-orange-500"
+                        />
+                      </div>
+
+                      <div className="max-h-72 overflow-y-auto p-2">
+                        {selectedRider && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              clearPick(field.key)
+                            }
+                            className="mb-2 w-full rounded-xl border border-zinc-800 px-4 py-3 text-left text-sm font-bold text-zinc-400 transition hover:border-orange-500 hover:text-orange-400"
+                          >
+                            Clear selection
+                          </button>
+                        )}
+
+                        {matchingRiders.length > 0 ? (
+                          matchingRiders.map((rider) => (
+                            <button
+                              key={rider.id}
+                              type="button"
+                              onClick={() =>
+                                chooseRider(
+                                  field.key,
+                                  rider.id
+                                )
+                              }
+                              className={`w-full rounded-xl px-4 py-3 text-left transition hover:bg-zinc-900 ${
+                                picks[field.key] === rider.id
+                                  ? "bg-orange-500/10 text-orange-400"
+                                  : "text-white"
+                              }`}
+                            >
+                              <p className="font-black">
+                                #{rider.race_number ?? "—"}{" "}
+                                {rider.full_name}
+                              </p>
+
+                              <p className="mt-1 text-xs text-zinc-500">
+                                {[
+                                  rider.manufacturer,
+                                  rider.team_name,
+                                ]
+                                  .filter(Boolean)
+                                  .join(" • ") ||
+                                  "Team information unavailable"}
+                              </p>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="p-5 text-center">
+                            <p className="font-bold text-yellow-400">
+                              No riders found
+                            </p>
+
+                            <p className="mt-2 text-sm text-zinc-500">
+                              Try a different name or race number.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-
-              <select
-                value={picks[field.key]}
-                disabled={picksLocked || isSaving}
-                onChange={(event) =>
-                  updatePick(field.key, event.target.value)
-                }
-                className="w-full rounded-2xl border border-zinc-700 bg-black px-5 py-4 text-lg font-bold text-white outline-none transition focus:border-orange-500 disabled:cursor-not-allowed disabled:border-zinc-800 disabled:bg-zinc-900 disabled:text-zinc-500"
-              >
-                <option value="">Select rider</option>
-
-                {riders.map((rider) => (
-                  <option key={rider.id} value={rider.id}>
-                    #{rider.race_number ?? "—"} — {rider.full_name}
-                    {rider.team_name ? ` — ${rider.team_name}` : ""}
-                  </option>
-                ))}
-              </select>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {message && (
