@@ -26,6 +26,14 @@ type ProfileRow = {
   role: string | null;
 };
 
+type CompetitionMemberRow = {
+  user_id: string;
+  display_name: string | null;
+  role: string | null;
+  member_status: string;
+  joined_at: string;
+};
+
 type PickRow = {
   user_id: string;
   first_rider_id: string;
@@ -86,15 +94,15 @@ export default async function AdminPicksPage({
     redirect("/login");
   }
 
-  const { data: adminProfile, error: profileError } =
+  const { data: adminProfile, error: adminProfileError } =
     await supabase
       .from("profiles")
       .select("role")
       .eq("id", user.id)
       .single();
 
-  if (profileError) {
-    throw new Error(profileError.message);
+  if (adminProfileError) {
+    throw new Error(adminProfileError.message);
   }
 
   if (adminProfile?.role !== "admin") {
@@ -107,6 +115,7 @@ export default async function AdminPicksPage({
       .select(
         `
           id,
+          competition_slug,
           season,
           series,
           round_number,
@@ -145,114 +154,109 @@ export default async function AdminPicksPage({
     return (
       <main className="min-h-screen bg-black px-6 py-10 text-white">
         <div className="mx-auto max-w-6xl">
-          <Link href="/admin">← Back to Race Control</Link>
+          <Link
+            href="/admin"
+            className="text-sm font-bold text-zinc-400 transition hover:text-orange-500"
+          >
+            ← Back to Race Control
+          </Link>
 
           <div className="mt-10 rounded-3xl border border-zinc-800 bg-zinc-950 p-10 text-center">
-            <h1 className="text-3xl font-black">
-              No events found
-            </h1>
+            <h1 className="text-3xl font-black">No events found</h1>
           </div>
         </div>
       </main>
     );
   }
 
-const [membersResponse, picksResponse] = await Promise.all([
-  supabase
-    .from("competition_members")
-    .select("user_id, status, joined_at")
-    .eq(
-      "competition_slug",
-      selectedEvent.competition_slug
-    )
-    .eq("status", "active")
-    .order("joined_at", { ascending: true }),
+  const [membersResponse, picksResponse] = await Promise.all([
+    supabase.rpc("get_admin_competition_members", {
+      requested_competition_slug:
+        selectedEvent.competition_slug,
+    }),
 
-  supabase
-    .from("picks")
-    .select(
-      `
-        user_id,
-        first_rider_id,
-        second_rider_id,
-        third_rider_id,
-        wildcard_rider_id,
-        updated_at
-      `
-    )
-    .eq("event_id", selectedEvent.id)
-    .order("updated_at", { ascending: false }),
-]);
+    supabase
+      .from("picks")
+      .select(
+        `
+          user_id,
+          first_rider_id,
+          second_rider_id,
+          third_rider_id,
+          wildcard_rider_id,
+          updated_at
+        `
+      )
+      .eq("event_id", selectedEvent.id)
+      .order("updated_at", { ascending: false }),
+  ]);
 
-if (membersResponse.error) {
-  throw new Error(membersResponse.error.message);
-}
-
-if (picksResponse.error) {
-  throw new Error(picksResponse.error.message);
-}
-
-const picks = (picksResponse.data ?? []) as PickRow[];
-
-const memberUserIds = Array.from(
-  new Set(
-    (membersResponse.data ?? []).map(
-      (member) => member.user_id
-    )
-  )
-);
-
-/*
- * Include IDs found in picks as a safety check.
- * A valid saved pick should never disappear merely because a
- * membership record was temporarily missing.
- */
-const pickUserIds = picks.map((pick) => pick.user_id);
-
-const profileUserIds = Array.from(
-  new Set([...memberUserIds, ...pickUserIds])
-);
-
-let availableProfiles: ProfileRow[] = [];
-
-if (profileUserIds.length > 0) {
-  const { data: profileData, error: playersError } =
-    await supabase
-      .from("profiles")
-      .select("id, display_name, role")
-      .in("id", profileUserIds)
-      .order("display_name", { ascending: true });
-
-  if (playersError) {
-    throw new Error(playersError.message);
+  if (membersResponse.error) {
+    throw new Error(membersResponse.error.message);
   }
 
-  availableProfiles =
-    (profileData ?? []) as ProfileRow[];
-}
+  if (picksResponse.error) {
+    throw new Error(picksResponse.error.message);
+  }
 
-/*
- * Only registered competition members count toward:
- * - Registered Players
- * - Submitted
- * - Missing
- * - Completion percentage
- *
- * Admins remain included when they are registered players.
- */
-const playerProfiles = memberUserIds
-  .map(
-    (userId) =>
-      availableProfiles.find(
-        (profile) => profile.id === userId
-      ) ?? null
-  )
-  .filter(
-    (profile): profile is ProfileRow =>
-      profile !== null
+  const picks = (picksResponse.data ?? []) as PickRow[];
+
+  const competitionMembers =
+    (membersResponse.data ?? []) as CompetitionMemberRow[];
+
+  const memberProfiles: ProfileRow[] = competitionMembers.map(
+    (member) => ({
+      id: member.user_id,
+      display_name: member.display_name,
+      role: member.role,
+    })
   );
 
+  /*
+   * Safety fallback:
+   * if a saved pick exists but its membership row is temporarily missing,
+   * still load the player's profile so their name appears correctly.
+   */
+  const pickUserIds = Array.from(
+    new Set(picks.map((pick) => pick.user_id))
+  );
 
+  const missingProfileIds = pickUserIds.filter(
+    (userId) =>
+      !memberProfiles.some(
+        (profile) => profile.id === userId
+      )
+  );
+
+  let fallbackProfiles: ProfileRow[] = [];
+
+  if (missingProfileIds.length > 0) {
+    const { data: fallbackData, error: fallbackError } =
+      await supabase
+        .from("profiles")
+        .select("id, display_name, role")
+        .in("id", missingProfileIds);
+
+    if (fallbackError) {
+      throw new Error(fallbackError.message);
+    }
+
+    fallbackProfiles =
+      (fallbackData ?? []) as ProfileRow[];
+  }
+
+  /*
+   * Only active competition members count toward the totals.
+   */
+  const playerProfiles = memberProfiles;
+
+  /*
+   * Used to identify every saved pick owner.
+   */
+  const availableProfiles: ProfileRow[] = [
+    ...memberProfiles,
+    ...fallbackProfiles,
+  ];
 
   const submittedUserIds = new Set(
     picks.map((pick) => pick.user_id)
@@ -294,12 +298,12 @@ const playerProfiles = memberUserIds
   }
 
   function findProfile(userId: string) {
-  return (
-    availableProfiles.find(
-      (profile) => profile.id === userId
-    ) ?? null
-  );
-}
+    return (
+      availableProfiles.find(
+        (profile) => profile.id === userId
+      ) ?? null
+    );
+  }
 
   function findRider(riderId: string) {
     return (
@@ -412,9 +416,7 @@ const playerProfiles = memberUserIds
 
               <p className="mt-3 text-zinc-400">
                 Picks close{" "}
-                {formatDateTime(
-                  selectedEvent.picks_close_at
-                )}
+                {formatDateTime(selectedEvent.picks_close_at)}
               </p>
             </div>
 
@@ -601,11 +603,13 @@ const playerProfiles = memberUserIds
                     rider: findRider(pick.third_rider_id),
                   },
                   {
-                    label: selectedEvent.wildcard_position
-                      ? `Wildcard ${ordinal(
-                          selectedEvent.wildcard_position
-                        )}`
-                      : "Wildcard",
+                    label:
+                      typeof selectedEvent.wildcard_position ===
+                      "number"
+                        ? `Wildcard ${ordinal(
+                            selectedEvent.wildcard_position
+                          )}`
+                        : "Wildcard",
                     rider: findRider(
                       pick.wildcard_rider_id
                     ),
