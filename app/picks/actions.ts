@@ -74,14 +74,9 @@ export async function savePicks(
 
   const { data: event, error: eventError } = await supabase
     .from("events")
-    .select(
-      `
-        id,
-        competition_slug,
-        status,
-        picks_close_at
-      `
-    )
+    .select("id, status, picks_close_at")
+      
+  
     .eq("id", eventId)
     .single();
 
@@ -167,36 +162,6 @@ export async function savePicks(
     };
   }
 
-  /*
-   * Ensure the player is an active member of this competition.
-   * The database trigger should also handle this, but doing it here
-   * gives the application a clear and reliable backup.
-   */
-  const { error: membershipError } = await supabase
-    .from("competition_members")
-    .upsert(
-      {
-        competition_slug: event.competition_slug,
-        user_id: user.id,
-        status: "active",
-      },
-      {
-        onConflict: "competition_slug,user_id",
-      }
-    );
-
-  if (membershipError) {
-    console.error(
-      "Competition membership error:",
-      membershipError
-    );
-
-    return {
-      success: false,
-      message:
-        "Your competition registration could not be confirmed.",
-    };
-  }
 
   const { error: saveError } = await supabase
     .from("picks")
