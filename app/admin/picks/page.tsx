@@ -9,6 +9,7 @@ import {
 
 type EventRow = {
   id: string;
+  competition_slug: string;
   season: number;
   series: string;
   round_number: number;
@@ -156,47 +157,102 @@ export default async function AdminPicksPage({
     );
   }
 
-  const [
-    profilesResponse,
-    picksResponse,
-  ] = await Promise.all([
-    supabase
+const [membersResponse, picksResponse] = await Promise.all([
+  supabase
+    .from("competition_members")
+    .select("user_id, status, joined_at")
+    .eq(
+      "competition_slug",
+      selectedEvent.competition_slug
+    )
+    .eq("status", "active")
+    .order("joined_at", { ascending: true }),
+
+  supabase
+    .from("picks")
+    .select(
+      `
+        user_id,
+        first_rider_id,
+        second_rider_id,
+        third_rider_id,
+        wildcard_rider_id,
+        updated_at
+      `
+    )
+    .eq("event_id", selectedEvent.id)
+    .order("updated_at", { ascending: false }),
+]);
+
+if (membersResponse.error) {
+  throw new Error(membersResponse.error.message);
+}
+
+if (picksResponse.error) {
+  throw new Error(picksResponse.error.message);
+}
+
+const picks = (picksResponse.data ?? []) as PickRow[];
+
+const memberUserIds = Array.from(
+  new Set(
+    (membersResponse.data ?? []).map(
+      (member) => member.user_id
+    )
+  )
+);
+
+/*
+ * Include IDs found in picks as a safety check.
+ * A valid saved pick should never disappear merely because a
+ * membership record was temporarily missing.
+ */
+const pickUserIds = picks.map((pick) => pick.user_id);
+
+const profileUserIds = Array.from(
+  new Set([...memberUserIds, ...pickUserIds])
+);
+
+let availableProfiles: ProfileRow[] = [];
+
+if (profileUserIds.length > 0) {
+  const { data: profileData, error: playersError } =
+    await supabase
       .from("profiles")
       .select("id, display_name, role")
-      .order("display_name", { ascending: true }),
+      .in("id", profileUserIds)
+      .order("display_name", { ascending: true });
 
-    supabase
-      .from("picks")
-      .select(
-        `
-          user_id,
-          first_rider_id,
-          second_rider_id,
-          third_rider_id,
-          wildcard_rider_id,
-          updated_at
-        `
-      )
-      .eq("event_id", selectedEvent.id)
-      .order("updated_at", { ascending: false }),
-  ]);
-
-  if (profilesResponse.error) {
-    throw new Error(profilesResponse.error.message);
+  if (playersError) {
+    throw new Error(playersError.message);
   }
 
-  if (picksResponse.error) {
-    throw new Error(picksResponse.error.message);
-  }
+  availableProfiles =
+    (profileData ?? []) as ProfileRow[];
+}
 
-  /*
-   * Admin accounts are excluded from the missing-player list.
-   * Remove this filter later if admins should also count as players.
-   */
-  const playerProfiles =
-  (profilesResponse.data ?? []) as ProfileRow[];
+/*
+ * Only registered competition members count toward:
+ * - Registered Players
+ * - Submitted
+ * - Missing
+ * - Completion percentage
+ *
+ * Admins remain included when they are registered players.
+ */
+const playerProfiles = memberUserIds
+  .map(
+    (userId) =>
+      availableProfiles.find(
+        (profile) => profile.id === userId
+      ) ?? null
+  )
+  .filter(
+    (profile): profile is ProfileRow =>
+      profile !== null
+  );
 
-  const picks = (picksResponse.data ?? []) as PickRow[];
+
 
   const submittedUserIds = new Set(
     picks.map((pick) => pick.user_id)
@@ -238,12 +294,12 @@ export default async function AdminPicksPage({
   }
 
   function findProfile(userId: string) {
-    return (
-      playerProfiles.find(
-        (profile) => profile.id === userId
-      ) ?? null
-    );
-  }
+  return (
+    availableProfiles.find(
+      (profile) => profile.id === userId
+    ) ?? null
+  );
+}
 
   function findRider(riderId: string) {
     return (
