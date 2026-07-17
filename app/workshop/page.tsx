@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import Navbar from "../components/Navbar";
 import { createClient } from "../lib/supabase/server";
+import PasswordForm from "./PasswordForm";
 import ProfileForm from "./ProfileForm";
 import SignOutButton from "./SignOutButton";
 
@@ -167,45 +168,7 @@ export default async function WorkshopPage() {
               email={user.email ?? "No email address"}
             />
 
-            <section className="rounded-3xl border border-zinc-800 bg-zinc-950 p-7 sm:p-8">
-              <div className="flex items-start justify-between gap-5">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
-                    Protection
-                  </p>
-
-                  <h2 className="mt-3 text-3xl font-black">
-                    Security
-                  </h2>
-                </div>
-
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-orange-500/10 text-2xl">
-                  🔒
-                </div>
-              </div>
-
-              <p className="mt-5 leading-7 text-zinc-400">
-                Keep your Racepicks account secure by using a strong,
-                unique password.
-              </p>
-
-              <div className="mt-7 rounded-2xl border border-zinc-800 bg-black p-5">
-                <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
-                  Password
-                </p>
-
-                <p className="mt-2 text-lg font-black tracking-[0.25em]">
-                  ••••••••••••
-                </p>
-              </div>
-
-              <Link
-                href="/forgot-password"
-                className="mt-6 block w-full rounded-full border border-zinc-700 px-6 py-3 text-center font-black transition hover:border-orange-500 hover:bg-orange-500 hover:text-black"
-              >
-                Change Password
-              </Link>
-            </section>
+            <PasswordForm />
 
             <section className="rounded-3xl border border-zinc-800 bg-zinc-950 p-7 sm:p-8">
               <div className="flex items-start justify-between gap-5">
@@ -287,8 +250,8 @@ export default async function WorkshopPage() {
 
                 <p className="mt-3 max-w-2xl leading-7 text-zinc-400">
                   Account deletion will permanently remove your
-                  Racepicks profile. This feature will include a secure
-                  confirmation process before it becomes available.
+                  Racepicks profile. A secure confirmation will be
+                  required before deletion.
                 </p>
               </div>
 
