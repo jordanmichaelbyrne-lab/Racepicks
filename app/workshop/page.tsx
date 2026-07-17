@@ -1,7 +1,8 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import Navbar from "../components/Navbar";
 import { createClient } from "../lib/supabase/server";
+import DeleteAccountButton from "./DeleteAccountButton";
 import PasswordForm from "./PasswordForm";
 import ProfileForm from "./ProfileForm";
 import SignOutButton from "./SignOutButton";
@@ -249,19 +250,12 @@ export default async function WorkshopPage() {
                 </h2>
 
                 <p className="mt-3 max-w-2xl leading-7 text-zinc-400">
-                  Account deletion will permanently remove your
-                  Racepicks profile. A secure confirmation will be
-                  required before deletion.
+                  Permanently delete your Racepicks login, profile and
+                  access to this account. This action cannot be undone.
                 </p>
               </div>
 
-              <button
-                type="button"
-                disabled
-                className="shrink-0 cursor-not-allowed rounded-full border border-red-500/30 px-6 py-3 font-black text-red-400/50"
-              >
-                Delete Account
-              </button>
+              <DeleteAccountButton />
             </div>
           </section>
 
