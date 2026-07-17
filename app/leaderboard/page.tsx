@@ -19,6 +19,15 @@ type LatestEvent = {
   round_number: number;
 };
 
+type CurrentEvent = {
+  id: string;
+  venue: string;
+  series: string;
+  season: number;
+  round_number: number;
+  status: string;
+};
+
 type RoundScore = {
   user_id: string;
   round_points: number;
@@ -32,6 +41,10 @@ type RoundWinner = {
   venue: string;
   series: string;
   round_number: number;
+};
+
+type SubmittedPick = {
+  user_id: string;
 };
 
 function getPositionStyle(position: number) {
@@ -72,13 +85,10 @@ function getPointsBehindLeader(
 
 function PlayerAvatar({
   player,
-  size = "normal",
 }: {
   player: LeaderboardPlayer;
-  size?: "normal" | "large";
 }) {
-  const sizeClass =
-    size === "large" ? "h-20 w-20 text-2xl" : "h-14 w-14 text-lg";
+  const sizeClass = "h-14 w-14 text-lg";
 
   if (player.avatar_url) {
     return (
@@ -97,6 +107,32 @@ function PlayerAvatar({
     >
       {getInitials(player.display_name) || "RP"}
     </div>
+  );
+}
+
+function EyeIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className="h-5 w-5"
+    >
+      <path
+        d="M2.5 12C4.8 7.7 8.1 5.5 12 5.5S19.2 7.7 21.5 12C19.2 16.3 15.9 18.5 12 18.5S4.8 16.3 2.5 12Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+
+      <circle
+        cx="12"
+        cy="12"
+        r="3"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+    </svg>
   );
 }
 
@@ -155,23 +191,23 @@ export default async function LeaderboardPage() {
 
   const leaderboard = (data ?? []) as LeaderboardPlayer[];
   const leader = leaderboard[0];
-  const topThree = leaderboard.slice(0, 3);
   const standings = leaderboard;
-  const { count: completedRounds, error: completedRoundsError } =
-  await supabase
-    .from("events")
-    .select("id", {
-      count: "exact",
-      head: true,
-    })
-    .eq("status", "completed");
 
-if (completedRoundsError) {
-  console.error(
-    "Completed rounds loading error:",
-    completedRoundsError
-  );
-}
+  const { count: completedRounds, error: completedRoundsError } =
+    await supabase
+      .from("events")
+      .select("id", {
+        count: "exact",
+        head: true,
+      })
+      .eq("status", "completed");
+
+  if (completedRoundsError) {
+    console.error(
+      "Completed rounds loading error:",
+      completedRoundsError
+    );
+  }
 
   let roundWinner: RoundWinner | null = null;
 
@@ -190,9 +226,8 @@ if (completedRoundsError) {
 
   const latestEvent = latestEventData as LatestEvent | null;
 
-
-const championshipSeason =
-  latestEvent?.season ?? new Date().getFullYear();
+  const championshipSeason =
+    latestEvent?.season ?? new Date().getFullYear();
 
   if (latestEvent) {
     const { data: roundScoreData, error: roundScoreError } =
@@ -229,120 +264,191 @@ const championshipSeason =
     }
   }
 
+  const { data: currentEventData, error: currentEventError } =
+    await supabase
+      .from("events")
+      .select(
+        `
+          id,
+          venue,
+          series,
+          season,
+          round_number,
+          status
+        `
+      )
+      .in("status", ["open", "upcoming"])
+      .order("race_date", { ascending: true });
+
+  if (currentEventError) {
+    console.error("Current event loading error:", currentEventError);
+  }
+
+  const availableEvents =
+    (currentEventData ?? []) as CurrentEvent[];
+
+  const currentEvent =
+    availableEvents.find((event) => event.status === "open") ??
+    availableEvents[0] ??
+    null;
+
+  let submittedPickUserIds = new Set<string>();
+
+  if (currentEvent) {
+    const { data: submittedPickData, error: submittedPicksError } =
+      await supabase
+        .from("picks")
+        .select("user_id")
+        .eq("event_id", currentEvent.id);
+
+    if (submittedPicksError) {
+      console.error(
+        "Submitted player picks loading error:",
+        submittedPicksError
+      );
+    }
+
+    submittedPickUserIds = new Set(
+      ((submittedPickData ?? []) as SubmittedPick[]).map(
+        (pick) => pick.user_id
+      )
+    );
+  }
+
   return (
-  <main className="min-h-screen bg-black text-white">
-    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
-      <Navbar />
+    <main className="min-h-screen bg-black text-white">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
+        <Navbar />
 
-      <section className="py-12 sm:py-16">
-        <Link
-          href="/"
-          className="inline-block text-sm font-bold text-neutral-400 transition hover:text-orange-500"
-        >
-          ← Back to Race Centre
-        </Link>
+        <section className="py-12 sm:py-16">
+          <Link
+            href="/"
+            className="inline-block text-sm font-bold text-neutral-400 transition hover:text-orange-500"
+          >
+            ← Back to Race Centre
+          </Link>
 
-        
           <header className="mt-8">
-  <p className="text-xs font-black uppercase tracking-[0.35em] text-orange-500">
-    {championshipSeason} Racepicks
-  </p>
+            <p className="text-xs font-black uppercase tracking-[0.35em] text-orange-500">
+              {championshipSeason} Racepicks
+            </p>
 
-  <h1 className="mt-3 text-4xl font-black uppercase tracking-tight sm:text-6xl">
-    Championship
-  </h1>
+            <h1 className="mt-3 text-4xl font-black uppercase tracking-tight sm:text-6xl">
+              Championship
+            </h1>
 
-  <p className="mt-3 text-sm text-neutral-400">
-    Overall standings across all completed rounds.
-  </p>
-</header>
+            <p className="mt-3 text-sm text-neutral-400">
+              Overall standings across all completed rounds.
+            </p>
+          </header>
 
-        {roundWinner && (
-          <section className="mt-8 overflow-hidden rounded-3xl border border-orange-500/40 bg-orange-500/10">
-            <div className="grid gap-6 p-6 sm:grid-cols-[auto_1fr_auto] sm:items-center sm:p-8">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-500 text-3xl">
-                🏁
+          {roundWinner && (
+            <section className="mt-8 overflow-hidden rounded-3xl border border-orange-500/40 bg-orange-500/10">
+              <div className="grid gap-6 p-6 sm:grid-cols-[auto_1fr_auto] sm:items-center sm:p-8">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-500 text-3xl">
+                  🏁
+                </div>
+
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-400">
+                    Latest Round Winner
+                  </p>
+
+                  <Link
+                    href={`/leaderboard/${roundWinner.user_id}`}
+                    className="mt-2 inline-block text-2xl font-black uppercase transition hover:text-orange-400"
+                  >
+                    {roundWinner.display_name}
+                  </Link>
+
+                  <p className="mt-1 text-sm text-neutral-400">
+                    {roundWinner.series} · Round{" "}
+                    {roundWinner.round_number} · {roundWinner.venue}
+                  </p>
+                </div>
+
+                <div className="text-left sm:text-right">
+                  <p className="text-4xl font-black text-orange-500">
+                    {roundWinner.round_points}
+                  </p>
+
+                  <p className="text-xs font-bold uppercase tracking-widest text-neutral-500">
+                    Round Points
+                  </p>
+                </div>
               </div>
+            </section>
+          )}
 
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-400">
-                  Latest Round Winner
-                </p>
+          <section className="mt-8 grid gap-4 sm:grid-cols-3">
+            <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-5">
+              <p className="text-xs font-bold uppercase tracking-widest text-neutral-500">
+                Championship Leader
+              </p>
 
-                <Link
-                  href={`/leaderboard/${roundWinner.user_id}`}
-                  className="mt-2 inline-block text-2xl font-black uppercase transition hover:text-orange-400"
-                >
-                  {roundWinner.display_name}
-                </Link>
+              <p className="mt-2 text-xl font-black">
+                {leader?.display_name ?? "No leader yet"}
+              </p>
+            </div>
 
-                <p className="mt-1 text-sm text-neutral-400">
-                  {roundWinner.series} · Round {roundWinner.round_number} ·{" "}
-                  {roundWinner.venue}
-                </p>
-              </div>
+            <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-5">
+              <p className="text-xs font-bold uppercase tracking-widest text-neutral-500">
+                Leading Score
+              </p>
 
-              <div className="text-left sm:text-right">
-                <p className="text-4xl font-black text-orange-500">
-                  {roundWinner.round_points}
-                </p>
+              <p className="mt-2 text-xl font-black text-orange-500">
+                {leader ? `${leader.total_points} pts` : "0 pts"}
+              </p>
+            </div>
 
-                <p className="text-xs font-bold uppercase tracking-widest text-neutral-500">
-                  Round Points
-                </p>
-              </div>
+            <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-5">
+              <p className="text-xs font-bold uppercase tracking-widest text-neutral-500">
+                Rounds Completed
+              </p>
+
+              <p className="mt-2 text-xl font-black">
+                {completedRounds ?? 0}
+              </p>
+
+              <p className="mt-1 text-xs text-neutral-500">
+                {latestEvent
+                  ? `Latest: ${latestEvent.venue}`
+                  : "No completed rounds yet"}
+              </p>
             </div>
           </section>
-        )}
 
-        <section className="mt-8 grid gap-4 sm:grid-cols-3">
-          <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-5">
-            <p className="text-xs font-bold uppercase tracking-widest text-neutral-500">
-              Championship Leader
-            </p>
+          {currentEvent && (
+            <section className="mt-6 rounded-2xl border border-neutral-800 bg-neutral-900 px-5 py-4">
+              <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-widest text-orange-500">
+                    Current Round Picks
+                  </p>
 
-            <p className="mt-2 text-xl font-black">
-              {leader?.display_name ?? "No leader yet"}
-            </p>
-          </div>
+                  <p className="mt-1 font-bold">
+                    {currentEvent.series} · Round{" "}
+                    {currentEvent.round_number} · {currentEvent.venue}
+                  </p>
+                </div>
 
-          <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-5">
-            <p className="text-xs font-bold uppercase tracking-widest text-neutral-500">
-              Leading Score
-            </p>
+                <p className="text-sm text-neutral-400">
+                  Press the eye beside a player to view their picks.
+                </p>
+              </div>
+            </section>
+          )}
 
-            <p className="mt-2 text-xl font-black text-orange-500">
-              {leader ? `${leader.total_points} pts` : "0 pts"}
-            </p>
-          </div>
+          {leaderboard.length === 0 ? (
+            <div className="mt-8 rounded-3xl border border-neutral-800 bg-neutral-900 p-10 text-center">
+              <h2 className="text-xl font-bold">No players yet</h2>
 
-          <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-5">
-  <p className="text-xs font-bold uppercase tracking-widest text-neutral-500">
-    Rounds Completed
-  </p>
-
-  <p className="mt-2 text-xl font-black">
-    {completedRounds ?? 0}
-  </p>
-
-  <p className="mt-1 text-xs text-neutral-500">
-    {latestEvent
-      ? `Latest: ${latestEvent.venue}`
-      : "No completed rounds yet"}
-  </p>
-</div>
-        </section>
-
-        {leaderboard.length === 0 ? (
-          <div className="mt-8 rounded-3xl border border-neutral-800 bg-neutral-900 p-10 text-center">
-            <h2 className="text-xl font-bold">No players yet</h2>
-
-            <p className="mt-2 text-sm text-neutral-400">
-              Players will appear here once their accounts are created.
-            </p>
-          </div>
-        ) : (           
-
+              <p className="mt-2 text-sm text-neutral-400">
+                Players will appear here once their accounts are
+                created.
+              </p>
+            </div>
+          ) : (
             <section className="mt-10">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
@@ -355,25 +461,29 @@ const championshipSeason =
               </div>
 
               <div className="mt-6 overflow-hidden rounded-3xl border border-neutral-800 bg-neutral-900">
-                <div className="hidden grid-cols-[80px_1fr_120px_140px_120px] border-b border-neutral-800 bg-black/30 px-6 py-4 text-xs font-black uppercase tracking-widest text-neutral-500 md:grid">
+                <div className="hidden grid-cols-[80px_1fr_120px_140px_120px_140px] border-b border-neutral-800 bg-black/30 px-6 py-4 text-xs font-black uppercase tracking-widest text-neutral-500 md:grid">
                   <div>Pos</div>
                   <div>Player</div>
                   <div className="text-center">Rounds</div>
                   <div className="text-center">Behind</div>
                   <div className="text-right">Points</div>
+                  <div className="text-right">Picks</div>
                 </div>
 
                 <div className="divide-y divide-neutral-800">
                   {standings.map((player, index) => {
-                        const position = index + 1;
+                    const position = index + 1;
                     const isCurrentUser =
                       user?.id === player.user_id;
 
+                    const hasCurrentPicks =
+                      currentEvent &&
+                      submittedPickUserIds.has(player.user_id);
+
                     return (
-                      <Link
+                      <div
                         key={player.user_id}
-                        href={`/leaderboard/${player.user_id}`}
-                        className={`grid gap-4 px-5 py-5 transition hover:bg-neutral-800/50 md:grid-cols-[80px_1fr_120px_140px_120px] md:items-center md:px-6 ${
+                        className={`grid gap-4 px-5 py-5 md:grid-cols-[80px_1fr_120px_140px_120px_140px] md:items-center md:px-6 ${
                           isCurrentUser
                             ? "border-l-4 border-orange-500 bg-orange-500/10"
                             : ""
@@ -389,10 +499,7 @@ const championshipSeason =
                           </div>
 
                           <span className="text-xs font-bold uppercase text-neutral-500 md:hidden">
-                            {getPointsBehindLeader(
-                              player,
-                              leader
-                            )}
+                            {getPointsBehindLeader(player, leader)}
                           </span>
                         </div>
 
@@ -425,10 +532,7 @@ const championshipSeason =
                         </div>
 
                         <div className="hidden text-center text-sm font-bold text-neutral-400 md:block">
-                          {getPointsBehindLeader(
-                            player,
-                            leader
-                          )}
+                          {getPointsBehindLeader(player, leader)}
                         </div>
 
                         <div className="text-left md:text-right">
@@ -440,7 +544,32 @@ const championshipSeason =
                             pts
                           </span>
                         </div>
-                      </Link>
+
+                        <div className="flex items-center justify-between gap-3 md:justify-end">
+                          <span className="text-xs font-bold uppercase text-neutral-500 md:hidden">
+                            Current Picks
+                          </span>
+
+                          {hasCurrentPicks ? (
+                            <Link
+                              href={`/leaderboard/${player.user_id}#next-round-picks`}
+                              aria-label={`View ${player.display_name}'s current picks`}
+                              title={`View ${player.display_name}'s current picks`}
+                              className="flex h-11 items-center justify-center gap-2 rounded-xl border border-orange-500/40 bg-orange-500/10 px-4 font-black text-orange-400 transition hover:border-orange-500 hover:bg-orange-500 hover:text-black"
+                            >
+                              <EyeIcon />
+
+                              <span className="hidden lg:inline">
+                                View Picks
+                              </span>
+                            </Link>
+                          ) : (
+                            <span className="flex h-11 items-center justify-center rounded-xl border border-neutral-800 bg-black/20 px-4 text-xs font-bold uppercase text-neutral-600">
+                              No Picks
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     );
                   })}
                 </div>

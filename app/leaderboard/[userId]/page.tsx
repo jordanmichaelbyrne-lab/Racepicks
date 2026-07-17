@@ -39,6 +39,41 @@ type AllScoreRow = {
   round_points: number;
 };
 
+type CurrentEvent = {
+  id: string;
+  round_number: number;
+  venue: string;
+  series: string;
+  season: number;
+  race_date: string;
+  picks_close_at: string;
+  wildcard_position: number | null;
+  status: string;
+};
+
+type CurrentPick = {
+  first_rider_id: string;
+  second_rider_id: string;
+  third_rider_id: string;
+  wildcard_rider_id: string;
+  updated_at: string;
+};
+
+type Rider = {
+  id: string;
+  full_name: string;
+  race_number: number | null;
+  manufacturer: string | null;
+  team_name: string | null;
+};
+
+type PickPosition = {
+  label: string;
+  rider: Rider | null;
+  symbol: string;
+  wildcard?: boolean;
+};
+
 type PageProps = {
   params: Promise<{
     userId: string;
@@ -94,6 +129,14 @@ function getRecentFormStyle(points: number) {
   return "border-neutral-700 bg-neutral-800 text-neutral-300";
 }
 
+function formatDateTime(date: string) {
+  return new Intl.DateTimeFormat("en-AU", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Australia/Brisbane",
+  }).format(new Date(date));
+}
+
 export default async function PlayerHistoryPage({
   params,
 }: PageProps) {
@@ -105,6 +148,7 @@ export default async function PlayerHistoryPage({
     { data: scoreData, error: scoresError },
     { data: leaderboardData, error: leaderboardError },
     { data: allScoreData, error: allScoresError },
+    { data: currentEventData, error: currentEventError },
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -149,6 +193,24 @@ export default async function PlayerHistoryPage({
     supabase
       .from("scores")
       .select("user_id, event_id, round_points"),
+
+    supabase
+      .from("events")
+      .select(
+        `
+          id,
+          round_number,
+          venue,
+          series,
+          season,
+          race_date,
+          picks_close_at,
+          wildcard_position,
+          status
+        `
+      )
+      .in("status", ["open", "upcoming"])
+      .order("race_date", { ascending: true }),
   ]);
 
   if (profileError || !profile) {
@@ -167,6 +229,10 @@ export default async function PlayerHistoryPage({
     console.error("Round winner loading error:", allScoresError);
   }
 
+  if (currentEventError) {
+    console.error("Current event loading error:", currentEventError);
+  }
+
   const player = profile as PlayerProfile;
   const leaderboardRows =
     (leaderboardData ?? []) as LeaderboardRow[];
@@ -183,6 +249,114 @@ export default async function PlayerHistoryPage({
 
   const allScores = (allScoreData ?? []) as AllScoreRow[];
 
+  const availableEvents =
+    (currentEventData ?? []) as CurrentEvent[];
+
+  const currentEvent =
+    availableEvents.find((event) => event.status === "open") ??
+    availableEvents[0] ??
+    null;
+
+  let currentPick: CurrentPick | null = null;
+  let selectedRiders: Rider[] = [];
+
+  if (currentEvent) {
+    const { data: currentPickData, error: currentPickError } =
+      await supabase
+        .from("picks")
+        .select(
+          `
+            first_rider_id,
+            second_rider_id,
+            third_rider_id,
+            wildcard_rider_id,
+            updated_at
+          `
+        )
+        .eq("user_id", userId)
+        .eq("event_id", currentEvent.id)
+        .maybeSingle();
+
+    if (currentPickError) {
+      console.error("Current player picks error:", currentPickError);
+    }
+
+    currentPick = currentPickData as CurrentPick | null;
+
+    const selectedRiderIds = currentPick
+      ? Array.from(
+          new Set([
+            currentPick.first_rider_id,
+            currentPick.second_rider_id,
+            currentPick.third_rider_id,
+            currentPick.wildcard_rider_id,
+          ])
+        )
+      : [];
+
+    if (selectedRiderIds.length > 0) {
+      const { data: riderData, error: riderError } =
+        await supabase
+          .from("riders")
+          .select(
+            `
+              id,
+              full_name,
+              race_number,
+              manufacturer,
+              team_name
+            `
+          )
+          .in("id", selectedRiderIds);
+
+      if (riderError) {
+        console.error("Current pick riders error:", riderError);
+      }
+
+      selectedRiders = (riderData ?? []) as Rider[];
+    }
+  }
+
+  function findRider(riderId?: string) {
+    if (!riderId) {
+      return null;
+    }
+
+    return (
+      selectedRiders.find((rider) => rider.id === riderId) ?? null
+    );
+  }
+
+  const displayedPicks: PickPosition[] = currentPick
+    ? [
+        {
+          label: "1st Place",
+          rider: findRider(currentPick.first_rider_id),
+          symbol: "🥇",
+        },
+        {
+          label: "2nd Place",
+          rider: findRider(currentPick.second_rider_id),
+          symbol: "🥈",
+        },
+        {
+          label: "3rd Place",
+          rider: findRider(currentPick.third_rider_id),
+          symbol: "🥉",
+        },
+        {
+          label: currentEvent?.wildcard_position
+            ? `Wildcard — ${getPositionLabel(
+                currentEvent.wildcard_position
+              )}`
+            : "Wildcard",
+          rider: findRider(currentPick.wildcard_rider_id),
+          symbol: "⭐",
+          wildcard: true,
+        },
+      ]
+    : [];
+
   const playerSummary = leaderboardRows.find(
     (row) => row.user_id === userId
   );
@@ -195,7 +369,10 @@ export default async function PlayerHistoryPage({
 
   const totalPoints =
     playerSummary?.total_points ??
-    scores.reduce((total, score) => total + score.round_points, 0);
+    scores.reduce(
+      (total, score) => total + score.round_points,
+      0
+    );
 
   const roundsScored =
     playerSummary?.rounds_scored ?? scores.length;
@@ -293,7 +470,7 @@ export default async function PlayerHistoryPage({
                 </h1>
 
                 <p className="mt-2 text-sm text-neutral-400">
-                  RacePicks championship history
+                  Racepicks championship history
                 </p>
               </div>
             </div>
@@ -342,6 +519,127 @@ export default async function PlayerHistoryPage({
               </p>
             </div>
           </div>
+        </section>
+
+        <section
+          id="next-round-picks"
+          className="scroll-mt-6 mt-8 overflow-hidden rounded-3xl border border-orange-500/40 bg-neutral-900"
+        >
+          <div className="border-b border-neutral-800 bg-orange-500/10 px-6 py-5 sm:px-8">
+            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
+                  Current Round
+                </p>
+
+                <h2 className="mt-2 text-2xl font-black uppercase">
+                  Next Round Picks
+                </h2>
+
+                {currentEvent && (
+                  <p className="mt-2 text-sm text-neutral-400">
+                    {currentEvent.season} {currentEvent.series} ·
+                    Round {currentEvent.round_number} ·{" "}
+                    {currentEvent.venue}
+                  </p>
+                )}
+              </div>
+
+              {currentPick && (
+                <span className="w-fit rounded-full border border-green-500/40 bg-green-500/10 px-4 py-2 text-xs font-black uppercase tracking-wider text-green-400">
+                  Picks Submitted
+                </span>
+              )}
+            </div>
+          </div>
+
+          {!currentEvent ? (
+            <div className="p-8 text-center">
+              <h3 className="text-xl font-bold">
+                No current round
+              </h3>
+
+              <p className="mt-2 text-sm text-neutral-400">
+                The next event will appear here when it becomes
+                available.
+              </p>
+            </div>
+          ) : !currentPick ? (
+            <div className="p-8 text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-neutral-800 text-2xl">
+                👁
+              </div>
+
+              <h3 className="mt-4 text-xl font-bold">
+                No picks submitted yet
+              </h3>
+
+              <p className="mt-2 text-sm text-neutral-400">
+                {player.display_name} has not entered picks for{" "}
+                {currentEvent.venue}.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="grid gap-px bg-neutral-800 sm:grid-cols-2">
+                {displayedPicks.map((pick) => (
+                  <div
+                    key={pick.label}
+                    className={`bg-neutral-900 p-5 sm:p-6 ${
+                      pick.wildcard
+                        ? "sm:col-span-2"
+                        : ""
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div
+                        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-xl ${
+                          pick.wildcard
+                            ? "bg-orange-500 text-black"
+                            : "bg-neutral-800"
+                        }`}
+                      >
+                        {pick.symbol}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold uppercase tracking-widest text-neutral-500">
+                          {pick.label}
+                        </p>
+
+                        <p className="mt-1 truncate text-lg font-black">
+                          {pick.rider?.full_name ??
+                            "Unknown rider"}
+                        </p>
+
+                        <p className="mt-1 truncate text-sm text-neutral-500">
+                          {pick.rider?.race_number
+                            ? `#${pick.rider.race_number}`
+                            : "No race number"}
+
+                          {pick.rider?.manufacturer
+                            ? ` · ${pick.rider.manufacturer}`
+                            : ""}
+
+                          {pick.rider?.team_name
+                            ? ` · ${pick.rider.team_name}`
+                            : ""}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t border-neutral-800 px-6 py-4">
+                <p className="text-xs text-neutral-500">
+                  Last updated{" "}
+                  {formatDateTime(currentPick.updated_at)} · Picks
+                  remain visible to all Racepicks players.
+                </p>
+              </div>
+            </>
+          )}
         </section>
 
         <section className="mt-6 grid gap-4 sm:grid-cols-3">
@@ -476,7 +774,7 @@ export default async function PlayerHistoryPage({
                   >
                     <div>
                       <p className="text-xs font-black uppercase tracking-widest text-orange-500">
-                        {event?.series ?? "RacePicks"} · Round{" "}
+                        {event?.series ?? "Racepicks"} · Round{" "}
                         {event?.round_number ?? "—"}
                       </p>
 
