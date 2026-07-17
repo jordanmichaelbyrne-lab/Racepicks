@@ -11,6 +11,8 @@ type ImportedRider = {
   manufacturer: string | null;
 };
 
+type PublicationStage = "provisional" | "final";
+
 async function requireAdmin() {
   const supabase = await createClient();
 
@@ -351,6 +353,10 @@ export async function saveEventEntries(formData: FormData) {
 
   const eventId = String(formData.get("event_id") ?? "").trim();
 
+  const requestedStage = String(
+    formData.get("publication_stage") ?? ""
+  ).trim() as PublicationStage;
+
   const riderIds = formData
     .getAll("rider_ids")
     .map((value) => String(value))
@@ -358,6 +364,13 @@ export async function saveEventEntries(formData: FormData) {
 
   if (!eventId) {
     throw new Error("Event ID is missing.");
+  }
+
+  if (
+    requestedStage !== "provisional" &&
+    requestedStage !== "final"
+  ) {
+    throw new Error("Choose whether this is a provisional or final list.");
   }
 
   if (riderIds.length === 0) {
@@ -405,15 +418,26 @@ export async function saveEventEntries(formData: FormData) {
 
   const alreadyFinal = event.entry_list_stage === "final";
 
-  const eventUpdate = alreadyFinal
-    ? {
-        entry_list_imported_at: updatedAt,
-      }
-    : {
-        entry_list_stage: "provisional",
-        provisional_entry_imported_at: updatedAt,
-        entry_list_imported_at: updatedAt,
-      };
+  if (alreadyFinal && requestedStage === "provisional") {
+    revalidateEntryListPages();
+
+    redirect(
+      `/admin/entry-list?event=${eventId}&saved=true&stage=final`
+    );
+  }
+
+  const eventUpdate =
+    requestedStage === "final"
+      ? {
+          entry_list_stage: "final",
+          final_entry_imported_at: updatedAt,
+          entry_list_imported_at: updatedAt,
+        }
+      : {
+          entry_list_stage: "provisional",
+          provisional_entry_imported_at: updatedAt,
+          entry_list_imported_at: updatedAt,
+        };
 
   const { error: updateEventError } = await supabase
     .from("events")
@@ -428,8 +452,6 @@ export async function saveEventEntries(formData: FormData) {
   revalidateEntryListPages();
 
   redirect(
-    `/admin/entry-list?event=${eventId}&saved=true&stage=${
-      alreadyFinal ? "final" : "provisional"
-    }`
+    `/admin/entry-list?event=${eventId}&saved=true&stage=${requestedStage}`
   );
 }

@@ -14,6 +14,9 @@ type Event = {
   venue: string;
   status: string;
   race_date: string;
+  entry_list_stage: string | null;
+  provisional_entry_imported_at: string | null;
+  final_entry_imported_at: string | null;
 };
 
 type Rider = {
@@ -32,8 +35,21 @@ type PageProps = {
     saved?: string;
     imported?: string;
     importError?: string;
+    stage?: string;
   }>;
 };
+
+function formatDateTime(date: string | null) {
+  if (!date) {
+    return null;
+  }
+
+  return new Intl.DateTimeFormat("en-AU", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Australia/Brisbane",
+  }).format(new Date(date));
+}
 
 export default async function EntryListPage({
   searchParams,
@@ -62,7 +78,18 @@ export default async function EntryListPage({
   const { data: eventData, error: eventsError } = await supabase
     .from("events")
     .select(
-      "id, series, season, round_number, venue, status, race_date"
+      `
+        id,
+        series,
+        season,
+        round_number,
+        venue,
+        status,
+        race_date,
+        entry_list_stage,
+        provisional_entry_imported_at,
+        final_entry_imported_at
+      `
     )
     .order("race_date", { ascending: true });
 
@@ -123,6 +150,15 @@ export default async function EntryListPage({
     );
   }
 
+  const listIsFinal =
+    selectedEvent?.entry_list_stage === "final" ||
+    Boolean(selectedEvent?.final_entry_imported_at);
+
+  const listIsProvisional =
+    !listIsFinal &&
+    (selectedEvent?.entry_list_stage === "provisional" ||
+      Boolean(selectedEvent?.provisional_entry_imported_at));
+
   return (
     <main className="min-h-screen bg-black px-4 py-10 text-white sm:px-6">
       <div className="mx-auto max-w-6xl">
@@ -143,27 +179,37 @@ export default async function EntryListPage({
           </h1>
 
           <p className="mt-3 text-sm text-neutral-400">
-            Select the confirmed 450 riders for each race weekend.
+            Import, review and publish the confirmed 450 riders for
+            each race weekend.
           </p>
         </header>
 
-        {params.saved === "true" && (
-          <div className="mt-8 rounded-xl border border-green-900 bg-green-950/40 px-5 py-4 text-sm font-semibold text-green-400">
-            Entry list saved successfully.
+        {params.saved === "true" &&
+          params.stage === "provisional" && (
+            <div className="mt-8 rounded-xl border border-green-900 bg-green-950/40 px-5 py-4 text-sm font-semibold text-green-400">
+              Provisional entry list saved successfully.
+            </div>
+          )}
+
+        {params.saved === "true" && params.stage === "final" && (
+          <div className="mt-8 rounded-xl border border-green-500/40 bg-green-500/10 px-5 py-4 text-sm font-semibold text-green-300">
+            Final entry list published successfully. The Admin
+            Dashboard checklist has been updated.
           </div>
         )}
-        {params.imported && (
-  <div className="mt-8 rounded-xl border border-green-900 bg-green-950/40 px-5 py-4 text-sm font-semibold text-green-400">
-    Racer X import completed successfully. {params.imported} riders were
-    imported and selected for this event.
-  </div>
-)}
 
-{params.importError && (
-  <div className="mt-8 rounded-xl border border-red-900 bg-red-950/40 px-5 py-4 text-sm font-semibold text-red-400">
-    Import failed: {params.importError}
-  </div>
-)}
+        {params.imported && (
+          <div className="mt-8 rounded-xl border border-green-900 bg-green-950/40 px-5 py-4 text-sm font-semibold text-green-400">
+            Racer X import completed successfully. {params.imported}{" "}
+            riders were imported and selected for this event.
+          </div>
+        )}
+
+        {params.importError && (
+          <div className="mt-8 rounded-xl border border-red-900 bg-red-950/40 px-5 py-4 text-sm font-semibold text-red-400">
+            Import failed: {params.importError}
+          </div>
+        )}
 
         {events.length === 0 ? (
           <section className="mt-10 rounded-2xl border border-neutral-800 bg-neutral-950 p-10 text-center">
@@ -178,7 +224,10 @@ export default async function EntryListPage({
         ) : (
           <>
             <section className="mt-10 rounded-2xl border border-neutral-800 bg-neutral-950 p-6">
-              <form method="get" className="flex flex-col gap-4 sm:flex-row">
+              <form
+                method="get"
+                className="flex flex-col gap-4 sm:flex-row"
+              >
                 <div className="flex-1">
                   <label
                     htmlFor="event"
@@ -213,47 +262,94 @@ export default async function EntryListPage({
 
             {selectedEvent && (
               <section className="mt-8">
+                <section className="mb-8 rounded-2xl border border-neutral-800 bg-neutral-950 p-6">
+                  <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-widest text-neutral-500">
+                        Current List Status
+                      </p>
+
+                      <div className="mt-3 flex flex-wrap items-center gap-3">
+                        <span
+                          className={`rounded-full border px-4 py-2 text-xs font-black uppercase tracking-wider ${
+                            listIsFinal
+                              ? "border-green-500/40 bg-green-500/10 text-green-400"
+                              : listIsProvisional
+                                ? "border-orange-500/40 bg-orange-500/10 text-orange-400"
+                                : "border-neutral-700 bg-neutral-900 text-neutral-400"
+                          }`}
+                        >
+                          {listIsFinal
+                            ? "Final"
+                            : listIsProvisional
+                              ? "Provisional"
+                              : "Not Published"}
+                        </span>
+
+                        <span className="text-sm text-neutral-500">
+                          {listIsFinal
+                            ? formatDateTime(
+                                selectedEvent.final_entry_imported_at
+                              )
+                            : listIsProvisional
+                              ? formatDateTime(
+                                  selectedEvent.provisional_entry_imported_at
+                                )
+                              : "No entry list has been published yet."}
+                        </span>
+                      </div>
+                    </div>
+
+                    {listIsFinal && (
+                      <span className="text-sm font-bold text-green-400">
+                        ✓ Final gate published
+                      </span>
+                    )}
+                  </div>
+                </section>
+
                 <form
-  action={importRacerXEntryList}
-  className="mb-8 rounded-2xl border border-neutral-800 bg-neutral-950 p-6"
->
-  <input
-    type="hidden"
-    name="event_id"
-    value={selectedEvent.id}
-  />
+                  action={importRacerXEntryList}
+                  className="mb-8 rounded-2xl border border-neutral-800 bg-neutral-950 p-6"
+                >
+                  <input
+                    type="hidden"
+                    name="event_id"
+                    value={selectedEvent.id}
+                  />
 
-  <label
-    htmlFor="entry_list_url"
-    className="text-xs font-semibold uppercase tracking-widest text-neutral-400"
-  >
-    Racer X Entry List URL
-  </label>
+                  <label
+                    htmlFor="entry_list_url"
+                    className="text-xs font-semibold uppercase tracking-widest text-neutral-400"
+                  >
+                    Racer X Entry List URL
+                  </label>
 
-  <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-    <input
-      id="entry_list_url"
-      name="entry_list_url"
-      type="url"
-      required
-      placeholder="https://racerxonline.com/mx/2026/southwick/450/entry-list"
-      className="min-w-0 flex-1 rounded-xl border border-neutral-700 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-orange-500"
-    />
+                  <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+                    <input
+                      id="entry_list_url"
+                      name="entry_list_url"
+                      type="url"
+                      required
+                      placeholder="https://racerxonline.com/mx/2026/southwick/450/entry-list"
+                      className="min-w-0 flex-1 rounded-xl border border-neutral-700 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-orange-500"
+                    />
 
-    <button
-      type="submit"
-      className="rounded-xl bg-orange-500 px-7 py-3 font-black uppercase text-black transition hover:bg-orange-400"
-    >
-      Import Entry List
-    </button>
-  </div>
+                    <button
+                      type="submit"
+                      className="rounded-xl bg-orange-500 px-7 py-3 font-black uppercase text-black transition hover:bg-orange-400"
+                    >
+                      Import Entry List
+                    </button>
+                  </div>
 
-  <p className="mt-3 text-sm text-neutral-500">
-    This will update the master rider database and replace the selected
-    event’s current confirmed entry list. Review the riders before
-    publishing.
-  </p>
-</form>
+                  <p className="mt-3 text-sm text-neutral-500">
+                    This updates the master rider database and replaces
+                    the selected event’s current rider selections.
+                    Review the list before saving or publishing it.
+                  </p>
+                </form>
+
                 <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-widest text-orange-500">
@@ -337,12 +433,28 @@ export default async function EntryListPage({
                     )}
                   </div>
 
-                  <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                  <div className="mt-6 grid gap-3 lg:grid-cols-[1fr_1fr_auto]">
                     <button
                       type="submit"
+                      name="publication_stage"
+                      value="provisional"
+                      disabled={listIsFinal}
+                      className="rounded-xl border border-neutral-700 px-7 py-3 font-black uppercase text-white transition hover:border-orange-500 hover:text-orange-500 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {listIsFinal
+                        ? "Provisional Stage Complete"
+                        : "Save Provisional List"}
+                    </button>
+
+                    <button
+                      type="submit"
+                      name="publication_stage"
+                      value="final"
                       className="rounded-xl bg-orange-500 px-7 py-3 font-black uppercase text-black transition hover:bg-orange-400"
                     >
-                      Publish Entry List
+                      {listIsFinal
+                        ? "Republish Final Entry List"
+                        : "Publish Final Entry List"}
                     </button>
 
                     <Link
@@ -352,6 +464,20 @@ export default async function EntryListPage({
                       Manage Riders
                     </Link>
                   </div>
+
+                  {!listIsFinal && (
+                    <div className="mt-5 rounded-xl border border-orange-500/30 bg-orange-500/10 p-4">
+                      <p className="text-sm font-bold text-orange-300">
+                        Publish Final Entry List only after you have
+                        reviewed the latest race-weekend list.
+                      </p>
+
+                      <p className="mt-1 text-sm leading-6 text-neutral-400">
+                        Publishing the final list will complete Step 4
+                        on the Admin Dashboard checklist.
+                      </p>
+                    </div>
+                  )}
                 </form>
               </section>
             )}
