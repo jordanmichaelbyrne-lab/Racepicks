@@ -3,11 +3,10 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { createClient } from "../lib/supabase/client";
 
 export default function Navbar() {
-  const router = useRouter();
   const pathname = usePathname();
   const supabase = useMemo(() => createClient(), []);
 
@@ -40,16 +39,6 @@ export default function Navbar() {
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [pathname]);
-
-  async function handleSignOut() {
-    await supabase.auth.signOut();
-
-    setUser(null);
-    setIsMobileMenuOpen(false);
-
-    router.push("/");
-    router.refresh();
-  }
 
   const displayName =
     typeof user?.user_metadata?.display_name === "string" &&
@@ -105,7 +94,10 @@ export default function Navbar() {
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           {isLoading ? (
-            <div className="h-10 w-10 rounded-full border border-zinc-700" />
+            <>
+              <div className="h-10 w-10 rounded-full border border-zinc-700" />
+              <div className="hidden h-10 w-10 rounded-full border border-zinc-700 sm:block" />
+            </>
           ) : user ? (
             <>
               <Link
@@ -122,13 +114,36 @@ export default function Navbar() {
                 </span>
               </Link>
 
-              <button
-                type="button"
-                onClick={handleSignOut}
-                className="hidden rounded-full border border-zinc-700 px-5 py-2 text-sm font-bold transition hover:border-orange-500 hover:bg-zinc-900 sm:block"
+              <Link
+                href="/workshop"
+                aria-label="Open Workshop"
+                title="Workshop"
+                className={`hidden h-10 w-10 items-center justify-center rounded-full border transition sm:flex ${
+                  pathname.startsWith("/workshop")
+                    ? "border-orange-500 bg-orange-500 text-black"
+                    : "border-zinc-700 text-white hover:border-orange-500 hover:bg-zinc-900"
+                }`}
               >
-                Sign Out
-              </button>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden="true"
+                  className="h-5 w-5"
+                >
+                  <path
+                    d="M12 15.25A3.25 3.25 0 1 0 12 8.75a3.25 3.25 0 0 0 0 6.5Z"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                  />
+
+                  <path
+                    d="M19.1 13.5a7.75 7.75 0 0 0 0-3l2-1.55-2-3.46-2.48 1a7.7 7.7 0 0 0-2.6-1.5L13.65 2h-4l-.37 2.99a7.7 7.7 0 0 0-2.6 1.5l-2.48-1-2 3.46 2 1.55a7.75 7.75 0 0 0 0 3l-2 1.55 2 3.46 2.48-1a7.7 7.7 0 0 0 2.6 1.5L9.65 22h4l.37-2.99a7.7 7.7 0 0 0 2.6-1.5l2.48 1 2-3.46-2-1.55Z"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </Link>
             </>
           ) : (
             <>
@@ -203,7 +218,6 @@ export default function Navbar() {
                 }`}
               >
                 <span>{item.label}</span>
-
                 <span className="text-zinc-600">→</span>
               </Link>
             ))}
@@ -213,22 +227,61 @@ export default function Navbar() {
                 <Link
                   href="/account"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center gap-3 px-5 py-4 font-black text-white transition hover:bg-zinc-900"
+                  className={`flex items-center gap-3 px-5 py-4 font-black transition ${
+                    pathname.startsWith("/account")
+                      ? "bg-orange-500/10 text-orange-400"
+                      : "text-white hover:bg-zinc-900"
+                  }`}
                 >
                   <div className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-500 text-xs font-black text-black">
                     {initials}
                   </div>
 
-                  <span>My Dashboard</span>
+                  <div>
+                    <p>Player Dashboard</p>
+                    <p className="mt-0.5 text-xs font-medium text-zinc-500">
+                      {displayName}
+                    </p>
+                  </div>
                 </Link>
 
-                <button
-                  type="button"
-                  onClick={handleSignOut}
-                  className="w-full px-5 py-4 text-left font-black text-red-400 transition hover:bg-red-500/10"
+                <Link
+                  href="/workshop"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`flex items-center justify-between px-5 py-4 font-black transition ${
+                    pathname.startsWith("/workshop")
+                      ? "bg-orange-500/10 text-orange-400"
+                      : "text-white hover:bg-zinc-900"
+                  }`}
                 >
-                  Sign Out
-                </button>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full border border-zinc-700">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        aria-hidden="true"
+                        className="h-4 w-4"
+                      >
+                        <path
+                          d="M12 15.25A3.25 3.25 0 1 0 12 8.75a3.25 3.25 0 0 0 0 6.5Z"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                        />
+
+                        <path
+                          d="M19.1 13.5a7.75 7.75 0 0 0 0-3l2-1.55-2-3.46-2.48 1a7.7 7.7 0 0 0-2.6-1.5L13.65 2h-4l-.37 2.99a7.7 7.7 0 0 0-2.6 1.5l-2.48-1-2 3.46 2 1.55a7.75 7.75 0 0 0 0 3l-2 1.55 2 3.46 2.48-1a7.7 7.7 0 0 0 2.6 1.5L9.65 22h4l.37-2.99a7.7 7.7 0 0 0 2.6-1.5l2.48 1 2-3.46-2-1.55Z"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </div>
+
+                    <span>Workshop</span>
+                  </div>
+
+                  <span className="text-zinc-600">→</span>
+                </Link>
               </>
             ) : (
               <div className="grid grid-cols-2 gap-3 p-4">
