@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/app/lib/supabase/server";
+import Navbar from "@/app/components/Navbar";
 
 type LeaderboardPlayer = {
   user_id: string;
@@ -14,6 +15,7 @@ type LatestEvent = {
   id: string;
   venue: string;
   series: string;
+  season: number;
   round_number: number;
 };
 
@@ -176,7 +178,7 @@ if (completedRoundsError) {
   const { data: latestEventData, error: latestEventError } =
     await supabase
       .from("events")
-      .select("id, venue, series, round_number")
+      .select("id, venue, series, season, round_number")
       .eq("status", "completed")
       .order("race_date", { ascending: false })
       .limit(1)
@@ -187,6 +189,10 @@ if (completedRoundsError) {
   }
 
   const latestEvent = latestEventData as LatestEvent | null;
+
+
+const championshipSeason =
+  latestEvent?.season ?? new Date().getFullYear();
 
   if (latestEvent) {
     const { data: roundScoreData, error: roundScoreError } =
@@ -224,8 +230,11 @@ if (completedRoundsError) {
   }
 
   return (
-    <main className="min-h-screen bg-neutral-950 px-4 py-10 text-white sm:px-6">
-      <div className="mx-auto max-w-6xl">
+  <main className="min-h-screen bg-black text-white">
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
+      <Navbar />
+
+      <section className="py-12 sm:py-16">
         <Link
           href="/"
           className="inline-block text-sm font-bold text-neutral-400 transition hover:text-orange-500"
@@ -233,19 +242,20 @@ if (completedRoundsError) {
           ← Back to Race Centre
         </Link>
 
-        <header className="mt-8">
-          <p className="text-xs font-black uppercase tracking-[0.35em] text-orange-500">
-            2027 RacePicks
-          </p>
+        
+          <header className="mt-8">
+  <p className="text-xs font-black uppercase tracking-[0.35em] text-orange-500">
+    {championshipSeason} Racepicks
+  </p>
 
-          <h1 className="mt-3 text-4xl font-black uppercase tracking-tight sm:text-6xl">
-            Championship
-          </h1>
+  <h1 className="mt-3 text-4xl font-black uppercase tracking-tight sm:text-6xl">
+    Championship
+  </h1>
 
-          <p className="mt-3 text-sm text-neutral-400">
-            Overall standings across all completed rounds.
-          </p>
-        </header>
+  <p className="mt-3 text-sm text-neutral-400">
+    Overall standings across all completed rounds.
+  </p>
+</header>
 
         {roundWinner && (
           <section className="mt-8 overflow-hidden rounded-3xl border border-orange-500/40 bg-orange-500/10">
@@ -331,9 +341,7 @@ if (completedRoundsError) {
               Players will appear here once their accounts are created.
             </p>
           </div>
-        ) : (
-          <>
-            
+        ) : (           
 
             <section className="mt-10">
               <div>
@@ -357,8 +365,9 @@ if (completedRoundsError) {
 
                 <div className="divide-y divide-neutral-800">
                   {standings.map((player, index) => {
-    const position = index + 1;
-                    const isCurrentUser = user?.id === player.user_id;
+                        const position = index + 1;
+                    const isCurrentUser =
+                      user?.id === player.user_id;
 
                     return (
                       <Link
@@ -380,7 +389,10 @@ if (completedRoundsError) {
                           </div>
 
                           <span className="text-xs font-bold uppercase text-neutral-500 md:hidden">
-                            {getPointsBehindLeader(player, leader)}
+                            {getPointsBehindLeader(
+                              player,
+                              leader
+                            )}
                           </span>
                         </div>
 
@@ -407,11 +419,16 @@ if (completedRoundsError) {
                         </div>
 
                         <div className="hidden text-center font-bold md:block">
-                          {player.rounds_scored > 0 ? player.rounds_scored : "–"}
+                          {player.rounds_scored > 0
+                            ? player.rounds_scored
+                            : "–"}
                         </div>
 
                         <div className="hidden text-center text-sm font-bold text-neutral-400 md:block">
-                          {getPointsBehindLeader(player, leader)}
+                          {getPointsBehindLeader(
+                            player,
+                            leader
+                          )}
                         </div>
 
                         <div className="text-left md:text-right">
@@ -429,8 +446,8 @@ if (completedRoundsError) {
                 </div>
               </div>
             </section>
-          </>
-        )}
+          )}
+        </section>
       </div>
     </main>
   );
