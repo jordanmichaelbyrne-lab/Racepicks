@@ -391,6 +391,13 @@ export default async function AdminPage() {
         : "/admin/results",
     },
     {
+  title: "Championship",
+  description:
+    "Import and manage the official 450 championship standings shown on the Results page.",
+  status: "Import",
+  href: "/admin/standings",
+},
+    {
       title: "Riders",
       description:
         "Add, edit and maintain the complete 450 rider database.",
