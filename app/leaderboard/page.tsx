@@ -47,6 +47,11 @@ type SubmittedPick = {
   user_id: string;
 };
 
+type PreviousRoundScore = {
+  user_id: string;
+  round_points: number;
+};
+
 function getPositionStyle(position: number) {
   if (position === 1) {
     return "bg-orange-500 text-black";
@@ -229,21 +234,36 @@ export default async function LeaderboardPage() {
   const championshipSeason =
     latestEvent?.season ?? new Date().getFullYear();
 
-  if (latestEvent) {
-    const { data: roundScoreData, error: roundScoreError } =
-      await supabase
-        .from("scores")
-        .select("user_id, round_points")
-        .eq("event_id", latestEvent.id)
-        .order("round_points", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+  let previousRoundScoresByUser = new Map<string, number>();
 
-    if (roundScoreError) {
-      console.error("Round winner score error:", roundScoreError);
+  if (latestEvent) {
+    const {
+      data: previousRoundScoreData,
+      error: previousRoundScoreError,
+    } = await supabase
+      .from("scores")
+      .select("user_id, round_points")
+      .eq("event_id", latestEvent.id)
+      .order("round_points", { ascending: false });
+
+    if (previousRoundScoreError) {
+      console.error(
+        "Previous round score loading error:",
+        previousRoundScoreError
+      );
     }
 
-    const winningScore = roundScoreData as RoundScore | null;
+    const previousRoundScores =
+      (previousRoundScoreData ?? []) as PreviousRoundScore[];
+
+    previousRoundScoresByUser = new Map(
+      previousRoundScores.map((score) => [
+        score.user_id,
+        score.round_points,
+      ])
+    );
+
+    const winningScore = previousRoundScores[0] as RoundScore | undefined;
 
     if (winningScore) {
       const winnerProfile = leaderboard.find(
@@ -461,13 +481,14 @@ export default async function LeaderboardPage() {
               </div>
 
               <div className="mt-6 overflow-hidden rounded-3xl border border-neutral-800 bg-neutral-900">
-                <div className="hidden grid-cols-[80px_1fr_120px_140px_120px_140px] border-b border-neutral-800 bg-black/30 px-6 py-4 text-xs font-black uppercase tracking-widest text-neutral-500 md:grid">
+                <div className="hidden grid-cols-[70px_minmax(210px,1fr)_90px_110px_100px_135px_135px] border-b border-neutral-800 bg-black/30 px-6 py-4 text-xs font-black uppercase tracking-widest text-neutral-500 md:grid">
                   <div>Pos</div>
                   <div>Player</div>
                   <div className="text-center">Rounds</div>
                   <div className="text-center">Behind</div>
                   <div className="text-right">Points</div>
-                  <div className="text-right">Picks</div>
+                  <div className="text-right">Last Round</div>
+                  <div className="text-right">Next Round</div>
                 </div>
 
                 <div className="divide-y divide-neutral-800">
@@ -480,10 +501,16 @@ export default async function LeaderboardPage() {
                       currentEvent &&
                       submittedPickUserIds.has(player.user_id);
 
+                    const previousRoundPoints =
+                      previousRoundScoresByUser.get(player.user_id);
+
+                    const hasPreviousRoundScore =
+                      typeof previousRoundPoints === "number";
+
                     return (
                       <div
                         key={player.user_id}
-                        className={`grid gap-4 px-5 py-5 md:grid-cols-[80px_1fr_120px_140px_120px_140px] md:items-center md:px-6 ${
+                        className={`grid gap-4 px-5 py-5 md:grid-cols-[70px_minmax(210px,1fr)_90px_110px_100px_135px_135px] md:items-center md:px-6 ${
                           isCurrentUser
                             ? "border-l-4 border-orange-500 bg-orange-500/10"
                             : ""
@@ -547,20 +574,43 @@ export default async function LeaderboardPage() {
 
                         <div className="flex items-center justify-between gap-3 md:justify-end">
                           <span className="text-xs font-bold uppercase text-neutral-500 md:hidden">
-                            Current Picks
+                            Last Round
+                          </span>
+
+                          {hasPreviousRoundScore ? (
+                            <Link
+                              href={`/leaderboard/${player.user_id}#round-history`}
+                              aria-label={`View ${player.display_name}'s previous round score`}
+                              title={`View ${player.display_name}'s previous round score`}
+                              className="flex h-11 items-center justify-center gap-2 rounded-xl border border-neutral-700 bg-black/20 px-4 font-black text-neutral-200 transition hover:border-orange-500 hover:text-orange-400"
+                            >
+                              <EyeIcon />
+
+                              <span>{previousRoundPoints} pts</span>
+                            </Link>
+                          ) : (
+                            <span className="flex h-11 items-center justify-center rounded-xl border border-neutral-800 bg-black/20 px-4 text-xs font-bold uppercase text-neutral-600">
+                              No Score
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-between gap-3 md:justify-end">
+                          <span className="text-xs font-bold uppercase text-neutral-500 md:hidden">
+                            Next Round
                           </span>
 
                           {hasCurrentPicks ? (
                             <Link
                               href={`/leaderboard/${player.user_id}#next-round-picks`}
-                              aria-label={`View ${player.display_name}'s current picks`}
-                              title={`View ${player.display_name}'s current picks`}
+                              aria-label={`View ${player.display_name}'s next round picks`}
+                              title={`View ${player.display_name}'s next round picks`}
                               className="flex h-11 items-center justify-center gap-2 rounded-xl border border-orange-500/40 bg-orange-500/10 px-4 font-black text-orange-400 transition hover:border-orange-500 hover:bg-orange-500 hover:text-black"
                             >
                               <EyeIcon />
 
                               <span className="hidden lg:inline">
-                                View Picks
+                                Picks
                               </span>
                             </Link>
                           ) : (
