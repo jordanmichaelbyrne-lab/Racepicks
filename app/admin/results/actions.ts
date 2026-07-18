@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
 
+type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
+
 async function requireAdmin() {
   const supabase = await createClient();
 
@@ -15,11 +17,16 @@ async function requireAdmin() {
     redirect("/login");
   }
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("role")
     .eq("id", user.id)
     .single();
+
+  if (profileError) {
+    console.error("Admin profile loading error:", profileError);
+    throw new Error("Your administrator account could not be checked.");
+  }
 
   if (profile?.role !== "admin") {
     redirect("/");
@@ -28,107 +35,10 @@ async function requireAdmin() {
   return supabase;
 }
 
-export async function saveResults(formData: FormData) {
-  const supabase = await requireAdmin();
-
-  const eventId = String(formData.get("event_id") ?? "").trim();
-  const firstRiderId = String(
-    formData.get("first_rider_id") ?? ""
-  ).trim();
-  const secondRiderId = String(
-    formData.get("second_rider_id") ?? ""
-  ).trim();
-  const thirdRiderId = String(
-    formData.get("third_rider_id") ?? ""
-  ).trim();
-  const wildcardRiderId = String(
-    formData.get("wildcard_rider_id") ?? ""
-  ).trim();
-
-  if (!eventId) {
-    throw new Error("Event ID is missing.");
-  }
-
-  if (
-    !firstRiderId ||
-    !secondRiderId ||
-    !thirdRiderId ||
-    !wildcardRiderId
-  ) {
-    throw new Error("Please select all four result positions.");
-  }
-
-  const selectedRiders = [
-    firstRiderId,
-    secondRiderId,
-    thirdRiderId,
-    wildcardRiderId,
-  ];
-
-  if (new Set(selectedRiders).size !== selectedRiders.length) {
-    throw new Error("Each rider can only be used once.");
-  }
-
-  const { data: confirmedEntries, error: entriesError } =
-    await supabase
-      .from("event_entries")
-      .select("rider_id")
-      .eq("event_id", eventId)
-      .eq("confirmed", true)
-      .in("rider_id", selectedRiders);
-
-  if (entriesError) {
-    throw new Error(entriesError.message);
-  }
-
-  const confirmedRiderIds = new Set(
-    (confirmedEntries ?? []).map((entry) => entry.rider_id)
-  );
-
-  if (
-    !selectedRiders.every((riderId) =>
-      confirmedRiderIds.has(riderId)
-    )
-  ) {
-    throw new Error(
-      "One or more selected riders are not on the confirmed entry list."
-    );
-  }
-
-  const { error: saveError } = await supabase.from("results").upsert(
-    {
-      event_id: eventId,
-      first_rider_id: firstRiderId,
-      second_rider_id: secondRiderId,
-      third_rider_id: thirdRiderId,
-      wildcard_rider_id: wildcardRiderId,
-      entered_at: new Date().toISOString(),
-    },
-    {
-      onConflict: "event_id",
-    }
-  );
-
-  if (saveError) {
-    console.error("Save results error:", saveError);
-    throw new Error(saveError.message);
-  }
-
-  revalidatePath("/admin/results");
-  revalidatePath("/results");
-
-  redirect(`/admin/results?event=${eventId}&saved=true`);
-}
-
-export async function scoreEvent(formData: FormData) {
-  const supabase = await requireAdmin();
-
-  const eventId = String(formData.get("event_id") ?? "").trim();
-
-  if (!eventId) {
-    throw new Error("Event ID is missing.");
-  }
-
+async function calculateEventScores(
+  supabase: SupabaseClient,
+  eventId: string
+) {
   const { data: event, error: eventError } = await supabase
     .from("events")
     .select("id, points_multiplier")
@@ -178,6 +88,7 @@ export async function scoreEvent(formData: FormData) {
     .eq("event_id", eventId);
 
   if (picksError) {
+    console.error("Picks loading error:", picksError);
     throw new Error(picksError.message);
   }
 
@@ -239,12 +150,143 @@ export async function scoreEvent(formData: FormData) {
     throw new Error(eventUpdateError.message);
   }
 
+  return {
+    playersScored: scoreRows.length,
+  };
+}
+
+function revalidateResultsPages() {
   revalidatePath("/");
   revalidatePath("/account");
   revalidatePath("/results");
+  revalidatePath("/admin");
   revalidatePath("/admin/results");
   revalidatePath("/leaderboard");
   revalidatePath("/leaderboard/[userId]", "page");
+}
 
-  redirect(`/admin/results?event=${eventId}&scored=true`);
+export async function saveResults(formData: FormData) {
+  const supabase = await requireAdmin();
+
+  const eventId = String(formData.get("event_id") ?? "").trim();
+
+  const firstRiderId = String(
+    formData.get("first_rider_id") ?? ""
+  ).trim();
+
+  const secondRiderId = String(
+    formData.get("second_rider_id") ?? ""
+  ).trim();
+
+  const thirdRiderId = String(
+    formData.get("third_rider_id") ?? ""
+  ).trim();
+
+  const wildcardRiderId = String(
+    formData.get("wildcard_rider_id") ?? ""
+  ).trim();
+
+  if (!eventId) {
+    throw new Error("Event ID is missing.");
+  }
+
+  if (
+    !firstRiderId ||
+    !secondRiderId ||
+    !thirdRiderId ||
+    !wildcardRiderId
+  ) {
+    throw new Error("Please select all four result positions.");
+  }
+
+  const selectedRiders = [
+    firstRiderId,
+    secondRiderId,
+    thirdRiderId,
+    wildcardRiderId,
+  ];
+
+  if (new Set(selectedRiders).size !== selectedRiders.length) {
+    throw new Error("Each rider can only be used once.");
+  }
+
+  const { data: confirmedEntries, error: entriesError } =
+    await supabase
+      .from("event_entries")
+      .select("rider_id")
+      .eq("event_id", eventId)
+      .eq("confirmed", true)
+      .in("rider_id", selectedRiders);
+
+  if (entriesError) {
+    console.error("Entry-list validation error:", entriesError);
+    throw new Error(entriesError.message);
+  }
+
+  const confirmedRiderIds = new Set(
+    (confirmedEntries ?? []).map((entry) => entry.rider_id)
+  );
+
+  const everyRiderIsConfirmed = selectedRiders.every((riderId) =>
+    confirmedRiderIds.has(riderId)
+  );
+
+  if (!everyRiderIsConfirmed) {
+    throw new Error(
+      "One or more selected riders are not on the confirmed entry list."
+    );
+  }
+
+  const { error: saveError } = await supabase
+    .from("results")
+    .upsert(
+      {
+        event_id: eventId,
+        first_rider_id: firstRiderId,
+        second_rider_id: secondRiderId,
+        third_rider_id: thirdRiderId,
+        wildcard_rider_id: wildcardRiderId,
+        entered_at: new Date().toISOString(),
+      },
+      {
+        onConflict: "event_id",
+      }
+    );
+
+  if (saveError) {
+    console.error("Save results error:", saveError);
+    throw new Error(saveError.message);
+  }
+
+  const { playersScored } = await calculateEventScores(
+    supabase,
+    eventId
+  );
+
+  revalidateResultsPages();
+
+  redirect(
+    `/admin/results?event=${eventId}&published=true&scored=true&players=${playersScored}`
+  );
+}
+
+export async function scoreEvent(formData: FormData) {
+  const supabase = await requireAdmin();
+
+  const eventId = String(formData.get("event_id") ?? "").trim();
+
+  if (!eventId) {
+    throw new Error("Event ID is missing.");
+  }
+
+  const { playersScored } = await calculateEventScores(
+    supabase,
+    eventId
+  );
+
+  revalidateResultsPages();
+
+  redirect(
+    `/admin/results?event=${eventId}&recalculated=true&players=${playersScored}`
+  );
 }

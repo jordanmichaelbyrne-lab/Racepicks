@@ -243,13 +243,6 @@ export default async function AdminPage() {
       currentEvent?.wildcard_locked
   );
 
-  const scoresCalculated =
-    submittedPickCount > 0 &&
-    scoredPlayerCount >= submittedPickCount;
-
-  const eventCompleted =
-    currentEvent?.status === "completed" && scoresCalculated;
-
   const eventStatusItems: StatusItem[] = currentEvent
     ? [
         {
@@ -310,34 +303,15 @@ export default async function AdminPage() {
           href: "/admin/picks",
         },
         {
-          label: "Race Results Published",
-          description: hasResults
-            ? "The official podium and wildcard result have been saved."
-            : "Enter the official finishing riders after the race.",
-          complete: hasResults,
-          active: picksAreClosed && !hasResults,
-          href: `/admin/results?event=${currentEvent.id}`,
-        },
-        {
-          label: "Scores Calculated",
-          description: scoresCalculated
-            ? `${scoredPlayerCount} player${
-                scoredPlayerCount === 1 ? "" : "s"
-              } scored successfully.`
-            : "Calculate points after official results are confirmed.",
-          complete: scoresCalculated,
-          active: hasResults && !scoresCalculated,
-          href: `/admin/results?event=${currentEvent.id}`,
-        },
-        {
-          label: "Event Completed",
-          description: eventCompleted
-            ? "The round is complete and championship standings are updated."
-            : "The event completes after results and scoring are finalised.",
-          complete: eventCompleted,
-          active: scoresCalculated && !eventCompleted,
-          href: `/admin/results?event=${currentEvent.id}`,
-        },
+  label: "Results Published & Scores Calculated",
+  description: hasResults
+    ? "Race results have been published and championship scores updated."
+    : "Publish the official race results to update the leaderboard.",
+  complete: hasResults,
+  active: picksAreClosed && !hasResults,
+  href: `/admin/results?event=${currentEvent.id}`,
+},
+        
       ]
     : [];
 
@@ -381,11 +355,9 @@ export default async function AdminPage() {
       title: "Race Results",
       description:
         "Publish official race results and calculate the round scores.",
-      status: scoresCalculated
-        ? "Scored"
-        : hasResults
-          ? "Published"
-          : "Pending",
+      status: hasResults
+  ? "Published"
+  : "Pending",
       href: currentEvent
         ? `/admin/results?event=${currentEvent.id}`
         : "/admin/results",

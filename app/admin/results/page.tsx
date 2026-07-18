@@ -325,7 +325,7 @@ export default async function AdminResultsPage({
         type="submit"
         className="w-full rounded-xl bg-orange-500 px-7 py-4 font-black uppercase text-black transition hover:bg-orange-400"
       >
-        Publish Results
+        Publish the official result, calculate player points and complete the event.
       </button>
     </form>
 
@@ -341,7 +341,7 @@ export default async function AdminResultsPage({
           type="submit"
           className="w-full rounded-xl border border-orange-500 px-7 py-4 font-black uppercase text-orange-500 transition hover:bg-orange-500 hover:text-black"
         >
-          Calculate Scores
+          Recalculate Scores
         </button>
       </form>
     )}
