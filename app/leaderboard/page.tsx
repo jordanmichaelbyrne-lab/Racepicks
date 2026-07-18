@@ -438,26 +438,7 @@ export default async function LeaderboardPage() {
             </div>
           </section>
 
-          {currentEvent && (
-            <section className="mt-6 rounded-2xl border border-neutral-800 bg-neutral-900 px-5 py-4">
-              <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-widest text-orange-500">
-                    Current Round Picks
-                  </p>
-
-                  <p className="mt-1 font-bold">
-                    {currentEvent.series} · Round{" "}
-                    {currentEvent.round_number} · {currentEvent.venue}
-                  </p>
-                </div>
-
-                <p className="text-sm text-neutral-400">
-                  Press the eye beside a player to view their picks.
-                </p>
-              </div>
-            </section>
-          )}
+          
 
           {leaderboard.length === 0 ? (
             <div className="mt-8 rounded-3xl border border-neutral-800 bg-neutral-900 p-10 text-center">
