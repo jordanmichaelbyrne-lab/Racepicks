@@ -68,8 +68,8 @@ export default async function PicksPage() {
         <div className="mx-auto max-w-7xl px-6 py-8">
           <Navbar />
 
-          <HowToPlayModal initiallyOpen={shouldShowHowToPlay} />
-
+        
+      
           <section className="mx-auto max-w-3xl py-20 text-center">
             <p className="text-sm font-black uppercase tracking-[0.35em] text-orange-500">
               Racepicks
@@ -166,6 +166,8 @@ const initialPicks = {
     <main className="min-h-screen bg-black text-white">
       <div className="mx-auto max-w-7xl px-6 py-8">
         <Navbar />
+
+        <HowToPlayModal initiallyOpen={shouldShowHowToPlay} />
 
         <section className="mx-auto max-w-3xl py-14">
           <p className="text-sm font-black uppercase tracking-[0.35em] text-orange-500">
