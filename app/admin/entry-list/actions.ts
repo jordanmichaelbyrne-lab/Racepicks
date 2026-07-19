@@ -4,6 +4,7 @@ import * as cheerio from "cheerio";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
+import { notifyPlayersOfWithdrawnRiders } from "@/app/lib/notifications";
 
 type ImportedRider = {
   fullName: string;
@@ -263,6 +264,24 @@ export async function importRacerXEntryList(formData: FormData) {
     );
   }
 
+  const { data: previousEntries, error: previousEntriesError } =
+    await supabase
+      .from("event_entries")
+      .select("rider_id")
+      .eq("event_id", eventId)
+      .eq("confirmed", true);
+
+  if (previousEntriesError) {
+    console.error(
+      "Could not load previous entry list:",
+      previousEntriesError
+    );
+  }
+
+  const previousConfirmedRiderIds = (previousEntries ?? []).map(
+    (entry) => entry.rider_id
+  );
+
   const { error: clearEntriesError } = await supabase
     .from("event_entries")
     .delete()
@@ -300,6 +319,12 @@ export async function importRacerXEntryList(formData: FormData) {
       )}`
     );
   }
+  await notifyPlayersOfWithdrawnRiders(
+    supabase,
+    eventId,
+    previousConfirmedRiderIds,
+    savedRiders.map((rider) => rider.id)
+  );
 
   const { data: event, error: eventError } = await supabase
     .from("events")
@@ -379,6 +404,24 @@ export async function saveEventEntries(formData: FormData) {
     );
   }
 
+  const { data: previousEntries, error: previousEntriesError } =
+    await supabase
+      .from("event_entries")
+      .select("rider_id")
+      .eq("event_id", eventId)
+      .eq("confirmed", true);
+
+  if (previousEntriesError) {
+    console.error(
+      "Could not load previous entry list:",
+      previousEntriesError
+    );
+  }
+
+  const previousConfirmedRiderIds = (previousEntries ?? []).map(
+    (entry) => entry.rider_id
+  );
+
   const { error: deleteError } = await supabase
     .from("event_entries")
     .delete()
@@ -403,6 +446,13 @@ export async function saveEventEntries(formData: FormData) {
     console.error("Save entry list error:", insertError);
     throw new Error(insertError.message);
   }
+  
+  await notifyPlayersOfWithdrawnRiders(
+    supabase,
+    eventId,
+    previousConfirmedRiderIds,
+    riderIds
+  );
 
   const updatedAt = new Date().toISOString();
 
