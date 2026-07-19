@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
+import AdminSubmitButton from "../components/AdminSubmitButton";
 import {
   generateAllWildcards,
   generateWildcard,
@@ -308,12 +309,12 @@ export default async function WildcardAdminPage({
                     value={selectedSeason}
                   />
 
-                  <button
-                    type="submit"
-                    className="w-full rounded-full bg-orange-500 px-7 py-4 font-black text-black transition hover:bg-orange-400"
-                  >
-                    Generate & Lock All {selectedSeason} Wildcards
-                  </button>
+                  <AdminSubmitButton
+  pendingText={`Generating ${selectedSeason} Wildcards…`}
+  className="w-full rounded-full bg-orange-500 px-7 py-4 font-black text-black transition hover:bg-orange-400"
+>
+  Generate & Lock All {selectedSeason} Wildcards
+</AdminSubmitButton>
                 </form>
               )}
 
@@ -435,12 +436,12 @@ export default async function WildcardAdminPage({
                       value={selectedEvent.id}
                     />
 
-                    <button
-                      type="submit"
-                      className="w-full rounded-full bg-orange-500 px-7 py-4 font-black text-black transition hover:bg-orange-400"
-                    >
-                      Generate & Lock Wildcard
-                    </button>
+                    <AdminSubmitButton
+  pendingText="Generating Wildcard…"
+  className="w-full rounded-full bg-orange-500 px-7 py-4 font-black text-black transition hover:bg-orange-400"
+>
+  Generate & Lock Wildcard
+</AdminSubmitButton>
                   </form>
                 )}
               </section>
@@ -483,12 +484,12 @@ export default async function WildcardAdminPage({
                   </span>
                 </label>
 
-                <button
-                  type="submit"
-                  className="mt-4 w-full rounded-full border border-red-500/50 px-7 py-4 font-black text-red-400 transition hover:bg-red-500 hover:text-white"
-                >
-                  Reset All {selectedSeason} Wildcards
-                </button>
+                <AdminSubmitButton
+  pendingText="Resetting Wildcards…"
+  className="mt-4 w-full rounded-full border border-red-500/50 px-7 py-4 font-black text-red-400 transition hover:bg-red-500 hover:text-white"
+>
+  Reset All {selectedSeason} Wildcards
+</AdminSubmitButton>
               </form>
             </section>
           </>
