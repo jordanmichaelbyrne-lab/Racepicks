@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Navbar from "../components/Navbar";
 import { createClient } from "../lib/supabase/server";
 import PicksForm from "./PicksForm";
+import HowToPlayModal from "../components/HowToPlayModal";
 
 type Rider = {
   id: string;
@@ -26,6 +27,14 @@ export default async function PicksPage() {
   if (!user) {
     redirect("/login");
   }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("has_seen_how_to_play")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const shouldShowHowToPlay = !profile?.has_seen_how_to_play;
 
   // Find the next event currently open for picks.
   const { data: currentEvent, error: eventError } = await supabase
@@ -58,6 +67,8 @@ export default async function PicksPage() {
       <main className="min-h-screen bg-black text-white">
         <div className="mx-auto max-w-7xl px-6 py-8">
           <Navbar />
+
+          <HowToPlayModal initiallyOpen={shouldShowHowToPlay} />
 
           <section className="mx-auto max-w-3xl py-20 text-center">
             <p className="text-sm font-black uppercase tracking-[0.35em] text-orange-500">
