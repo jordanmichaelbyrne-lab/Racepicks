@@ -69,11 +69,12 @@ export default function Navbar() {
   return (
     <nav className="relative py-3">
       <div className="flex items-center justify-between gap-3">
-        <Link
-          href="/"
-          className="shrink-0 text-2xl font-black tracking-tight text-white transition hover:text-orange-500 sm:text-3xl"
-        >
-          Racepicks
+        <Link href="/" className="shrink-0 transition hover:opacity-80">
+          <img
+            src="/images/logos/racepicks-logo-transparent.png"
+            alt="Racepicks"
+            className="h-12 w-auto sm:h-18"
+          />
         </Link>
 
         <div className="hidden items-center gap-8 md:flex">
