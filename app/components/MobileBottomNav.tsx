@@ -111,9 +111,8 @@ export default function MobileBottomNav() {
   ];
 
   const hiddenRoute =
-    pathname.startsWith("/admin") ||
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/signup");
+  pathname.startsWith("/login") ||
+  pathname.startsWith("/signup");
 
   if (hiddenRoute) {
     return null;
