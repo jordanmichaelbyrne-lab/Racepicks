@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import AdminSubmitButton from "../components/AdminSubmitButton";
 import { createClient } from "@/app/lib/supabase/server";
 import {
   importRacerXEntryList,
@@ -335,12 +336,12 @@ export default async function EntryListPage({
                       className="min-w-0 flex-1 rounded-xl border border-neutral-700 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-orange-500"
                     />
 
-                    <button
-                      type="submit"
-                      className="rounded-xl bg-orange-500 px-7 py-3 font-black uppercase text-black transition hover:bg-orange-400"
-                    >
-                      Import Entry List
-                    </button>
+                    <AdminSubmitButton
+  pendingText="Importing Racer X Entry List..."
+  className="rounded-xl bg-orange-500 px-7 py-3 font-black uppercase text-black transition hover:bg-orange-400"
+>
+  Import Entry List
+</AdminSubmitButton>
                   </div>
 
                   <p className="mt-3 text-sm text-neutral-500">
@@ -434,28 +435,28 @@ export default async function EntryListPage({
                   </div>
 
                   <div className="mt-6 grid gap-3 lg:grid-cols-[1fr_1fr_auto]">
-                    <button
-                      type="submit"
-                      name="publication_stage"
-                      value="provisional"
-                      disabled={listIsFinal}
-                      className="rounded-xl border border-neutral-700 px-7 py-3 font-black uppercase text-white transition hover:border-orange-500 hover:text-orange-500 disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      {listIsFinal
-                        ? "Provisional Stage Complete"
-                        : "Save Provisional List"}
-                    </button>
+                    <AdminSubmitButton
+  name="publication_stage"
+  value="provisional"
+  disabled={listIsFinal}
+  pendingText="Saving Provisional List..."
+  className="rounded-xl border border-neutral-700 px-7 py-3 font-black uppercase text-white transition hover:border-orange-500 hover:text-orange-500 disabled:cursor-not-allowed disabled:opacity-40"
+>
+  {listIsFinal
+    ? "Provisional Stage Complete"
+    : "Save Provisional List"}
+</AdminSubmitButton>
 
-                    <button
-                      type="submit"
-                      name="publication_stage"
-                      value="final"
-                      className="rounded-xl bg-orange-500 px-7 py-3 font-black uppercase text-black transition hover:bg-orange-400"
-                    >
-                      {listIsFinal
-                        ? "Republish Final Entry List"
-                        : "Publish Final Entry List"}
-                    </button>
+                    <AdminSubmitButton
+  name="publication_stage"
+  value="final"
+  pendingText="Publishing Final Entry List..."
+  className="rounded-xl bg-orange-500 px-7 py-3 font-black uppercase text-black transition hover:bg-orange-400"
+>
+  {listIsFinal
+    ? "Republish Final Entry List"
+    : "Publish Final Entry List"}
+</AdminSubmitButton>
 
                     <Link
                       href="/admin/riders"

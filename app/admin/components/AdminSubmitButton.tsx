@@ -1,12 +1,11 @@
 "use client";
 
+import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 
-type AdminSubmitButtonProps = {
-  children: React.ReactNode;
+type AdminSubmitButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+  children: ReactNode;
   pendingText?: string;
-  className?: string;
-  disabled?: boolean;
 };
 
 export default function AdminSubmitButton({
@@ -14,6 +13,8 @@ export default function AdminSubmitButton({
   pendingText = "Working…",
   className = "",
   disabled = false,
+  type = "submit",
+  ...buttonProps
 }: AdminSubmitButtonProps) {
   const { pending } = useFormStatus();
 
@@ -21,7 +22,8 @@ export default function AdminSubmitButton({
 
   return (
     <button
-      type="submit"
+      {...buttonProps}
+      type={type}
       disabled={isDisabled}
       aria-disabled={isDisabled}
       className={`${className} disabled:cursor-not-allowed disabled:opacity-60`}
