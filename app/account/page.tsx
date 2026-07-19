@@ -240,6 +240,117 @@ export default async function AccountPage() {
       } => Boolean(event)
     );
 
+// Load this player's scored rounds, for stats and recent form.
+  const { data: scoreData, error: scoresError } = await supabase
+    .from("scores")
+    .select(
+      `
+        event_id,
+        round_points,
+        first_points,
+        second_points,
+        third_points,
+        wildcard_points,
+        events (
+          round_number,
+          venue,
+          series,
+          season,
+          race_date
+        )
+      `
+    )
+    .eq("user_id", user.id);
+
+  if (scoresError) {
+    console.error("Player score stats error:", scoresError);
+  }
+
+  type ScoreEventDetails = {
+    round_number: number;
+    venue: string;
+    series: string;
+    season: number;
+    race_date: string;
+  };
+
+  type ScoreRow = {
+    event_id: string;
+    round_points: number;
+    first_points: number;
+    second_points: number;
+    third_points: number;
+    wildcard_points: number;
+    events: ScoreEventDetails | ScoreEventDetails[] | null;
+  };
+
+  function getScoreEvent(score: ScoreRow): ScoreEventDetails | null {
+    if (Array.isArray(score.events)) {
+      return score.events[0] ?? null;
+    }
+
+    return score.events;
+  }
+
+  const scores = ((scoreData ?? []) as ScoreRow[]).sort((a, b) => {
+    const eventA = getScoreEvent(a);
+    const eventB = getScoreEvent(b);
+
+    return (
+      new Date(eventA?.race_date ?? 0).getTime() -
+      new Date(eventB?.race_date ?? 0).getTime()
+    );
+  });
+
+  const firstHits = scores.filter((score) => score.first_points > 0).length;
+  const secondHits = scores.filter((score) => score.second_points > 0).length;
+  const thirdHits = scores.filter((score) => score.third_points > 0).length;
+  const wildcardHits = scores.filter(
+    (score) => score.wildcard_points > 0
+  ).length;
+
+  const perfectRounds = scores.filter(
+    (score) =>
+      score.first_points === 25 &&
+      score.second_points === 22 &&
+      score.third_points === 20 &&
+      score.wildcard_points === 25
+  ).length;
+
+  // Round wins need each event's highest score across all players.
+  const { data: allScoreData, error: allScoresError } = await supabase
+    .from("scores")
+    .select("user_id, event_id, round_points");
+
+  if (allScoresError) {
+    console.error("Round winner loading error:", allScoresError);
+  }
+
+  const allScores =
+    (allScoreData ?? []) as {
+      user_id: string;
+      event_id: string;
+      round_points: number;
+    }[];
+
+  const highestScoreByEvent = new Map<string, number>();
+
+  for (const score of allScores) {
+    const currentHighest = highestScoreByEvent.get(score.event_id) ?? 0;
+
+    if (score.round_points > currentHighest) {
+      highestScoreByEvent.set(score.event_id, score.round_points);
+    }
+  }
+
+  const roundWins = scores.filter((score) => {
+    const highestScore = highestScoreByEvent.get(score.event_id) ?? 0;
+
+    return score.round_points > 0 && score.round_points === highestScore;
+  }).length;
+
+  const recentForm = [...scores].reverse().slice(0, 5);
+    
   const formattedUpdatedAt = currentPicks
     ? new Intl.DateTimeFormat("en-AU", {
         dateStyle: "medium",
@@ -487,6 +598,95 @@ const isSmxActive = activeSeries === "SMX";
 
           <section className="mt-10">
             <div>
+              <section className="mt-8 grid gap-4 sm:grid-cols-3">
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-5">
+              <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
+                Round Wins
+              </p>
+
+              <p className="mt-2 text-xl font-black">{roundWins}</p>
+            </div>
+
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-5">
+              <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
+                🥇 First Picks
+              </p>
+
+              <p className="mt-2 text-xl font-black">{firstHits}</p>
+            </div>
+
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-5">
+              <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
+                🥈 Second Picks
+              </p>
+
+              <p className="mt-2 text-xl font-black">{secondHits}</p>
+            </div>
+
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-5">
+              <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
+                🥉 Third Picks
+              </p>
+
+              <p className="mt-2 text-xl font-black">{thirdHits}</p>
+            </div>
+
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-5">
+              <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
+                ⭐ Wildcards
+              </p>
+
+              <p className="mt-2 text-xl font-black">{wildcardHits}</p>
+            </div>
+
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-5">
+              <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
+                Perfect Rounds
+              </p>
+
+              <p className="mt-2 text-xl font-black">{perfectRounds}</p>
+            </div>
+          </section>
+
+          <section className="mt-8 rounded-3xl border border-zinc-800 bg-zinc-950 p-6">
+            <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
+              Recent Form
+            </p>
+
+            <h2 className="mt-2 text-xl font-black uppercase">
+              Last Five Rounds
+            </h2>
+
+            {recentForm.length === 0 ? (
+              <p className="mt-4 text-sm text-zinc-500">
+                Recent form will appear after scores are calculated.
+              </p>
+            ) : (
+              <div className="mt-5 flex flex-wrap gap-3">
+                {recentForm.map((score) => {
+                  const event = getScoreEvent(score);
+
+                  return (
+                    <div
+                      key={score.event_id}
+                      title={`${event?.venue ?? "Race"} · ${
+                        score.round_points
+                      } points`}
+                      className={`flex h-16 min-w-16 items-center justify-center rounded-2xl border px-4 text-xl font-black ${
+                        score.round_points >= 70
+                          ? "border-green-500/40 bg-green-500/10 text-green-300"
+                          : score.round_points >= 40
+                            ? "border-orange-500/40 bg-orange-500/10 text-orange-300"
+                            : "border-zinc-700 bg-zinc-800 text-zinc-300"
+                      }`}
+                    >
+                      {score.round_points}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
               <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
                 Pick History
               </p>
