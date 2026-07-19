@@ -8,17 +8,28 @@ type MessageProfile = {
   avatar_url: string | null;
 };
 
+type Reaction = {
+  id: string;
+  message_id: string;
+  user_id: string;
+  emoji: string;
+};
+
 type BanterMessage = {
   id: string;
   user_id: string;
   message: string;
   created_at: string;
+  is_pinned: boolean;
   profiles: MessageProfile | MessageProfile[] | null;
 };
 
 type BanterBoardProps = {
   currentUserId: string;
+  isAdmin: boolean;
 };
+
+const REACTION_EMOJIS = ["👍", "🔥", "😂"] as const;
 
 function getProfile(
   profile: MessageProfile | MessageProfile[] | null
@@ -63,10 +74,12 @@ function linkifyMessage(message: string) {
 
 export default function BanterBoard({
   currentUserId,
+  isAdmin,
 }: BanterBoardProps) {
   const supabase = createClient();
 
   const [messages, setMessages] = useState<BanterMessage[]>([]);
+  const [reactions, setReactions] = useState<Reaction[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isPosting, setIsPosting] = useState(false);
@@ -83,6 +96,7 @@ export default function BanterBoard({
           user_id,
           message,
           created_at,
+          is_pinned,
           profiles (
             display_name,
             avatar_url
@@ -102,10 +116,24 @@ export default function BanterBoard({
     setIsLoading(false);
   }
 
+  async function loadReactions() {
+    const { data, error } = await supabase
+      .from("banter_reactions")
+      .select("id, message_id, user_id, emoji");
+
+    if (error) {
+      console.error("Reactions loading error:", error);
+      return;
+    }
+
+    setReactions((data ?? []) as Reaction[]);
+  }
+
   useEffect(() => {
     loadMessages();
+    loadReactions();
 
-    const channel = supabase
+    const messagesChannel = supabase
       .channel("racepicks-banter")
       .on(
         "postgres_changes",
@@ -120,8 +148,24 @@ export default function BanterBoard({
       )
       .subscribe();
 
+    const reactionsChannel = supabase
+      .channel("racepicks-banter-reactions")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "banter_reactions",
+        },
+        () => {
+          loadReactions();
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(messagesChannel);
+      supabase.removeChannel(reactionsChannel);
     };
   }, []);
 
@@ -168,6 +212,34 @@ export default function BanterBoard({
     await loadMessages();
   }
 
+async function togglePin(messageId: string, shouldPin: boolean) {
+    if (shouldPin) {
+      // Only one message can be pinned at a time, so unpin any
+      // currently pinned message first.
+      const { error: unpinError } = await supabase
+        .from("banter_messages")
+        .update({ is_pinned: false })
+        .eq("is_pinned", true);
+
+      if (unpinError) {
+        console.error("Unpin previous message error:", unpinError);
+      }
+    }
+
+    const { error } = await supabase
+      .from("banter_messages")
+      .update({ is_pinned: shouldPin })
+      .eq("id", messageId);
+
+    if (error) {
+      console.error("Toggle pin error:", error);
+      setErrorMessage(error.message);
+      return;
+    }
+
+    await loadMessages();
+  }
+
   async function deleteMessage(messageId: string) {
     const confirmed = window.confirm(
       "Remove this message from Banter?"
@@ -194,6 +266,49 @@ export default function BanterBoard({
     );
   }
 
+  async function toggleReaction(messageId: string, emoji: string) {
+    const existingReaction = reactions.find(
+      (reaction) =>
+        reaction.message_id === messageId &&
+        reaction.user_id === currentUserId &&
+        reaction.emoji === emoji
+    );
+
+    if (existingReaction) {
+      // Optimistically remove it, then confirm with the server.
+      setReactions((current) =>
+        current.filter(
+          (reaction) => reaction.id !== existingReaction.id
+        )
+      );
+
+      const { error } = await supabase
+        .from("banter_reactions")
+        .delete()
+        .eq("id", existingReaction.id);
+
+      if (error) {
+        console.error("Remove reaction error:", error);
+        await loadReactions();
+      }
+
+      return;
+    }
+
+    const { error } = await supabase.from("banter_reactions").insert({
+      message_id: messageId,
+      user_id: currentUserId,
+      emoji,
+    });
+
+    if (error) {
+      console.error("Add reaction error:", error);
+      return;
+    }
+
+    await loadReactions();
+  }
+
   return (
     <div className="mt-10 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950">
       <div className="border-b border-zinc-800 px-5 py-4 sm:px-7">
@@ -212,6 +327,50 @@ export default function BanterBoard({
           </span>
         </div>
       </div>
+
+{(() => {
+        const pinnedMessage = messages.find(
+          (message) => message.is_pinned
+        );
+
+        if (!pinnedMessage) {
+          return null;
+        }
+
+        const pinnedProfile = getProfile(pinnedMessage.profiles);
+        const pinnedDisplayName =
+          pinnedProfile?.display_name?.trim() || "Racepicks Player";
+
+        return (
+          <div className="border-b border-orange-500/30 bg-orange-500/10 px-5 py-4 sm:px-7">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="flex items-center gap-1.5 text-xs font-black uppercase tracking-widest text-orange-400">
+                  📌 Pinned
+                </p>
+
+                <p className="mt-2 text-sm leading-6 text-zinc-200">
+                  {linkifyMessage(pinnedMessage.message)}
+                </p>
+
+                <p className="mt-2 text-xs text-zinc-500">
+                  — {pinnedDisplayName}
+                </p>
+              </div>
+
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => togglePin(pinnedMessage.id, false)}
+                  className="shrink-0 text-xs font-bold text-zinc-500 transition hover:text-red-400"
+                >
+                  Unpin
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="h-[52vh] min-h-96 overflow-y-auto px-4 py-5 sm:px-6">
         {isLoading ? (
@@ -237,6 +396,10 @@ export default function BanterBoard({
 
               const isCurrentUser =
                 chatMessage.user_id === currentUserId;
+
+              const messageReactions = reactions.filter(
+                (reaction) => reaction.message_id === chatMessage.id
+              );
 
               return (
                 <div
@@ -304,17 +467,76 @@ export default function BanterBoard({
                       </p>
                     </div>
 
-                    {isCurrentUser && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          deleteMessage(chatMessage.id)
-                        }
-                        className="mt-1 text-xs font-bold text-zinc-600 transition hover:text-red-400"
-                      >
-                        Delete
-                      </button>
-                    )}
+                    <div
+                      className={`mt-2 flex flex-wrap gap-1.5 ${
+                        isCurrentUser ? "justify-end" : ""
+                      }`}
+                    >
+                      {REACTION_EMOJIS.map((emoji) => {
+                        const emojiReactions = messageReactions.filter(
+                          (reaction) => reaction.emoji === emoji
+                        );
+
+                        const hasReacted = emojiReactions.some(
+                          (reaction) =>
+                            reaction.user_id === currentUserId
+                        );
+
+                        return (
+                          <button
+                            key={emoji}
+                            type="button"
+                            onClick={() =>
+                              toggleReaction(chatMessage.id, emoji)
+                            }
+                            className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-bold transition ${
+                              hasReacted
+                                ? "border-orange-500 bg-orange-500/15 text-orange-300"
+                                : "border-zinc-800 bg-black text-zinc-500 hover:border-zinc-700 hover:text-zinc-300"
+                            }`}
+                          >
+                            <span>{emoji}</span>
+                            {emojiReactions.length > 0 && (
+                              <span>{emojiReactions.length}</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                   <div
+                      className={`mt-1 flex gap-3 ${
+                        isCurrentUser ? "justify-end" : ""
+                      }`}
+                    >
+                      {isAdmin && !chatMessage.is_pinned && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            togglePin(chatMessage.id, true)
+                          }
+                          className="text-xs font-bold text-zinc-600 transition hover:text-orange-400"
+                        >
+                          Pin
+                        </button>
+                      )}
+
+                      {(isCurrentUser || isAdmin) && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            deleteMessage(chatMessage.id)
+                          }
+                          className={`text-xs font-bold transition hover:text-red-400 ${
+                            isCurrentUser
+                              ? "text-zinc-600"
+                              : "text-red-500/70"
+                          }`}
+                        >
+                          {isCurrentUser ? "Delete" : "Remove (Admin)"}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               );

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Navbar from "../components/Navbar";
 import { createClient } from "../lib/supabase/server";
-import BanterBoard from "./BanterBoard";
+import BanterTabs from "./BanterTabs";
 
 export default async function BanterPage() {
   const supabase = await createClient();
@@ -13,6 +13,14 @@ export default async function BanterPage() {
   if (!user) {
     redirect("/login");
   }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const isAdmin = profile?.role === "admin";
 
   return (
     <main className="min-h-screen bg-black text-white">
@@ -34,9 +42,7 @@ export default async function BanterPage() {
             the gate.
           </p>
 
-          <BanterBoard
-            currentUserId={user.id}
-          />
+          <BanterTabs currentUserId={user.id} isAdmin={isAdmin} />
         </section>
       </div>
     </main>
