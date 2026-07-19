@@ -13,6 +13,7 @@ export default function SignUpPage() {
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<
@@ -44,6 +45,12 @@ export default function SignUpPage() {
       setMessage(
         "Your password must contain at least 8 characters."
       );
+      setMessageType("error");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setMessage("Your passwords don't match. Please check and try again.");
       setMessageType("error");
       return;
     }
@@ -228,6 +235,30 @@ export default function SignUpPage() {
                 }
                 className="mt-2 w-full rounded-2xl border border-zinc-700 bg-black px-4 py-3 text-white outline-none transition focus:border-orange-500"
                 placeholder="Minimum 8 characters"
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="confirmPassword"
+                className="text-sm font-bold text-zinc-300"
+              >
+                Confirm Password
+              </label>
+
+              <input
+                id="confirmPassword"
+                name="confirmPassword"
+                type="password"
+                required
+                minLength={8}
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(event) =>
+                  setConfirmPassword(event.target.value)
+                }
+                className="mt-2 w-full rounded-2xl border border-zinc-700 bg-black px-4 py-3 text-white outline-none transition focus:border-orange-500"
+                placeholder="Re-enter your password"
               />
             </div>
 
