@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 type NavItem = {
   href: string;
@@ -11,6 +12,34 @@ type NavItem = {
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    const viewport = window.visualViewport;
+
+    if (!viewport) {
+      return;
+    }
+
+    function handleViewportChange() {
+      if (!viewport) {
+        return;
+      }
+
+      // If the visible area has shrunk noticeably compared to the
+      // full window height, the on-screen keyboard is almost
+      // certainly open.
+      const heightDifference = window.innerHeight - viewport.height;
+      setIsKeyboardOpen(heightDifference > 150);
+    }
+
+    viewport.addEventListener("resize", handleViewportChange);
+    handleViewportChange();
+
+    return () => {
+      viewport.removeEventListener("resize", handleViewportChange);
+    };
+  }, []);
 
   const navItems: NavItem[] = [
     {
@@ -114,7 +143,7 @@ export default function MobileBottomNav() {
   pathname.startsWith("/login") ||
   pathname.startsWith("/signup");
 
-  if (hiddenRoute) {
+  if (hiddenRoute || isKeyboardOpen) {
     return null;
   }
 
