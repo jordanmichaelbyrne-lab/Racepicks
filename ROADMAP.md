@@ -4,6 +4,10 @@ This file captures the long-term direction for Racepicks, so future
 work (by Jordan, or any AI assistant helping out) stays aligned with
 where the app is headed — not just what's immediately in front of us.
 
+
+
+
+
 ## Current State (2026)
 
 - Beta trial running for the 2026 season with ~6 players.
@@ -85,3 +89,36 @@ prefer designs that:
    automated or batch alternative is realistic to build.
 
 _Last updated: 19 July 2026_
+
+
+
+
+
+
+## Mobile App (Future — post core-feature stability)
+
+Plan: wrap the existing Next.js site using **Capacitor**, rather than
+rebuilding natively. This gets a real App Store / Google Play listing
+while reusing the same codebase — no separate app to maintain.
+
+**Process:**
+1. Add Capacitor to the existing Next.js project (native iOS/Android
+   folders generated inside the repo, pointing at the site).
+2. Configure app icon, splash screen, name, permissions.
+3. Test via Xcode (iOS) / Android Studio (Android).
+4. Set up developer accounts: Apple Developer Program (~$99 USD/year),
+   Google Play Console (~$25 USD one-time).
+5. Submit for review — Google Play is quick; Apple's review is
+   stricter/slower, and can reject apps that feel like "just a
+   website wrapper," so the native shell needs to feel sufficiently
+   app-like (proper nav, no visible browser chrome) to pass smoothly.
+
+**Timing:** hold off starting this until the core app (features,
+scoring, competitions) is more settled — wrapping a moving target
+means re-testing the native shell every time something changes.
+Good candidate for closer to the 2027 public launch.
+
+**Rough cost estimate:** ~$99/year (Apple) + ~$25 one-time (Google) if
+self-managed. If hiring a developer for the Capacitor setup + store
+submission process, low hundreds to low thousands of dollars,
+depending on who's hired.

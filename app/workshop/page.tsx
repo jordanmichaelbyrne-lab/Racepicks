@@ -6,6 +6,7 @@ import DeleteAccountButton from "./DeleteAccountButton";
 import PasswordForm from "./PasswordForm";
 import ProfileForm from "./ProfileForm";
 import SignOutButton from "./SignOutButton";
+import AvatarUpload from "./AvatarUpload";
 
 type Profile = {
   display_name: string | null;
@@ -84,14 +85,6 @@ export default async function WorkshopPage() {
     typedProfile?.last_name?.trim() ||
     getMetadataString(metadata, "last_name");
 
-  const initials = displayName
-    .split(" ")
-    .filter(Boolean)
-    .map((name: string) => name.charAt(0))
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-
   const memberLabel =
     typedProfile?.role === "admin"
       ? "Racepicks Administrator"
@@ -127,17 +120,11 @@ export default async function WorkshopPage() {
               <div className="absolute inset-x-0 top-0 h-1 bg-orange-500" />
 
               <div className="flex flex-col items-center gap-6 text-center sm:flex-row sm:text-left">
-                {typedProfile?.avatar_url ? (
-                  <img
-                    src={typedProfile.avatar_url}
-                    alt={`${displayName} profile`}
-                    className="h-28 w-28 rounded-full border-4 border-orange-500 object-cover shadow-2xl shadow-orange-500/10"
-                  />
-                ) : (
-                  <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-full border-4 border-orange-500 bg-orange-500 text-4xl font-black text-black shadow-2xl shadow-orange-500/10">
-                    {initials || "RP"}
-                  </div>
-                )}
+                <AvatarUpload
+                  userId={user.id}
+                  displayName={displayName}
+                  currentAvatarUrl={typedProfile?.avatar_url ?? null}
+                />
 
                 <div className="min-w-0">
                   <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
