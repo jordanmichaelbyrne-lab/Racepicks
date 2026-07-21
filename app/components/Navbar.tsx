@@ -11,10 +11,21 @@ export default function Navbar() {
   const supabase = useMemo(() => createClient(), []);
 
   const [user, setUser] = useState<User | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
+    async function loadAvatar(userId: string) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("avatar_url")
+        .eq("id", userId)
+        .maybeSingle();
+
+      setAvatarUrl(profile?.avatar_url ?? null);
+    }
+
     async function loadUser() {
       const {
         data: { user: currentUser },
@@ -22,6 +33,10 @@ export default function Navbar() {
 
       setUser(currentUser);
       setIsLoading(false);
+
+      if (currentUser) {
+        loadAvatar(currentUser.id);
+      }
     }
 
     loadUser();
@@ -31,6 +46,12 @@ export default function Navbar() {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       setIsLoading(false);
+
+      if (session?.user) {
+        loadAvatar(session.user.id);
+      } else {
+        setAvatarUrl(null);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -69,11 +90,14 @@ export default function Navbar() {
   return (
     <nav className="relative py-3">
       <div className="flex items-center justify-between gap-3">
-        <Link href="/" className="shrink-0 transition hover:opacity-80">
+        <Link
+          href="/"
+          className="shrink-0 transition hover:opacity-80"
+        >
           <img
-            src="/images/logos/racepicks-logo-transparent.png"
+            src="/images/logos/Racepicks-trans.png"
             alt="Racepicks"
-            className="h-12 w-auto sm:h-18"
+            className="h-10 w-auto sm:h-14"
           />
         </Link>
 
@@ -106,9 +130,18 @@ export default function Navbar() {
                 aria-label="Open player dashboard"
                 className="flex items-center gap-3 transition hover:opacity-80"
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-500 text-sm font-black text-black">
-                  {initials}
-                </div>
+                {avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={avatarUrl}
+                    alt={displayName}
+                    className="h-10 w-10 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-500 text-sm font-black text-black">
+                    {initials}
+                  </div>
+                )}
 
                 <span className="hidden font-bold text-white lg:block">
                   {displayName}
@@ -234,9 +267,18 @@ export default function Navbar() {
                       : "text-white hover:bg-zinc-900"
                   }`}
                 >
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-500 text-xs font-black text-black">
-                    {initials}
-                  </div>
+                  {avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={avatarUrl}
+                      alt={displayName}
+                      className="h-9 w-9 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-orange-500 text-xs font-black text-black">
+                      {initials}
+                    </div>
+                  )}
 
                   <div>
                     <p>Player Dashboard</p>
