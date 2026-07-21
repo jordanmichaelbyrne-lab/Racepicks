@@ -64,6 +64,10 @@ export default function RiderPicker({
 
     window.setTimeout(() => {
       inputRef.current?.focus();
+      inputRef.current?.scrollIntoView({
+        block: "center",
+        behavior: "smooth",
+      });
     }, 0);
   }
 
@@ -114,7 +118,13 @@ export default function RiderPicker({
             ref={inputRef}
             type="text"
             value={search}
-            onFocus={() => setIsOpen(true)}
+            onFocus={(event) => {
+              setIsOpen(true);
+              event.target.scrollIntoView({
+                block: "center",
+                behavior: "smooth",
+              });
+            }}
             onChange={(event) => {
               setSearch(event.target.value);
               setIsOpen(true);
@@ -124,7 +134,7 @@ export default function RiderPicker({
           />
 
           {isOpen && (
-            <div className="absolute z-40 mt-2 max-h-80 w-full overflow-y-auto rounded-2xl border border-zinc-700 bg-zinc-950 shadow-2xl">
+            <div className="absolute z-40 mt-2 max-h-[45dvh] w-full overflow-y-auto rounded-2xl border border-zinc-700 bg-zinc-950 shadow-2xl">
               {selectedRiderId && (
                 <button
                   type="button"
