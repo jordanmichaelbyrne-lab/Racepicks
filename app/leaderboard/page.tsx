@@ -462,7 +462,7 @@ export default async function LeaderboardPage() {
               </div>
 
               <div className="mt-6 overflow-hidden rounded-3xl border border-neutral-800 bg-neutral-900">
-                <div className="hidden grid-cols-[70px_minmax(210px,1fr)_90px_110px_100px_135px_135px] border-b border-neutral-800 bg-black/30 px-6 py-4 text-xs font-black uppercase tracking-widest text-neutral-500 md:grid">
+                <div className="hidden grid-cols-[70px_minmax(210px,1fr)_90px_110px_100px_135px_135px] gap-4 border-b border-neutral-800 bg-black/30 px-6 py-4 text-xs font-black uppercase tracking-widest text-neutral-500 md:grid">
                   <div>Pos</div>
                   <div>Player</div>
                   <div className="text-center">Rounds</div>
