@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import BanterBoard from "./BanterBoard";
+import PostFeed from "./PostFeed";
 import GroupsPanel from "./GroupsPanel";
 
 type BanterTabsProps = {
@@ -9,16 +9,16 @@ type BanterTabsProps = {
   isAdmin: boolean;
 };
 
-type TabKey = "open" | "groups";
+type TabKey = "feed" | "groups";
 
 export default function BanterTabs({
   currentUserId,
   isAdmin,
 }: BanterTabsProps) {
-  const [activeTab, setActiveTab] = useState<TabKey>("open");
+  const [activeTab, setActiveTab] = useState<TabKey>("feed");
 
   const tabs: { key: TabKey; label: string }[] = [
-    { key: "open", label: "Open Chat" },
+    { key: "feed", label: "Feed" },
     { key: "groups", label: "Groups" },
   ];
 
@@ -41,8 +41,8 @@ export default function BanterTabs({
         ))}
       </div>
 
-      {activeTab === "open" ? (
-        <BanterBoard currentUserId={currentUserId} isAdmin={isAdmin} />
+      {activeTab === "feed" ? (
+        <PostFeed currentUserId={currentUserId} isAdmin={isAdmin} />
       ) : (
         <GroupsPanel currentUserId={currentUserId} />
       )}
