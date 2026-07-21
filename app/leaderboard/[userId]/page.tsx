@@ -585,11 +585,7 @@ export default async function PlayerHistoryPage({
                 {displayedPicks.map((pick) => (
                   <div
                     key={pick.label}
-                    className={`bg-neutral-900 p-5 sm:p-6 ${
-                      pick.wildcard
-                        ? "sm:col-span-2"
-                        : ""
-                    }`}
+                    className="bg-neutral-900 p-5 sm:p-6"
                   >
                     <div className="flex items-center gap-4">
                       <div
