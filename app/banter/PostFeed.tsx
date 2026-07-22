@@ -6,6 +6,7 @@ import { createClient } from "../lib/supabase/client";
 
 type PostProfile = {
   display_name: string | null;
+  avatar_url: string | null;
 };
 
 type RawPost = {
@@ -90,13 +91,16 @@ export default function PostFeed({
     if (authorIds.length > 0) {
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, display_name")
+        .select("id, display_name, avatar_url")
         .in("id", authorIds);
 
       profilesById = new Map(
         (profiles ?? []).map((profile) => [
           profile.id,
-          { display_name: profile.display_name },
+          {
+            display_name: profile.display_name,
+            avatar_url: profile.avatar_url,
+          },
         ])
       );
     }
@@ -340,9 +344,18 @@ export default function PostFeed({
               )}
 
               <div className="flex items-start gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-orange-500/50 bg-orange-500/10 text-xs font-black text-orange-400">
-                  {getInitials(displayName) || "RP"}
-                </div>
+                {post.profiles?.avatar_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={post.profiles.avatar_url}
+                    alt={displayName}
+                    className="h-11 w-11 shrink-0 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-orange-500/50 bg-orange-500/10 text-xs font-black text-orange-400">
+                    {getInitials(displayName) || "RP"}
+                  </div>
+                )}
 
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">

@@ -26,9 +26,6 @@ export default function MobileBottomNav() {
         return;
       }
 
-      // If the visible area has shrunk noticeably compared to the
-      // full window height, the on-screen keyboard is almost
-      // certainly open.
       const heightDifference = window.innerHeight - viewport.height;
       setIsKeyboardOpen(heightDifference > 150);
     }
@@ -82,8 +79,24 @@ export default function MobileBottomNav() {
       ),
     },
     {
+      href: "/banter",
+      label: "Banter",
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          className="h-5 w-5"
+          aria-hidden="true"
+        >
+          <path d="M4 4h16v12H8l-4 4V4Z" />
+        </svg>
+      ),
+    },
+    {
       href: "/leaderboard",
-      label: "Championship",
+      label: "Leaderboard",
       icon: (
         <svg
           viewBox="0 0 24 24"
@@ -152,7 +165,7 @@ export default function MobileBottomNav() {
       aria-label="Mobile navigation"
       className="fixed inset-x-0 bottom-0 z-50 border-t border-zinc-800 bg-black/95 px-2 pt-2 backdrop-blur md:hidden"
     >
-      <div className="mx-auto grid max-w-lg grid-cols-5 gap-1 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
+      <div className="mx-auto grid max-w-lg grid-cols-6 gap-1 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
         {navItems.map((item) => {
           const isActive =
             item.href === "/"
