@@ -95,7 +95,7 @@ export default function Navbar() {
           className="shrink-0 transition hover:opacity-80"
         >
           <img
-            src="/images/logos/Racepicks-trans.png"
+            src="/images/logos/Racepicks-Trans.png"
             alt="Racepicks"
             className="h-10 w-auto sm:h-14"
           />
