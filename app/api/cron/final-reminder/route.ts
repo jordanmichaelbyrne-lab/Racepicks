@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createClient } from "@/app/lib/supabase/server";
 import { getAllPlayerEmails } from "@/app/lib/email-recipients";
+import { wrapEmailHtml } from "@/app/lib/email-template";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -86,25 +87,28 @@ export async function GET(request: Request) {
   let sentCount = 0;
 
   for (const player of playersWithoutPicks) {
+    const bodyHtml = `
+      <p>Hi ${player.display_name ?? "there"},</p>
+      <p>
+        You haven't entered your picks yet for
+        <strong>${eventLabel}</strong>.
+      </p>
+      <p>
+        Picks close: <strong>${closeTimeLabel}</strong> (Brisbane time)
+      </p>
+    `;
+
     try {
       await resend.emails.send({
         from: "Racepicks <notifications@racepicks.app>",
         to: player.email,
         subject: `Final chance — picks close soon for ${currentEvent.venue}`,
-        html: `
-          <p>Hi ${player.display_name ?? "there"},</p>
-          <p>
-            You haven't entered your picks yet for
-            <strong>${eventLabel}</strong>.
-          </p>
-          <p>
-            Picks close: <strong>${closeTimeLabel}</strong> (Brisbane time)
-          </p>
-          <p>
-            <a href="https://racepicks.app/picks">Enter your picks now</a>
-          </p>
-          <p>— Racepicks</p>
-        `,
+        html: wrapEmailHtml({
+          bodyHtml,
+          ctaText: "Enter Your Picks Now",
+          ctaHref: "https://racepicks.app/picks",
+          preheaderText: `Last chance to make your picks for ${currentEvent.venue}`,
+        }),
       });
 
       sentCount += 1;

@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { createClient } from "./supabase/server";
+import { wrapEmailHtml } from "./email-template";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -25,7 +26,6 @@ export async function notifyPlayersOfWithdrawnRiders(
     return;
   }
 
-  // Load event details, for a friendly email subject/body.
   const { data: event, error: eventError } = await supabase
     .from("events")
     .select("venue, series, season, round_number")
@@ -40,7 +40,6 @@ export async function notifyPlayersOfWithdrawnRiders(
     return;
   }
 
-  // Load the names of the withdrawn riders, for the email text.
   const { data: withdrawnRiders, error: ridersError } = await supabase
     .from("riders")
     .select("id, full_name")
@@ -58,8 +57,6 @@ export async function notifyPlayersOfWithdrawnRiders(
     (withdrawnRiders ?? []).map((rider) => [rider.id, rider.full_name])
   );
 
-  // Find every pick for this event that used one of the withdrawn riders,
-  // in any of the four positions.
   const { data: affectedPicks, error: picksError } = await supabase
     .from("picks")
     .select(
@@ -89,8 +86,6 @@ export async function notifyPlayersOfWithdrawnRiders(
     return;
   }
 
-  // Work out, per affected player, which specific rider(s) of theirs
-  // were withdrawn.
   const withdrawnRiderNamesByUser = new Map<string, string[]>();
 
   for (const pick of affectedPicks) {
@@ -117,7 +112,6 @@ export async function notifyPlayersOfWithdrawnRiders(
     return;
   }
 
-  // Load email + display name for each affected player.
   const { data: affectedProfiles, error: profilesError } = await supabase
     .from("profiles")
     .select("id, email, display_name")
@@ -147,31 +141,36 @@ export async function notifyPlayersOfWithdrawnRiders(
     const riderList = riderNames.join(", ");
     const firstName = profile.display_name ?? "there";
 
+    const bodyHtml = `
+      <p>Hi ${firstName},</p>
+      <p>
+        The entry list for <strong>${eventLabel}</strong> has just been
+        updated, and the following rider${
+          riderNames.length > 1 ? "s" : ""
+        } you picked ${
+      riderNames.length > 1 ? "are" : "is"
+    } no longer entered:
+      </p>
+      <p style="background-color:#fff4e8;border-left:3px solid #f97316;padding:10px 16px;font-weight:700;">
+        ${riderList}
+      </p>
+      <p>
+        Please update your picks before Saturday 10PM so they count
+        toward this round.
+      </p>
+    `;
+
     try {
       await resend.emails.send({
         from: "Racepicks <notifications@racepicks.app>",
         to: profile.email,
         subject: `Action needed: your rider is no longer entered — ${event.venue}`,
-        html: `
-          <p>Hi ${firstName},</p>
-          <p>
-            The entry list for <strong>${eventLabel}</strong> has just been
-            updated, and the following rider${
-              riderNames.length > 1 ? "s" : ""
-            } you picked ${
-          riderNames.length > 1 ? "are" : "is"
-        } no longer entered:
-          </p>
-          <p><strong>${riderList}</strong></p>
-          <p>
-            Please update your picks before Saturday 10PM so they count
-            toward this round.
-          </p>
-          <p>
-            <a href="https://racepicks.app/picks">Update your picks</a>
-          </p>
-          <p>— Racepicks</p>
-        `,
+        html: wrapEmailHtml({
+          bodyHtml,
+          ctaText: "Update Your Picks",
+          ctaHref: "https://racepicks.app/picks",
+          preheaderText: `${riderList} is no longer entered for ${event.venue}`,
+        }),
       });
     } catch (err) {
       console.error(
@@ -258,35 +257,42 @@ export async function notifyPlayersOfResults(
 
   const eventLabel = `${event.season} ${event.series} · Round ${event.round_number} · ${event.venue}`;
 
+  const resultsBoxHtml = `
+    <div style="background-color:#f7f7f7;border-radius:6px;padding:16px 20px;margin:16px 0;line-height:1.9;">
+      🥇 1st: <strong>${firstName}</strong><br/>
+      🥈 2nd: <strong>${secondName}</strong><br/>
+      🥉 3rd: <strong>${thirdName}</strong><br/>
+      ⭐ Wildcard: <strong>${wildcardName}</strong>
+    </div>
+  `;
+
   for (const player of players ?? []) {
     if (!player.email) {
       continue;
     }
+
+    const bodyHtml = `
+      <p>Hi ${player.display_name ?? "there"},</p>
+      <p>
+        The official results are in for <strong>${eventLabel}</strong>:
+      </p>
+      ${resultsBoxHtml}
+      <p>
+        Check the leaderboard to see how your picks scored:
+      </p>
+    `;
 
     try {
       await resend.emails.send({
         from: "Racepicks <notifications@racepicks.app>",
         to: player.email,
         subject: `Results are in — ${event.venue}`,
-        html: `
-          <p>Hi ${player.display_name ?? "there"},</p>
-          <p>
-            The official results are in for <strong>${eventLabel}</strong>:
-          </p>
-          <p>
-            🥇 1st: <strong>${firstName}</strong><br/>
-            🥈 2nd: <strong>${secondName}</strong><br/>
-            🥉 3rd: <strong>${thirdName}</strong><br/>
-            ⭐ Wildcard: <strong>${wildcardName}</strong>
-          </p>
-          <p>
-            Check the leaderboard to see how your picks scored:
-          </p>
-          <p>
-            <a href="https://racepicks.app/leaderboard">View the Leaderboard</a>
-          </p>
-          <p>— Racepicks</p>
-        `,
+        html: wrapEmailHtml({
+          bodyHtml,
+          ctaText: "View the Leaderboard",
+          ctaHref: "https://racepicks.app/leaderboard",
+          preheaderText: `Results are in for ${event.venue}`,
+        }),
       });
     } catch (err) {
       console.error(`Failed to email ${player.email}:`, err);

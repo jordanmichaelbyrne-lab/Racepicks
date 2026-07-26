@@ -2,13 +2,11 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createClient } from "@/app/lib/supabase/server";
 import { getAllPlayerEmails } from "@/app/lib/email-recipients";
+import { wrapEmailHtml } from "@/app/lib/email-template";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function GET(request: Request) {
-  // Vercel automatically sends this header on scheduled cron calls,
-  // using the CRON_SECRET environment variable — this check stops
-  // anyone else from triggering the route manually.
   const authHeader = request.headers.get("authorization");
 
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -63,24 +61,27 @@ export async function GET(request: Request) {
   let sentCount = 0;
 
   for (const player of players) {
+    const bodyHtml = `
+      <p>Hi ${player.display_name ?? "there"},</p>
+      <p>
+        Picks are now open for <strong>${eventLabel}</strong>.
+      </p>
+      <p>
+        Picks close: <strong>${closeTimeLabel}</strong> (Brisbane time)
+      </p>
+    `;
+
     try {
       await resend.emails.send({
         from: "Racepicks <notifications@racepicks.app>",
         to: player.email,
         subject: `Picks are open — ${currentEvent.venue}`,
-        html: `
-          <p>Hi ${player.display_name ?? "there"},</p>
-          <p>
-            Picks are now open for <strong>${eventLabel}</strong>.
-          </p>
-          <p>
-            Picks close: <strong>${closeTimeLabel}</strong> (Brisbane time)
-          </p>
-          <p>
-            <a href="https://racepicks.app/picks">Enter your picks</a>
-          </p>
-          <p>— Racepicks</p>
-        `,
+        html: wrapEmailHtml({
+          bodyHtml,
+          ctaText: "Enter Your Picks",
+          ctaHref: "https://racepicks.app/picks",
+          preheaderText: `Picks are open for ${currentEvent.venue}`,
+        }),
       });
 
       sentCount += 1;
