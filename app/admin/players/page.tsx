@@ -75,6 +75,39 @@ export default async function AdminPlayersPage({
 
   const players = (data ?? []) as AdminPlayerRow[];
 
+  // Find the current event open for picks, so the "Submitted Picks" stat
+  // reflects this round only — not a lifetime total across every event
+  // the player base has ever played.
+  const { data: currentEvent, error: currentEventError } = await supabase
+    .from("events")
+    .select("id, venue")
+    .eq("status", "open")
+    .order("race_date", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (currentEventError) {
+    throw new Error(currentEventError.message);
+  }
+
+  let submittedThisRoundCount = 0;
+
+  if (currentEvent) {
+    const { data: currentRoundPicks, error: currentRoundPicksError } =
+      await supabase
+        .from("picks")
+        .select("user_id")
+        .eq("event_id", currentEvent.id);
+
+    if (currentRoundPicksError) {
+      throw new Error(currentRoundPicksError.message);
+    }
+
+    submittedThisRoundCount = new Set(
+      (currentRoundPicks ?? []).map((pick) => pick.user_id)
+    ).size;
+  }
+
   const searchQuery = (params.q ?? "")
     .trim()
     .toLowerCase();
@@ -107,10 +140,6 @@ export default async function AdminPlayersPage({
 
   const playerCount = players.filter(
     (player) => player.role !== "admin"
-  ).length;
-
-  const submittedPlayerCount = players.filter(
-    (player) => Number(player.submitted_rounds) > 0
   ).length;
 
   return (
@@ -183,11 +212,13 @@ export default async function AdminPlayersPage({
 
           <div className="rounded-2xl border border-blue-500/30 bg-blue-500/10 p-6">
             <p className="text-xs font-bold uppercase tracking-widest text-blue-400">
-              Submitted Picks
+              {currentEvent
+                ? `Submitted — ${currentEvent.venue}`
+                : "Submitted Picks"}
             </p>
 
             <p className="mt-3 text-4xl font-black">
-              {submittedPlayerCount}
+              {submittedThisRoundCount}
             </p>
           </div>
         </section>
