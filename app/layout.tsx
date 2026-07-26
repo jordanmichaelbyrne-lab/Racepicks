@@ -15,6 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://racepicks.app"),
   title: "Racepicks.",
   description:
     "Australia's Supercross, Motocross and SMX tipping competition.",
@@ -30,10 +31,11 @@ export const metadata: Metadata = {
   },
 
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Racepicks.",
     description:
       "Australia's Supercross, Motocross and SMX tipping competition.",
+    images: ["/images/share.jpg"],
   },
 };
 
