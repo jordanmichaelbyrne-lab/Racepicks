@@ -147,7 +147,7 @@ async function calculateEventScores(
   return { playersScored: scoreRows.length };
 }
 
-// NEW: finds the next round in the same series/season, copies confirmed
+// Finds the next round in the same series/season, copies confirmed
 // riders forward, generates its wildcard, and opens picks for it.
 async function rolloverToNextEvent(
   supabase: SupabaseClient,
@@ -222,6 +222,24 @@ async function rolloverToNextEvent(
     if (insertError) {
       console.error("Rollover: error copying riders forward:", insertError);
       throw new Error(insertError.message);
+    }
+
+    // Mark the entry list as provisionally imported, since we've just
+    // carried the previous event's confirmed riders forward.
+    const { error: entryListStatusError } = await supabase
+      .from("events")
+      .update({
+        provisional_entry_imported_at: new Date().toISOString(),
+        entry_list_stage: "provisional",
+      })
+      .eq("id", nextEvent.id);
+
+    if (entryListStatusError) {
+      console.error(
+        "Rollover: error marking entry list as provisional:",
+        entryListStatusError
+      );
+      throw new Error(entryListStatusError.message);
     }
   }
 
@@ -358,7 +376,7 @@ export async function saveResults(formData: FormData) {
 
   const { playersScored } = await calculateEventScores(supabase, eventId);
 
-  // NEW: automatically roll over to the next round.
+  // Automatically roll over to the next round.
   await rolloverToNextEvent(supabase, eventId);
 
   revalidateResultsPages();
