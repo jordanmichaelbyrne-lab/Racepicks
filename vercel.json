@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/picks-open-reminder",
+      "schedule": "0 8 * * 1"
+    },
+    {
+      "path": "/api/cron/final-reminder",
+      "schedule": "0 2 * * 5"
+    },
+    {
+      "path": "/api/cron/closing-soon-reminder",
+      "schedule": "0 6 * * 6"
+    }
+  ]
+}

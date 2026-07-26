@@ -181,3 +181,115 @@ export async function notifyPlayersOfWithdrawnRiders(
     }
   }
 }
+
+export async function notifyPlayersOfResults(
+  supabase: SupabaseServerClient,
+  eventId: string
+) {
+  const { data: event, error: eventError } = await supabase
+    .from("events")
+    .select("venue, series, season, round_number")
+    .eq("id", eventId)
+    .single();
+
+  if (eventError || !event) {
+    console.error("Results notification: could not load event:", eventError);
+    return;
+  }
+
+  const { data: result, error: resultError } = await supabase
+    .from("results")
+    .select(
+      "first_rider_id, second_rider_id, third_rider_id, wildcard_rider_id"
+    )
+    .eq("event_id", eventId)
+    .single();
+
+  if (resultError || !result) {
+    console.error(
+      "Results notification: could not load result:",
+      resultError
+    );
+    return;
+  }
+
+  const riderIds = [
+    result.first_rider_id,
+    result.second_rider_id,
+    result.third_rider_id,
+    result.wildcard_rider_id,
+  ];
+
+  const { data: riders, error: ridersError } = await supabase
+    .from("riders")
+    .select("id, full_name")
+    .in("id", riderIds);
+
+  if (ridersError) {
+    console.error(
+      "Results notification: could not load rider names:",
+      ridersError
+    );
+    return;
+  }
+
+  const riderNameById = new Map(
+    (riders ?? []).map((rider) => [rider.id, rider.full_name])
+  );
+
+  const firstName = riderNameById.get(result.first_rider_id) ?? "Unknown";
+  const secondName = riderNameById.get(result.second_rider_id) ?? "Unknown";
+  const thirdName = riderNameById.get(result.third_rider_id) ?? "Unknown";
+  const wildcardName =
+    riderNameById.get(result.wildcard_rider_id) ?? "Unknown";
+
+  const { data: players, error: playersError } = await supabase
+    .from("profiles")
+    .select("email, display_name")
+    .not("email", "is", null);
+
+  if (playersError) {
+    console.error(
+      "Results notification: could not load player emails:",
+      playersError
+    );
+    return;
+  }
+
+  const eventLabel = `${event.season} ${event.series} · Round ${event.round_number} · ${event.venue}`;
+
+  for (const player of players ?? []) {
+    if (!player.email) {
+      continue;
+    }
+
+    try {
+      await resend.emails.send({
+        from: "Racepicks <notifications@racepicks.app>",
+        to: player.email,
+        subject: `Results are in — ${event.venue}`,
+        html: `
+          <p>Hi ${player.display_name ?? "there"},</p>
+          <p>
+            The official results are in for <strong>${eventLabel}</strong>:
+          </p>
+          <p>
+            🥇 1st: <strong>${firstName}</strong><br/>
+            🥈 2nd: <strong>${secondName}</strong><br/>
+            🥉 3rd: <strong>${thirdName}</strong><br/>
+            ⭐ Wildcard: <strong>${wildcardName}</strong>
+          </p>
+          <p>
+            Check the leaderboard to see how your picks scored:
+          </p>
+          <p>
+            <a href="https://racepicks.app/leaderboard">View the Leaderboard</a>
+          </p>
+          <p>— Racepicks</p>
+        `,
+      });
+    } catch (err) {
+      console.error(`Failed to email ${player.email}:`, err);
+    }
+  }
+}

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
 import { chooseBalancedWildcard } from "@/app/lib/wildcard";
+import { notifyPlayersOfResults } from "@/app/lib/notifications";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -375,6 +376,9 @@ export async function saveResults(formData: FormData) {
   }
 
   const { playersScored } = await calculateEventScores(supabase, eventId);
+
+  // Notify every player that results are in and scores are ready.
+  await notifyPlayersOfResults(supabase, eventId);
 
   // Automatically roll over to the next round.
   await rolloverToNextEvent(supabase, eventId);

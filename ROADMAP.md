@@ -122,3 +122,44 @@ Good candidate for closer to the 2027 public launch.
 self-managed. If hiring a developer for the Capacitor setup + store
 submission process, low hundreds to low thousands of dollars,
 depending on who's hired.
+
+
+
+
+
+## New Landing Page — Championship Selector (Planned for pre-Nov-2027 launch)
+
+Build a new top-level landing page at `/` that lets visitors choose
+which championship to engage with, rather than landing straight into
+the SX/MX/SMX app.
+
+**Structure decided:**
+- New landing page becomes the site's root (`/`).
+- The current homepage/app (Washougal hero, countdown, picks, etc.)
+  moves to its own path — e.g. `/supercross-motocross`. All internal
+  links currently pointing to `/` will need updating to the new path.
+- Logged-in existing players should skip the selector and go straight
+  to their existing SX/MX/SMX view — don't force an extra click for
+  people who've already "chosen."
+
+**Tiles to show:**
+- SX + MX + SMX (450 Class) — live, links straight into the existing app.
+- 250 Class — Coming Soon (not being built for 2027 season).
+- MXGP — Coming Soon
+- WSX — Coming Soon
+- AUS SX — Coming Soon
+- AUS Pro MX — Coming Soon
+
+**Coming Soon tile behaviour:** clicking one opens a simple "Get
+notified when this launches" email capture — doubles as a genuine
+signal of demand for which series to prioritize building next.
+Needs a new small table (e.g. `series_interest_registrations`:
+email, series name, created_at) — doesn't need auth, just an email
+capture for anyone (signed in or not).
+
+**Implementation notes for when this gets built:**
+- Careful with the homepage move — check every internal `<Link href="/">`
+  across the app (Navbar, MobileBottomNav, redirects, etc.) and update
+  to the new path.
+- Consider a redirect from old bookmarked/shared `/` links if this
+  matters for SEO or existing shared links.
