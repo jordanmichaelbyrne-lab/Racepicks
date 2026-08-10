@@ -233,6 +233,45 @@ export default async function WorkshopPage() {
               <div className="flex items-start justify-between gap-5">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
+                    Racepicks
+                  </p>
+
+                  <h2 className="mt-3 text-3xl font-black">
+                    Legal
+                  </h2>
+                </div>
+
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-orange-500/10 text-2xl">
+                  📄
+                </div>
+              </div>
+
+              <p className="mt-5 leading-7 text-zinc-400">
+                Review the terms you agreed to and how we handle your
+                personal information.
+              </p>
+
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <Link
+                  href="/terms"
+                  className="flex-1 rounded-full border border-orange-500 px-6 py-3 text-center font-black text-orange-500 transition hover:bg-orange-500 hover:text-black"
+                >
+                  Terms &amp; Conditions
+                </Link>
+
+                <Link
+                  href="/privacy"
+                  className="flex-1 rounded-full border border-orange-500 px-6 py-3 text-center font-black text-orange-500 transition hover:bg-orange-500 hover:text-black"
+                >
+                  Privacy Policy
+                </Link>
+              </div>
+            </section>
+
+            <section className="rounded-3xl border border-zinc-800 bg-zinc-950 p-7 sm:p-8">
+              <div className="flex items-start justify-between gap-5">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
                     Session
                   </p>
 
