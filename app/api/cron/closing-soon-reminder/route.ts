@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createClient } from "@/app/lib/supabase/server";
 import { getAllPlayerEmails } from "@/app/lib/email-recipients";
-import { wrapEmailHtml } from "@/app/lib/email-template";
+import { wrapEmailHtml, standardEmailHeaders } from "@/app/lib/email-template";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -99,7 +99,7 @@ export async function GET(request: Request) {
     `;
 
     try {
-      await resend.emails.send({
+      const result = await resend.emails.send({
         from: "Racepicks <notifications@racepicks.app>",
         to: player.email,
         subject: `Picks close in 6 hours — ${currentEvent.venue}`,
@@ -109,9 +109,14 @@ export async function GET(request: Request) {
           ctaHref: "https://racepicks.app/picks",
           preheaderText: `Picks close in 6 hours for ${currentEvent.venue}`,
         }),
+        headers: standardEmailHeaders,
       });
 
-      sentCount += 1;
+      if (result.error) {
+        console.error(`Resend API error for ${player.email}:`, result.error);
+      } else {
+        sentCount += 1;
+      }
     } catch (err) {
       console.error(`Failed to email ${player.email}:`, err);
     }

@@ -200,10 +200,28 @@ export default async function EntryListPage({
         )}
 
         {params.imported && (
-          <div className="mt-8 rounded-xl border border-green-900 bg-green-950/40 px-5 py-4 text-sm font-semibold text-green-400">
-            Racer X import completed successfully. {params.imported}{" "}
-            riders were imported and selected for this event.
-          </div>
+          <>
+            <div className="mt-8 rounded-xl border border-green-900 bg-green-950/40 px-5 py-4 text-sm font-semibold text-green-400">
+              Racer X import completed successfully. {params.imported}{" "}
+              riders were imported and selected for this event.
+            </div>
+
+            <div className="mt-4 rounded-xl border border-orange-500/40 bg-orange-500/10 px-5 py-4">
+              <p className="text-sm font-bold text-orange-300">
+                ⚠️ Before publishing — check for injured riders
+              </p>
+
+              <p className="mt-1 text-sm leading-6 text-neutral-300">
+                Racer X marks injured/withdrawn riders with a small
+                medical icon next to their photo on the entry-list
+                page, but this import can't detect that icon
+                automatically. Open the Racer X page in another tab,
+                cross-check for any injury markers, then{" "}
+                <strong>uncheck those riders</strong> in the list
+                below before saving or publishing.
+              </p>
+            </div>
+          </>
         )}
 
         {params.importError && (
@@ -475,7 +493,9 @@ export default async function EntryListPage({
 
                       <p className="mt-1 text-sm leading-6 text-neutral-400">
                         Publishing the final list will complete Step 4
-                        on the Admin Dashboard checklist.
+                        on the Admin Dashboard checklist. Double-check
+                        for injured riders (see reminder above) before
+                        publishing.
                       </p>
                     </div>
                   )}

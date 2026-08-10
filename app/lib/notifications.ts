@@ -1,6 +1,6 @@
 import { Resend } from "resend";
 import { createClient } from "./supabase/server";
-import { wrapEmailHtml } from "./email-template";
+import { wrapEmailHtml, standardEmailHeaders } from "./email-template";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -171,6 +171,7 @@ export async function notifyPlayersOfWithdrawnRiders(
           ctaHref: "https://racepicks.app/picks",
           preheaderText: `${riderList} is no longer entered for ${event.venue}`,
         }),
+        headers: standardEmailHeaders,
       });
     } catch (err) {
       console.error(
@@ -293,6 +294,7 @@ export async function notifyPlayersOfResults(
           ctaHref: "https://racepicks.app/leaderboard",
           preheaderText: `Results are in for ${event.venue}`,
         }),
+        headers: standardEmailHeaders,
       });
     } catch (err) {
       console.error(`Failed to email ${player.email}:`, err);

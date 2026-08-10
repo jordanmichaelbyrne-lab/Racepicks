@@ -65,6 +65,11 @@ export function wrapEmailHtml({
               <td style="padding:20px 32px;background-color:#fafafa;font-size:12px;color:#999999;
                          border-top:1px solid #eeeeee;font-family:Arial,Helvetica,sans-serif;">
                 Racepicks &middot; Australia's Supercross, Motocross &amp; SMX tipping competition.
+                <br />
+                <a href="mailto:unsubscribe@racepicks.app?subject=Unsubscribe"
+                   style="color:#999999;text-decoration:underline;">
+                  Manage notification preferences
+                </a>
               </td>
             </tr>
           </table>
@@ -74,3 +79,13 @@ export function wrapEmailHtml({
   </body>
 </html>`;
 }
+
+// Standard headers to attach to every outgoing Resend email. Passing a
+// real List-Unsubscribe header is a well-documented signal to Outlook,
+// Gmail, and other providers that this is a legitimate, well-behaved
+// sender — even for transactional-style emails like these, having zero
+// unsubscribe mechanism can itself contribute to junk-folder routing.
+export const standardEmailHeaders = {
+  "List-Unsubscribe": "<mailto:unsubscribe@racepicks.app?subject=Unsubscribe>",
+  "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+};
