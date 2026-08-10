@@ -59,6 +59,7 @@ export async function GET(request: Request) {
   const eventLabel = `${currentEvent.season} ${currentEvent.series} · Round ${currentEvent.round_number} · ${currentEvent.venue}`;
 
   let sentCount = 0;
+  const debugResults: Array<Record<string, unknown>> = [];
 
   for (const player of players) {
     const bodyHtml = `
@@ -72,7 +73,7 @@ export async function GET(request: Request) {
     `;
 
     try {
-      await resend.emails.send({
+      const result = await resend.emails.send({
         from: "Racepicks <notifications@racepicks.app>",
         to: player.email,
         subject: `Picks are open — ${currentEvent.venue}`,
@@ -84,13 +85,26 @@ export async function GET(request: Request) {
         }),
       });
 
-      sentCount += 1;
+      // IMPORTANT: Resend's SDK does not always throw on API-level
+      // failures — it can return { data: null, error: {...} } without
+      // an exception. Log the full result so real failures are visible
+      // in Vercel's Function Logs instead of failing silently.
+      console.log(`Resend result for ${player.email}:`, JSON.stringify(result));
+      debugResults.push({ email: player.email, result });
+
+      if (result.error) {
+        console.error(`Resend API error for ${player.email}:`, result.error);
+      } else {
+        sentCount += 1;
+      }
     } catch (err) {
       console.error(`Failed to email ${player.email}:`, err);
+      debugResults.push({ email: player.email, error: String(err) });
     }
   }
 
   return NextResponse.json({
     message: `Picks-open reminder sent to ${sentCount} of ${players.length} players.`,
+    debugResults,
   });
 }
