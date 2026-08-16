@@ -17,6 +17,48 @@ type PickPosition = {
   isWildcard?: boolean;
 };
 
+function PickResultCard({
+  label,
+  riderName,
+  points,
+}: {
+  label: string;
+  riderName: string | null;
+  points: number;
+}) {
+  const hit = points > 0;
+
+  return (
+    <div
+      className={`rounded-xl border px-3 py-2 ${
+        hit
+          ? "border-green-500/40 bg-green-500/10"
+          : "border-red-500/30 bg-red-500/10"
+      }`}
+    >
+      <p
+        className={`text-[10px] font-black uppercase tracking-widest ${
+          hit ? "text-green-400" : "text-red-400"
+        }`}
+      >
+        {label}
+      </p>
+
+      <p className="mt-0.5 truncate text-sm font-bold text-white">
+        {riderName ?? "—"}
+      </p>
+
+      <p
+        className={`mt-0.5 text-xs font-black ${
+          hit ? "text-green-400" : "text-red-400"
+        }`}
+      >
+        +{points}
+      </p>
+    </div>
+  );
+}
+
 export default async function AccountPage() {
   const supabase = await createClient();
 
@@ -163,84 +205,8 @@ export default async function AccountPage() {
       ]
     : [];
 
-  // Load the player's five most recent submitted events.
-  const { data: recentPickRows, error: recentPicksError } =
-    await supabase
-      .from("picks")
-      .select("event_id, updated_at")
-      .eq("user_id", user.id)
-      .order("updated_at", { ascending: false })
-      .limit(5);
-
-  if (recentPicksError) {
-    throw new Error(recentPicksError.message);
-  }
-
-  const recentEventIds = Array.from(
-    new Set((recentPickRows ?? []).map((pick) => pick.event_id))
-  );
-
-  let recentEvents: Array<{
-    id: string;
-    season: number;
-    series: string;
-    round_number: number;
-    venue: string;
-    status: string;
-  }> = [];
-
-  if (recentEventIds.length > 0) {
-    const { data, error } = await supabase
-      .from("events")
-      .select(
-        `
-          id,
-          season,
-          series,
-          round_number,
-          venue,
-          status
-        `
-      )
-      .in("id", recentEventIds);
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    recentEvents = data ?? [];
-  }
-
-  const recentRounds = (recentPickRows ?? [])
-    .map((pick) => {
-      const event = recentEvents.find(
-        (recentEvent) => recentEvent.id === pick.event_id
-      );
-
-      if (!event) {
-        return null;
-      }
-
-      return {
-        ...event,
-        updatedAt: pick.updated_at,
-      };
-    })
-    .filter(
-      (
-        event
-      ): event is {
-        id: string;
-        season: number;
-        series: string;
-        round_number: number;
-        venue: string;
-        status: string;
-        updatedAt: string;
-      } => Boolean(event)
-    );
-
-// Load this player's scored rounds, for stats and recent form.
+  // Load this player's scored rounds, for stats, recent form, AND the
+  // detailed "Recent Rounds" list below.
   const { data: scoreData, error: scoresError } = await supabase
     .from("scores")
     .select(
@@ -349,11 +315,85 @@ export default async function AccountPage() {
     return score.round_points > 0 && score.round_points === highestScore;
   }).length;
 
+  // Newest-first, most recent 5 scored rounds — used for both the small
+  // form squares AND the detailed Recent Rounds list below.
   const recentForm = [...scores].reverse().slice(0, 5);
 
-  // Per-series championship totals — this is what actually drives the
-  // SX / MX / SMX cards below, instead of the static placeholder text
-  // that used to sit there regardless of real scoring data.
+  // Load which riders were actually picked for each of these recent
+  // rounds, so we can show real names (not just position + points).
+  const recentEventIds = recentForm.map((score) => score.event_id);
+
+  type PastPickRow = {
+    event_id: string;
+    first_rider_id: string;
+    second_rider_id: string;
+    third_rider_id: string;
+    wildcard_rider_id: string;
+  };
+
+  let pastPicksByEventId = new Map<string, PastPickRow>();
+  let riderNameById = new Map<string, string>();
+
+  if (recentEventIds.length > 0) {
+    const { data: pastPicksData, error: pastPicksError } = await supabase
+      .from("picks")
+      .select(
+        `
+          event_id,
+          first_rider_id,
+          second_rider_id,
+          third_rider_id,
+          wildcard_rider_id
+        `
+      )
+      .eq("user_id", user.id)
+      .in("event_id", recentEventIds);
+
+    if (pastPicksError) {
+      console.error("Recent rounds pick loading error:", pastPicksError);
+    }
+
+    const pastPicks = (pastPicksData ?? []) as PastPickRow[];
+
+    pastPicksByEventId = new Map(
+      pastPicks.map((pick) => [pick.event_id, pick])
+    );
+
+    const pickedRiderIds = Array.from(
+      new Set(
+        pastPicks.flatMap((pick) => [
+          pick.first_rider_id,
+          pick.second_rider_id,
+          pick.third_rider_id,
+          pick.wildcard_rider_id,
+        ])
+      )
+    ).filter(Boolean);
+
+    if (pickedRiderIds.length > 0) {
+      const { data: pickedRidersData, error: pickedRidersError } =
+        await supabase
+          .from("riders")
+          .select("id, full_name")
+          .in("id", pickedRiderIds);
+
+      if (pickedRidersError) {
+        console.error(
+          "Recent rounds rider name loading error:",
+          pickedRidersError
+        );
+      }
+
+      riderNameById = new Map(
+        (pickedRidersData ?? []).map((rider) => [
+          rider.id,
+          rider.full_name as string,
+        ])
+      );
+    }
+  }
+
+  // Per-series championship totals — drives the SX / MX / SMX cards.
   const pointsBySeries = new Map<string, number>();
   const roundsScoredBySeries = new Map<string, number>();
 
@@ -732,7 +772,7 @@ const isSmxActive = activeSeries === "SMX";
               </div>
             )}
           </section>
-              <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
+              <p className="mt-8 text-xs font-black uppercase tracking-[0.3em] text-orange-500">
                 Pick History
               </p>
 
@@ -742,51 +782,102 @@ const isSmxActive = activeSeries === "SMX";
             </div>
 
             <div className="mt-6 overflow-hidden rounded-3xl border border-zinc-800">
-              {recentRounds.length > 0 ? (
+              {recentForm.length > 0 ? (
                 <div className="divide-y divide-zinc-800">
-                  {recentRounds.map((event) => (
-                    <div
-                      key={`${event.id}-${event.updatedAt}`}
-                      className="flex flex-col justify-between gap-4 bg-zinc-950 p-6 sm:flex-row sm:items-center"
-                    >
-                      <div>
-                        <p className="text-xs font-bold uppercase tracking-widest text-orange-500">
-                          {event.season} {event.series} • Round{" "}
-                          {event.round_number}
-                        </p>
+                  {recentForm.map((score) => {
+                    const event = getScoreEvent(score);
 
-                        <h3 className="mt-2 text-xl font-black uppercase">
-                          {event.venue}
-                        </h3>
+                    if (!event) {
+                      return null;
+                    }
 
-                        <p className="mt-1 text-sm text-zinc-500">
-                          Picks updated{" "}
-                          {new Intl.DateTimeFormat("en-AU", {
-                            dateStyle: "medium",
-                          }).format(new Date(event.updatedAt))}
-                        </p>
+                    const pastPick = pastPicksByEventId.get(
+                      score.event_id
+                    );
+
+                    return (
+                      <div
+                        key={score.event_id}
+                        className="flex flex-col justify-between gap-4 bg-zinc-950 p-6 sm:flex-row sm:items-start"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold uppercase tracking-widest text-orange-500">
+                            {event.season} {event.series} • Round{" "}
+                            {event.round_number}
+                          </p>
+
+                          <h3 className="mt-2 text-xl font-black uppercase">
+                            {event.venue}
+                          </h3>
+
+                          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                            <PickResultCard
+                              label="1st"
+                              riderName={
+                                pastPick
+                                  ? riderNameById.get(
+                                      pastPick.first_rider_id
+                                    ) ?? null
+                                  : null
+                              }
+                              points={score.first_points}
+                            />
+                            <PickResultCard
+                              label="2nd"
+                              riderName={
+                                pastPick
+                                  ? riderNameById.get(
+                                      pastPick.second_rider_id
+                                    ) ?? null
+                                  : null
+                              }
+                              points={score.second_points}
+                            />
+                            <PickResultCard
+                              label="3rd"
+                              riderName={
+                                pastPick
+                                  ? riderNameById.get(
+                                      pastPick.third_rider_id
+                                    ) ?? null
+                                  : null
+                              }
+                              points={score.third_points}
+                            />
+                            <PickResultCard
+                              label="Wildcard"
+                              riderName={
+                                pastPick
+                                  ? riderNameById.get(
+                                      pastPick.wildcard_rider_id
+                                    ) ?? null
+                                  : null
+                              }
+                              points={score.wildcard_points}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="text-left sm:pl-6 sm:text-right">
+                          <span className="text-3xl font-black text-orange-500">
+                            {score.round_points}
+                          </span>
+                          <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
+                            Points
+                          </p>
+                        </div>
                       </div>
-
-                      <div className="flex items-center gap-3">
-                        <span className="rounded-full bg-zinc-900 px-4 py-2 text-xs font-black uppercase text-zinc-400">
-                          {event.status}
-                        </span>
-
-                        <span className="rounded-full border border-zinc-700 px-4 py-2 text-sm font-bold text-zinc-500">
-                          Points pending
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="bg-zinc-950 p-10 text-center">
                   <h3 className="text-2xl font-black">
-                    No pick history yet
+                    No scored rounds yet
                   </h3>
 
                   <p className="mt-3 text-zinc-400">
-                    Your completed and submitted rounds will appear here.
+                    Your completed and scored rounds will appear here.
                   </p>
                 </div>
               )}
