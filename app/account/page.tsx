@@ -350,7 +350,44 @@ export default async function AccountPage() {
   }).length;
 
   const recentForm = [...scores].reverse().slice(0, 5);
-    
+
+  // Per-series championship totals — this is what actually drives the
+  // SX / MX / SMX cards below, instead of the static placeholder text
+  // that used to sit there regardless of real scoring data.
+  const pointsBySeries = new Map<string, number>();
+  const roundsScoredBySeries = new Map<string, number>();
+
+  for (const score of scores) {
+    const event = getScoreEvent(score);
+
+    if (!event) {
+      continue;
+    }
+
+    const currentPoints = pointsBySeries.get(event.series) ?? 0;
+    pointsBySeries.set(event.series, currentPoints + (score.round_points ?? 0));
+
+    const currentRounds = roundsScoredBySeries.get(event.series) ?? 0;
+    roundsScoredBySeries.set(event.series, currentRounds + 1);
+  }
+
+  function seriesSummary(seriesName: string) {
+    const points = pointsBySeries.get(seriesName) ?? 0;
+    const roundsPlayed = roundsScoredBySeries.get(seriesName) ?? 0;
+
+    return {
+      points,
+      subtitle:
+        roundsPlayed > 0
+          ? `${roundsPlayed} round${roundsPlayed === 1 ? "" : "s"} scored`
+          : "Scoring coming soon",
+    };
+  }
+
+  const sxSummary = seriesSummary("Supercross");
+  const mxSummary = seriesSummary("Motocross");
+  const smxSummary = seriesSummary("SMX");
+
   const formattedUpdatedAt = currentPicks
     ? new Intl.DateTimeFormat("en-AU", {
         dateStyle: "medium",
@@ -417,7 +454,9 @@ const isSmxActive = activeSeries === "SMX";
       SX Championship
     </p>
 
-    <p className="mt-3 text-4xl font-black">—</p>
+    <p className="mt-3 text-4xl font-black">
+      {sxSummary.points > 0 ? `${sxSummary.points} pts` : "—"}
+    </p>
 
     <p
       className={`mt-2 text-sm ${
@@ -426,7 +465,7 @@ const isSmxActive = activeSeries === "SMX";
           : "text-zinc-500"
       }`}
     >
-      Scoring coming soon
+      {sxSummary.subtitle}
     </p>
   </div>
 
@@ -445,7 +484,9 @@ const isSmxActive = activeSeries === "SMX";
       MX Championship
     </p>
 
-    <p className="mt-3 text-4xl font-black">—</p>
+    <p className="mt-3 text-4xl font-black">
+      {mxSummary.points > 0 ? `${mxSummary.points} pts` : "—"}
+    </p>
 
     <p
       className={`mt-2 text-sm ${
@@ -454,7 +495,7 @@ const isSmxActive = activeSeries === "SMX";
           : "text-zinc-500"
       }`}
     >
-      Scoring coming soon
+      {mxSummary.subtitle}
     </p>
   </div>
 
@@ -473,7 +514,9 @@ const isSmxActive = activeSeries === "SMX";
       SMX Championship
     </p>
 
-    <p className="mt-3 text-4xl font-black">—</p>
+    <p className="mt-3 text-4xl font-black">
+      {smxSummary.points > 0 ? `${smxSummary.points} pts` : "—"}
+    </p>
 
     <p
       className={`mt-2 text-sm ${
@@ -482,7 +525,9 @@ const isSmxActive = activeSeries === "SMX";
           : "text-zinc-500"
       }`}
     >
-      SX + MX + SMX playoffs
+      {smxSummary.points > 0
+        ? smxSummary.subtitle
+        : "SX + MX + SMX playoffs"}
     </p>
   </div>
 </div>
