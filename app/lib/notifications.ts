@@ -197,51 +197,12 @@ export async function notifyPlayersOfResults(
     return;
   }
 
-  const { data: result, error: resultError } = await supabase
-    .from("results")
-    .select(
-      "first_rider_id, second_rider_id, third_rider_id, wildcard_rider_id"
-    )
-    .eq("event_id", eventId)
-    .single();
-
-  if (resultError || !result) {
-    console.error(
-      "Results notification: could not load result:",
-      resultError
-    );
-    return;
-  }
-
-  const riderIds = [
-    result.first_rider_id,
-    result.second_rider_id,
-    result.third_rider_id,
-    result.wildcard_rider_id,
-  ];
-
-  const { data: riders, error: ridersError } = await supabase
-    .from("riders")
-    .select("id, full_name")
-    .in("id", riderIds);
-
-  if (ridersError) {
-    console.error(
-      "Results notification: could not load rider names:",
-      ridersError
-    );
-    return;
-  }
-
-  const riderNameById = new Map(
-    (riders ?? []).map((rider) => [rider.id, rider.full_name])
-  );
-
-  const firstName = riderNameById.get(result.first_rider_id) ?? "Unknown";
-  const secondName = riderNameById.get(result.second_rider_id) ?? "Unknown";
-  const thirdName = riderNameById.get(result.third_rider_id) ?? "Unknown";
-  const wildcardName =
-    riderNameById.get(result.wildcard_rider_id) ?? "Unknown";
+  // NOTE: we deliberately do NOT load or include the actual finishing
+  // positions (1st/2nd/3rd/Wildcard) in this email. Most email clients
+  // strip interactive/CSS "reveal" tricks, so there's no reliable way to
+  // hide a spoiler *inside* an email across every inbox. Instead, the
+  // email teases that results are in and links out to the leaderboard,
+  // so nobody sees a result unless they choose to click through.
 
   const { data: players, error: playersError } = await supabase
     .from("profiles")
@@ -258,15 +219,6 @@ export async function notifyPlayersOfResults(
 
   const eventLabel = `${event.season} ${event.series} · Round ${event.round_number} · ${event.venue}`;
 
-  const resultsBoxHtml = `
-    <div style="background-color:#f7f7f7;border-radius:6px;padding:16px 20px;margin:16px 0;line-height:1.9;">
-      🥇 1st: <strong>${firstName}</strong><br/>
-      🥈 2nd: <strong>${secondName}</strong><br/>
-      🥉 3rd: <strong>${thirdName}</strong><br/>
-      ⭐ Wildcard: <strong>${wildcardName}</strong>
-    </div>
-  `;
-
   for (const player of players ?? []) {
     if (!player.email) {
       continue;
@@ -275,11 +227,11 @@ export async function notifyPlayersOfResults(
     const bodyHtml = `
       <p>Hi ${player.display_name ?? "there"},</p>
       <p>
-        The official results are in for <strong>${eventLabel}</strong>:
+        The official results are in for <strong>${eventLabel}</strong>.
       </p>
-      ${resultsBoxHtml}
-      <p>
-        Check the leaderboard to see how your picks scored:
+      <p style="background-color:#f7f7f7;border-radius:6px;padding:16px 20px;margin:16px 0;font-weight:600;">
+        🏁 No spoilers here — tap below to reveal the podium, Wildcard,
+        and see how your picks scored.
       </p>
     `;
 
@@ -290,9 +242,9 @@ export async function notifyPlayersOfResults(
         subject: `Results are in — ${event.venue}`,
         html: wrapEmailHtml({
           bodyHtml,
-          ctaText: "View the Leaderboard",
+          ctaText: "Reveal the Results",
           ctaHref: "https://racepicks.app/leaderboard",
-          preheaderText: `Results are in for ${event.venue}`,
+          preheaderText: `Results are in for ${event.venue} — no spoilers, tap to reveal`,
         }),
         headers: standardEmailHeaders,
       });

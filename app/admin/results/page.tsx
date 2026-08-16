@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
+import AdminSubmitButton from "../components/AdminSubmitButton";
 import { saveResults, scoreEvent } from "./actions";
 
 type Event = {
@@ -34,6 +35,8 @@ type PageProps = {
     event?: string;
     saved?: string;
     scored?: string;
+    resubmitted?: string;
+    recalculated?: string;
   }>;
 };
 
@@ -198,18 +201,27 @@ export default async function AdminResultsPage({
           </p>
         </header>
 
-        {params.saved === "true" && (
-  <div className="mt-8 rounded-xl border border-green-900 bg-green-950/40 px-5 py-4 text-sm font-semibold text-green-400">
-    Results saved successfully. You can now calculate the round scores.
-  </div>
-)}
+        {params.saved === "true" && params.resubmitted !== "true" && (
+          <div className="mt-8 rounded-xl border border-green-900 bg-green-950/40 px-5 py-4 text-sm font-semibold text-green-400">
+            Results published successfully. Players have been emailed
+            and the round has been scored.
+          </div>
+        )}
 
-{params.scored === "true" && (
-  <div className="mt-8 rounded-xl border border-orange-900 bg-orange-950/40 px-5 py-4 text-sm font-semibold text-orange-400">
-    Round scored successfully. The championship standings have been
-    updated.
-  </div>
-)}
+        {params.saved === "true" && params.resubmitted === "true" && (
+          <div className="mt-8 rounded-xl border border-blue-900 bg-blue-950/40 px-5 py-4 text-sm font-semibold text-blue-400">
+            Results updated and rescored. This event was already
+            published, so player notification emails were{" "}
+            <strong>not</strong> sent again.
+          </div>
+        )}
+
+        {params.recalculated === "true" && (
+          <div className="mt-8 rounded-xl border border-orange-900 bg-orange-950/40 px-5 py-4 text-sm font-semibold text-orange-400">
+            Round scored successfully. The championship standings have been
+            updated.
+          </div>
+        )}
 
         {events.length === 0 ? (
           <section className="mt-10 rounded-2xl border border-neutral-800 bg-neutral-950 p-10 text-center">
@@ -272,6 +284,12 @@ export default async function AdminResultsPage({
                   <p className="mt-2 text-sm text-neutral-500">
                     {riders.length} confirmed riders available
                   </p>
+
+                  {selectedEvent.status === "completed" && (
+                    <p className="mt-3 inline-block rounded-full border border-green-500/40 bg-green-500/10 px-4 py-1 text-xs font-black uppercase tracking-wider text-green-400">
+                      ✓ Results already published for this round
+                    </p>
+                  )}
                 </div>
 
                 {riders.length === 0 ? (
@@ -285,68 +303,80 @@ export default async function AdminResultsPage({
                     </p>
                   </div>
                 ) : (
-  <>
-    <form action={saveResults} className="mt-8 space-y-5">
-      <input
-        type="hidden"
-        name="event_id"
-        value={selectedEvent.id}
-      />
+                  <>
+                    <form action={saveResults} className="mt-8 space-y-5">
+                      <input
+                        type="hidden"
+                        name="event_id"
+                        value={selectedEvent.id}
+                      />
 
-      {resultFields.map((field) => (
-        <div key={field.name}>
-          <label
-            htmlFor={field.name}
-            className="text-xs font-semibold uppercase tracking-widest text-neutral-400"
-          >
-            {field.label}
-          </label>
+                      {resultFields.map((field) => (
+                        <div key={field.name}>
+                          <label
+                            htmlFor={field.name}
+                            className="text-xs font-semibold uppercase tracking-widest text-neutral-400"
+                          >
+                            {field.label}
+                          </label>
 
-          <select
-            id={field.name}
-            name={field.name}
-            required
-            defaultValue={field.value}
-            className="mt-2 w-full rounded-xl border border-neutral-700 bg-neutral-900 px-4 py-4 text-lg font-bold outline-none transition focus:border-orange-500"
-          >
-            <option value="">Select rider</option>
+                          <select
+                            id={field.name}
+                            name={field.name}
+                            required
+                            defaultValue={field.value}
+                            className="mt-2 w-full rounded-xl border border-neutral-700 bg-neutral-900 px-4 py-4 text-lg font-bold outline-none transition focus:border-orange-500"
+                          >
+                            <option value="">Select rider</option>
 
-            {riders.map((rider) => (
-              <option key={rider.id} value={rider.id}>
-                #{rider.race_number ?? "—"} — {rider.full_name}
-                {rider.team_name ? ` — ${rider.team_name}` : ""}
-              </option>
-            ))}
-          </select>
-        </div>
-      ))}
+                            {riders.map((rider) => (
+                              <option key={rider.id} value={rider.id}>
+                                #{rider.race_number ?? "—"} — {rider.full_name}
+                                {rider.team_name ? ` — ${rider.team_name}` : ""}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ))}
 
-      <button
-        type="submit"
-        className="w-full rounded-xl bg-orange-500 px-7 py-4 font-black uppercase text-black transition hover:bg-orange-400"
-      >
-        Publish the official result, calculate player points and complete the event.
-      </button>
-    </form>
+                      <AdminSubmitButton
+                        pendingText="Publishing results and emailing players…"
+                        className="w-full rounded-xl bg-orange-500 px-7 py-4 font-black uppercase text-black transition hover:bg-orange-400"
+                      >
+                        {existingResult
+                          ? "Update the official result and rescore"
+                          : "Publish the official result, calculate player points and complete the event."}
+                      </AdminSubmitButton>
 
-    {existingResult && (
-      <form action={scoreEvent} className="mt-4">
-        <input
-          type="hidden"
-          name="event_id"
-          value={selectedEvent.id}
-        />
+                      {existingResult && (
+                        <p className="text-center text-xs text-neutral-500">
+                          This round&apos;s results have already been
+                          published — saving again will update the
+                          result and rescore players, but will{" "}
+                          <strong>not</strong> re-send the results
+                          email.
+                        </p>
+                      )}
+                    </form>
 
-        <button
-          type="submit"
-          className="w-full rounded-xl border border-orange-500 px-7 py-4 font-black uppercase text-orange-500 transition hover:bg-orange-500 hover:text-black"
-        >
-          Recalculate Scores
-        </button>
-      </form>
-    )}
-  </>
-)}
+                    {existingResult && (
+                      <form action={scoreEvent} className="mt-4">
+                        <input
+                          type="hidden"
+                          name="event_id"
+                          value={selectedEvent.id}
+                        />
+
+                        <AdminSubmitButton
+                          pendingText="Recalculating scores…"
+                          className="w-full rounded-xl border border-orange-500 px-7 py-4 font-black uppercase text-orange-500 transition hover:bg-orange-500 hover:text-black"
+                        >
+                          Recalculate Scores
+                        </AdminSubmitButton>
+                      </form>
+                    )}
+                  </>
+                )}
               </section>
             )}
           </>

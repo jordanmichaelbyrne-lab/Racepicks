@@ -358,6 +358,25 @@ export async function saveResults(formData: FormData) {
     );
   }
 
+  // IMPORTANT: capture whether this event was already marked "completed"
+  // BEFORE we make any changes. This is what makes the whole function safe
+  // to submit more than once (e.g. an accidental double-click) — if results
+  // were already published, we still let the admin correct/re-save the
+  // picks and rescore, but we will NOT re-send the results email or
+  // re-run the next-round rollover a second time.
+  const { data: eventBeforeUpdate, error: eventBeforeError } = await supabase
+    .from("events")
+    .select("status")
+    .eq("id", eventId)
+    .single();
+
+  if (eventBeforeError) {
+    console.error("Event status check error:", eventBeforeError);
+    throw new Error(eventBeforeError.message);
+  }
+
+  const resultsAlreadyPublished = eventBeforeUpdate?.status === "completed";
+
   const { error: saveError } = await supabase.from("results").upsert(
     {
       event_id: eventId,
@@ -377,16 +396,25 @@ export async function saveResults(formData: FormData) {
 
   const { playersScored } = await calculateEventScores(supabase, eventId);
 
-  // Notify every player that results are in and scores are ready.
-  await notifyPlayersOfResults(supabase, eventId);
-
-  // Automatically roll over to the next round.
-  await rolloverToNextEvent(supabase, eventId);
+  if (!resultsAlreadyPublished) {
+    // Only notify players and roll over to the next round the FIRST time
+    // results are published for this event. If this function is called
+    // again for the same event (accidental double submission, or a
+    // deliberate correction afterwards), we skip straight past this.
+    await notifyPlayersOfResults(supabase, eventId);
+    await rolloverToNextEvent(supabase, eventId);
+  } else {
+    console.log(
+      `saveResults called again for already-completed event ${eventId} — skipping duplicate notification and rollover.`
+    );
+  }
 
   revalidateResultsPages();
 
   redirect(
-    `/admin/results?event=${eventId}&published=true&scored=true&players=${playersScored}`
+    `/admin/results?event=${eventId}&published=true&scored=true&players=${playersScored}${
+      resultsAlreadyPublished ? "&resubmitted=true" : ""
+    }`
   );
 }
 

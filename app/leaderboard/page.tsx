@@ -52,6 +52,15 @@ type PreviousRoundScore = {
   round_points: number;
 };
 
+type PageProps = {
+  searchParams: Promise<{
+    q?: string;
+    page?: string;
+  }>;
+};
+
+const PLAYERS_PER_PAGE = 25;
+
 function getPositionStyle(position: number) {
   if (position === 1) {
     return "bg-orange-500 text-black";
@@ -90,10 +99,12 @@ function getPointsBehindLeader(
 
 function PlayerAvatar({
   player,
+  compact = false,
 }: {
   player: LeaderboardPlayer;
+  compact?: boolean;
 }) {
-  const sizeClass = "h-14 w-14 text-lg";
+  const sizeClass = compact ? "h-10 w-10 text-sm" : "h-14 w-14 text-lg";
 
   if (player.avatar_url) {
     return (
@@ -101,14 +112,14 @@ function PlayerAvatar({
       <img
         src={player.avatar_url}
         alt={player.display_name}
-        className={`${sizeClass} rounded-2xl object-cover`}
+        className={`${sizeClass} rounded-xl object-cover`}
       />
     );
   }
 
   return (
     <div
-      className={`flex ${sizeClass} items-center justify-center rounded-2xl bg-orange-500 font-black text-black`}
+      className={`flex ${sizeClass} items-center justify-center rounded-xl bg-orange-500 font-black text-black`}
     >
       {getInitials(player.display_name) || "RP"}
     </div>
@@ -141,7 +152,10 @@ function EyeIcon() {
   );
 }
 
-export default async function LeaderboardPage() {
+export default async function LeaderboardPage({
+  searchParams,
+}: PageProps) {
+  const params = await searchParams;
   const supabase = await createClient();
 
   const {
@@ -194,9 +208,23 @@ export default async function LeaderboardPage() {
     );
   }
 
-  const leaderboard = (data ?? []) as LeaderboardPlayer[];
-  const leader = leaderboard[0];
-  const standings = leaderboard;
+  // Full, unfiltered, unpaginated standings — always needed for accurate
+  // position numbers, "leader", and "points behind" math, regardless of
+  // what's currently being searched or which page is being viewed.
+  const fullStandings = (data ?? []) as LeaderboardPlayer[];
+  const leader = fullStandings[0];
+
+  const positionByUserId = new Map(
+    fullStandings.map((player, index) => [player.user_id, index + 1])
+  );
+
+  const currentUserEntry = user
+    ? fullStandings.find((player) => player.user_id === user.id)
+    : undefined;
+
+  const currentUserPosition = user
+    ? positionByUserId.get(user.id)
+    : undefined;
 
   const { count: completedRounds, error: completedRoundsError } =
     await supabase
@@ -266,7 +294,7 @@ export default async function LeaderboardPage() {
     const winningScore = previousRoundScores[0] as RoundScore | undefined;
 
     if (winningScore) {
-      const winnerProfile = leaderboard.find(
+      const winnerProfile = fullStandings.find(
         (player) => player.user_id === winningScore.user_id
       );
 
@@ -332,6 +360,154 @@ export default async function LeaderboardPage() {
       ((submittedPickData ?? []) as SubmittedPick[]).map(
         (pick) => pick.user_id
       )
+    );
+  }
+
+  // Search — simple case-insensitive substring match against display name.
+  const searchQuery = (params.q ?? "").trim().toLowerCase();
+
+  const searchedStandings = searchQuery
+    ? fullStandings.filter((player) =>
+        player.display_name.toLowerCase().includes(searchQuery)
+      )
+    : fullStandings;
+
+  // Pagination
+  const currentPage = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
+  const totalPages = Math.max(
+    1,
+    Math.ceil(searchedStandings.length / PLAYERS_PER_PAGE)
+  );
+  const safePage = Math.min(currentPage, totalPages);
+
+  const pageStart = (safePage - 1) * PLAYERS_PER_PAGE;
+  const pageStandings = searchedStandings.slice(
+    pageStart,
+    pageStart + PLAYERS_PER_PAGE
+  );
+
+  // Podium only makes sense on an unsearched, first-page view — otherwise
+  // it's confusing to show the literal top 3 while looking at a filtered
+  // or later-page list.
+  const showPodium = !searchQuery && safePage === 1;
+  const podiumPlayers = showPodium ? fullStandings.slice(0, 3) : [];
+
+  function buildPageHref(page: number) {
+    const queryParams = new URLSearchParams();
+
+    if (searchQuery) {
+      queryParams.set("q", params.q ?? "");
+    }
+
+    if (page > 1) {
+      queryParams.set("page", String(page));
+    }
+
+    const queryString = queryParams.toString();
+
+    return queryString ? `/leaderboard?${queryString}` : "/leaderboard";
+  }
+
+  function CompactPlayerRow({ player }: { player: LeaderboardPlayer }) {
+    const position = positionByUserId.get(player.user_id) ?? 0;
+    const isCurrentUser = user?.id === player.user_id;
+
+    const hasCurrentPicks =
+      currentEvent && submittedPickUserIds.has(player.user_id);
+
+    const previousRoundPoints = previousRoundScoresByUser.get(
+      player.user_id
+    );
+
+    const hasPreviousRoundScore = typeof previousRoundPoints === "number";
+
+    return (
+      <div
+        className={`grid grid-cols-[40px_minmax(0,1fr)_70px] items-center gap-3 px-4 py-3 sm:grid-cols-[40px_minmax(0,1fr)_80px_90px_80px] sm:gap-4 sm:px-6 ${
+          isCurrentUser
+            ? "border-l-4 border-orange-500 bg-orange-500/10"
+            : ""
+        }`}
+      >
+        <div
+          className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-black ${getPositionStyle(
+            position
+          )}`}
+        >
+          {position}
+        </div>
+
+        <div className="flex min-w-0 items-center gap-3">
+          <PlayerAvatar player={player} compact />
+
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                href={`/leaderboard/${player.user_id}`}
+                className="truncate text-sm font-black transition hover:text-orange-400 sm:text-base"
+              >
+                {player.display_name}
+              </Link>
+
+              {isCurrentUser && (
+                <span className="rounded-full bg-orange-500 px-2 py-0.5 text-[10px] font-black uppercase text-black">
+                  You
+                </span>
+              )}
+            </div>
+
+            <p className="text-xs text-neutral-500 sm:hidden">
+              {player.total_points} pts ·{" "}
+              {getPointsBehindLeader(player, leader)}
+            </p>
+          </div>
+        </div>
+
+        <div className="hidden text-right sm:block">
+          <span className="text-lg font-black text-orange-500">
+            {player.total_points}
+          </span>
+          <span className="ml-1 text-[10px] font-bold uppercase text-neutral-500">
+            pts
+          </span>
+        </div>
+
+        <div className="hidden justify-self-end sm:block">
+          {hasPreviousRoundScore ? (
+            <Link
+              href={`/leaderboard/${player.user_id}#round-history`}
+              aria-label={`View ${player.display_name}'s previous round score`}
+              title={`View ${player.display_name}'s previous round score`}
+              className="flex h-9 items-center justify-center gap-1.5 rounded-lg border border-neutral-700 bg-black/20 px-3 text-xs font-black text-neutral-200 transition hover:border-orange-500 hover:text-orange-400"
+            >
+              <EyeIcon />
+              <span>{previousRoundPoints}</span>
+            </Link>
+          ) : (
+            <span className="flex h-9 items-center justify-center rounded-lg border border-neutral-800 bg-black/20 px-3 text-[10px] font-bold uppercase text-neutral-600">
+              —
+            </span>
+          )}
+        </div>
+
+        <div className="justify-self-end">
+          {hasCurrentPicks ? (
+            <Link
+              href={`/leaderboard/${player.user_id}#next-round-picks`}
+              aria-label={`View ${player.display_name}'s next round picks`}
+              title={`View ${player.display_name}'s next round picks`}
+              className="flex h-9 items-center justify-center gap-1.5 rounded-lg border border-orange-500/40 bg-orange-500/10 px-3 text-xs font-black text-orange-400 transition hover:border-orange-500 hover:bg-orange-500 hover:text-black"
+            >
+              <EyeIcon />
+              <span className="hidden lg:inline">Picks</span>
+            </Link>
+          ) : (
+            <span className="flex h-9 items-center justify-center rounded-lg border border-neutral-800 bg-black/20 px-3 text-[10px] font-bold uppercase text-neutral-600">
+              —
+            </span>
+          )}
+        </div>
+      </div>
     );
   }
 
@@ -438,9 +614,52 @@ export default async function LeaderboardPage() {
             </div>
           </section>
 
-          
+          {/* Sticky "Your Position" card — stays visible while scrolling
+              the standings list below, so you never have to hunt for
+              yourself in a list of hundreds. */}
+          {currentUserEntry && currentUserPosition && (
+            <div className="sticky top-4 z-20 mt-8">
+              <Link
+                href={`/leaderboard/${currentUserEntry.user_id}`}
+                className="flex items-center gap-4 rounded-2xl border border-orange-500 bg-neutral-950/95 p-4 shadow-lg shadow-black/50 backdrop-blur transition hover:border-orange-400 sm:p-5"
+              >
+                <div
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-black ${getPositionStyle(
+                    currentUserPosition
+                  )}`}
+                >
+                  {currentUserPosition}
+                </div>
 
-          {leaderboard.length === 0 ? (
+                <PlayerAvatar player={currentUserEntry} compact />
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="truncate text-sm font-black sm:text-base">
+                      {currentUserEntry.display_name}
+                    </p>
+                    <span className="rounded-full bg-orange-500 px-2 py-0.5 text-[10px] font-black uppercase text-black">
+                      You
+                    </span>
+                  </div>
+                  <p className="text-xs text-neutral-400">
+                    {getPointsBehindLeader(currentUserEntry, leader)}
+                  </p>
+                </div>
+
+                <div className="text-right">
+                  <span className="text-xl font-black text-orange-500 sm:text-2xl">
+                    {currentUserEntry.total_points}
+                  </span>
+                  <span className="ml-1 text-[10px] font-bold uppercase text-neutral-500">
+                    pts
+                  </span>
+                </div>
+              </Link>
+            </div>
+          )}
+
+          {fullStandings.length === 0 ? (
             <div className="mt-8 rounded-3xl border border-neutral-800 bg-neutral-900 p-10 text-center">
               <h2 className="text-xl font-bold">No players yet</h2>
 
@@ -451,160 +670,147 @@ export default async function LeaderboardPage() {
             </div>
           ) : (
             <section className="mt-10">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
-                  Full Field
-                </p>
+              <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
+                    Full Field
+                  </p>
 
-                <h2 className="mt-2 text-2xl font-black uppercase">
-                  Championship Standings
-                </h2>
+                  <h2 className="mt-2 text-2xl font-black uppercase">
+                    Championship Standings
+                  </h2>
+                </div>
+
+                <form
+                  method="get"
+                  className="flex w-full max-w-xs items-center gap-2"
+                >
+                  <input
+                    type="search"
+                    name="q"
+                    defaultValue={params.q ?? ""}
+                    placeholder="Search players…"
+                    className="w-full rounded-xl border border-neutral-700 bg-neutral-900 px-4 py-2.5 text-sm font-semibold text-white outline-none transition focus:border-orange-500"
+                  />
+                  <button
+                    type="submit"
+                    className="shrink-0 rounded-xl border border-orange-500 px-4 py-2.5 text-sm font-black text-orange-500 transition hover:bg-orange-500 hover:text-black"
+                  >
+                    Search
+                  </button>
+                </form>
               </div>
+
+              {searchQuery && (
+                <p className="mt-4 text-sm text-neutral-400">
+                  {searchedStandings.length} result
+                  {searchedStandings.length === 1 ? "" : "s"} for &ldquo;
+                  {params.q}&rdquo; ·{" "}
+                  <Link
+                    href="/leaderboard"
+                    className="font-bold text-orange-500 hover:text-orange-400"
+                  >
+                    Clear search
+                  </Link>
+                </p>
+              )}
+
+              {/* Podium — top 3, only on the plain first-page view */}
+              {podiumPlayers.length > 0 && (
+                <div className="mt-6 grid gap-4 sm:grid-cols-3">
+                  {podiumPlayers.map((player, index) => (
+                    <Link
+                      key={player.user_id}
+                      href={`/leaderboard/${player.user_id}`}
+                      className={`flex items-center gap-4 rounded-2xl border p-5 transition hover:border-orange-500 ${
+                        index === 0
+                          ? "border-orange-500/50 bg-orange-500/10 sm:order-2"
+                          : index === 1
+                            ? "border-neutral-700 bg-neutral-900 sm:order-1"
+                            : "border-amber-800/50 bg-amber-900/10 sm:order-3"
+                      }`}
+                    >
+                      <div
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-black ${getPositionStyle(
+                          index + 1
+                        )}`}
+                      >
+                        {index + 1}
+                      </div>
+
+                      <PlayerAvatar player={player} compact />
+
+                      <div className="min-w-0">
+                        <p className="truncate font-black">
+                          {player.display_name}
+                        </p>
+                        <p className="text-sm font-bold text-orange-500">
+                          {player.total_points} pts
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
 
               <div className="mt-6 overflow-hidden rounded-3xl border border-neutral-800 bg-neutral-900">
-                <div className="hidden grid-cols-[70px_minmax(210px,1fr)_90px_110px_100px_135px_135px] gap-4 border-b border-neutral-800 bg-black/30 px-6 py-4 text-xs font-black uppercase tracking-widest text-neutral-500 md:grid">
+                <div className="hidden grid-cols-[40px_minmax(0,1fr)_80px_90px_80px] gap-4 border-b border-neutral-800 bg-black/30 px-6 py-3 text-xs font-black uppercase tracking-widest text-neutral-500 sm:grid">
                   <div>Pos</div>
                   <div>Player</div>
-                  <div className="text-center">Rounds</div>
-                  <div className="text-center">Behind</div>
                   <div className="text-right">Points</div>
-                  <div className="text-right">Last Round</div>
-                  <div className="text-right">Next Round</div>
+                  <div className="text-right">Last Rd</div>
+                  <div className="text-right">Next Rd</div>
                 </div>
 
-                <div className="divide-y divide-neutral-800">
-                  {standings.map((player, index) => {
-                    const position = index + 1;
-                    const isCurrentUser =
-                      user?.id === player.user_id;
-
-                    const hasCurrentPicks =
-                      currentEvent &&
-                      submittedPickUserIds.has(player.user_id);
-
-                    const previousRoundPoints =
-                      previousRoundScoresByUser.get(player.user_id);
-
-                    const hasPreviousRoundScore =
-                      typeof previousRoundPoints === "number";
-
-                    return (
-                      <div
+                {pageStandings.length === 0 ? (
+                  <div className="p-10 text-center">
+                    <p className="font-bold text-neutral-400">
+                      No players match &ldquo;{params.q}&rdquo;.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-neutral-800">
+                    {pageStandings.map((player) => (
+                      <CompactPlayerRow
                         key={player.user_id}
-                        className={`grid gap-4 px-5 py-5 md:grid-cols-[70px_minmax(210px,1fr)_90px_110px_100px_135px_135px] md:items-center md:px-6 ${
-                          isCurrentUser
-                            ? "border-l-4 border-orange-500 bg-orange-500/10"
-                            : ""
-                        }`}
-                      >
-                        <div className="flex items-center justify-between md:block">
-                          <div
-                            className={`flex h-10 w-10 items-center justify-center rounded-full font-black ${getPositionStyle(
-                              position
-                            )}`}
-                          >
-                            {position}
-                          </div>
-
-                          <span className="text-xs font-bold uppercase text-neutral-500 md:hidden">
-                            {getPointsBehindLeader(player, leader)}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-4">
-                          <PlayerAvatar player={player} />
-
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <p className="truncate font-black">
-                                {player.display_name}
-                              </p>
-
-                              {isCurrentUser && (
-                                <span className="rounded-full bg-orange-500 px-2 py-1 text-[10px] font-black uppercase text-black">
-                                  You
-                                </span>
-                              )}
-                            </div>
-
-                            <p className="mt-1 text-xs text-neutral-500">
-                              Best round: {player.best_round} pts
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="hidden text-center font-bold md:block">
-                          {player.rounds_scored > 0
-                            ? player.rounds_scored
-                            : "–"}
-                        </div>
-
-                        <div className="hidden text-center text-sm font-bold text-neutral-400 md:block">
-                          {getPointsBehindLeader(player, leader)}
-                        </div>
-
-                        <div className="text-left md:text-right">
-                          <span className="text-2xl font-black text-orange-500">
-                            {player.total_points}
-                          </span>
-
-                          <span className="ml-1 text-xs font-bold uppercase text-neutral-500">
-                            pts
-                          </span>
-                        </div>
-
-                        <div className="flex items-center justify-between gap-3 md:justify-end">
-                          <span className="text-xs font-bold uppercase text-neutral-500 md:hidden">
-                            Last Round
-                          </span>
-
-                          {hasPreviousRoundScore ? (
-                            <Link
-                              href={`/leaderboard/${player.user_id}#round-history`}
-                              aria-label={`View ${player.display_name}'s previous round score`}
-                              title={`View ${player.display_name}'s previous round score`}
-                              className="flex h-11 items-center justify-center gap-2 rounded-xl border border-neutral-700 bg-black/20 px-4 font-black text-neutral-200 transition hover:border-orange-500 hover:text-orange-400"
-                            >
-                              <EyeIcon />
-
-                              <span>{previousRoundPoints} pts</span>
-                            </Link>
-                          ) : (
-                            <span className="flex h-11 items-center justify-center rounded-xl border border-neutral-800 bg-black/20 px-4 text-xs font-bold uppercase text-neutral-600">
-                              No Score
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="flex items-center justify-between gap-3 md:justify-end">
-                          <span className="text-xs font-bold uppercase text-neutral-500 md:hidden">
-                            Next Round
-                          </span>
-
-                          {hasCurrentPicks ? (
-                            <Link
-                              href={`/leaderboard/${player.user_id}#next-round-picks`}
-                              aria-label={`View ${player.display_name}'s next round picks`}
-                              title={`View ${player.display_name}'s next round picks`}
-                              className="flex h-11 items-center justify-center gap-2 rounded-xl border border-orange-500/40 bg-orange-500/10 px-4 font-black text-orange-400 transition hover:border-orange-500 hover:bg-orange-500 hover:text-black"
-                            >
-                              <EyeIcon />
-
-                              <span className="hidden lg:inline">
-                                Picks
-                              </span>
-                            </Link>
-                          ) : (
-                            <span className="flex h-11 items-center justify-center rounded-xl border border-neutral-800 bg-black/20 px-4 text-xs font-bold uppercase text-neutral-600">
-                              No Picks
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                        player={player}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
+
+              {totalPages > 1 && (
+                <div className="mt-6 flex items-center justify-between gap-4">
+                  <Link
+                    href={buildPageHref(Math.max(1, safePage - 1))}
+                    aria-disabled={safePage === 1}
+                    className={`rounded-xl border px-5 py-2.5 text-sm font-black transition ${
+                      safePage === 1
+                        ? "pointer-events-none border-neutral-800 text-neutral-700"
+                        : "border-neutral-700 text-white hover:border-orange-500 hover:text-orange-400"
+                    }`}
+                  >
+                    ← Previous
+                  </Link>
+
+                  <p className="text-sm font-bold text-neutral-500">
+                    Page {safePage} of {totalPages}
+                  </p>
+
+                  <Link
+                    href={buildPageHref(Math.min(totalPages, safePage + 1))}
+                    aria-disabled={safePage === totalPages}
+                    className={`rounded-xl border px-5 py-2.5 text-sm font-black transition ${
+                      safePage === totalPages
+                        ? "pointer-events-none border-neutral-800 text-neutral-700"
+                        : "border-neutral-700 text-white hover:border-orange-500 hover:text-orange-400"
+                    }`}
+                  >
+                    Next →
+                  </Link>
+                </div>
+              )}
             </section>
           )}
         </section>
