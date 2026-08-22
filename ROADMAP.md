@@ -163,3 +163,79 @@ capture for anyone (signed in or not).
   to the new path.
 - Consider a redirect from old bookmarked/shared `/` links if this
   matters for SEO or existing shared links.
+
+
+
+
+## Future — "Team Manager" Pro Mode (Post-2027 Launch, Not Yet Committed)
+ 
+A much larger, deeper game mode explored in concept only (Aug 2026) —
+captured here so the idea isn't lost, without committing engineering
+time to it before the core Racepicks product has had its public
+launch and proven itself at scale.
+ 
+### The core idea
+ 
+A second, separate competition sitting *alongside* the existing
+Championship — not a replacement, and not something that takes
+anything away from free players. Pro subscribers keep playing the
+normal Championship exactly as-is, and additionally get access to a
+deeper fantasy-team competition with its own leaderboard and
+(potentially) its own funded prize pool.
+ 
+**Team Manager, in short:**
+- Player becomes a "team manager," builds a fictional factory team
+  under a salary cap (e.g. $25M budget across 4–5 riders).
+  Rider "values" are based on expected/actual performance.
+- Team must include at least one mandatory **privateer** rider —
+  forces real field knowledge, not just picking the four favourites.
+- Scoring goes well beyond 1st/2nd/3rd: bonus categories (holeshot,
+  fastest lap, positions gained, privateer podium/top 10), and for
+  Motocross specifically, moto-by-moto scoring (two motos + overall).
+- Limited transfers per season, injury replacement mechanics, and
+  optional deeper systems (manufacturer "development," a "Team
+  Leader" bonus-multiplier token used strategically).
+- Multiple leaderboards possible: overall Team Championship, Factory
+  Championship (manufacturer bragging rights), Privateer Cup.
+- Everyone gets identical budget/rules regardless of what they pay —
+  the subscription buys **entry into the competition**, not an
+  advantage. Important for credibility.
+### Why this is parked, not scheduled
+ 
+This is realistically a second product, not a feature:
+- The rider valuation system alone (assigning and updating fair
+  dollar values every round) is a substantial ongoing build/admin
+  burden on its own — plausibly bigger than everything built in
+  Racepicks so far.
+- Racepicks hasn't had its public 2027 launch yet, and is still a
+  6-player private beta. Building this now risks pulling focus from
+  finishing and proving the core product.
+- **Legal risk compounds significantly** if this involves a recurring
+  paid subscription funding an ongoing cash prize pool — this is a
+  meaningfully bigger regulatory question than the single free-entry
+  prize already flagged elsewhere in this document, and should not be
+  pursued without dedicated legal advice specific to recurring paid
+  competitions, on top of the existing prize-pool legal review.
+### Suggested validation step, before any build work
+ 
+Before committing engineering time: build a simple **Pro waitlist
+landing page** once the 2027 public launch is live, describing the
+Team Manager concept at a high level, with an "Interested / Not
+Interested" poll or an email-capture "notify me if this launches."
+This is a cheap, honest way to gauge real audience appetite before
+investing in something this size — same pattern already planned for
+gauging interest in new series tiles (see Championship Selector
+section above), just applied to a product idea instead of a series.
+ 
+### If this is ever revisited
+ 
+Design the database so Team Manager scoring stays completely
+separate from the existing Championship — a new `team_scores` table
+(and related tables like `fantasy_teams`, `team_riders`,
+`rider_values`, `team_transfers`) rather than touching `scores`.
+This keeps the two competitions independent, and means the existing
+Championship logic doesn't need to change regardless of whether Team
+Manager ever gets built.
+ 
+_Captured: August 2026 — not committed, revisit post-2027-launch._
+ 

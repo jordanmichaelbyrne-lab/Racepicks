@@ -3,6 +3,16 @@ import { Resend } from "resend";
 import { createClient } from "@/app/lib/supabase/server";
 import { getAllPlayerEmails } from "@/app/lib/email-recipients";
 import { wrapEmailHtml, standardEmailHeaders } from "@/app/lib/email-template";
+import { delay, EMAIL_SEND_DELAY_MS } from "@/app/lib/email-send-delay";
+
+// IMPORTANT: without this, Next.js can cache this route's data (including
+// the Supabase picks query) rather than fetching fresh data on every
+// cron invocation. That would cause the "who has already picked" check
+// to see stale/old data — e.g. missing picks submitted recently — which
+// is very likely what caused players who'd already picked to still
+// receive this "you haven't picked yet" reminder.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -85,6 +95,7 @@ export async function GET(request: Request) {
   const eventLabel = `${currentEvent.season} ${currentEvent.series} · Round ${currentEvent.round_number} · ${currentEvent.venue}`;
 
   let sentCount = 0;
+  const failedEmails: string[] = [];
 
   for (const player of playersWithoutPicks) {
     const bodyHtml = `
@@ -114,15 +125,34 @@ export async function GET(request: Request) {
 
       if (result.error) {
         console.error(`Resend API error for ${player.email}:`, result.error);
+        failedEmails.push(player.email);
       } else {
         sentCount += 1;
       }
     } catch (err) {
       console.error(`Failed to email ${player.email}:`, err);
+      failedEmails.push(player.email);
     }
+
+    await delay(EMAIL_SEND_DELAY_MS);
+  }
+
+  if (failedEmails.length > 0) {
+    console.error(
+      `Final reminder: ${failedEmails.length} email(s) failed to send:`,
+      failedEmails
+    );
   }
 
   return NextResponse.json({
     message: `Final reminder sent to ${sentCount} of ${playersWithoutPicks.length} players without picks.`,
+    debug: {
+      eventId: currentEvent.id,
+      totalPlayers: allPlayers.length,
+      submittedPicksCount: submittedPicks?.length ?? 0,
+      submittedUserIds: Array.from(submittedUserIds),
+      playersEmailed: playersWithoutPicks.map((p) => p.email),
+    },
+    failedEmails,
   });
 }
