@@ -1,16 +1,10 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
-import { createClient } from "@/app/lib/supabase/server";
+import { createAdminClient } from "@/app/lib/supabase/admin";
 import { getAllPlayerEmails } from "@/app/lib/email-recipients";
 import { wrapEmailHtml, standardEmailHeaders } from "@/app/lib/email-template";
 import { delay, EMAIL_SEND_DELAY_MS } from "@/app/lib/email-send-delay";
 
-// IMPORTANT: without this, Next.js can cache this route's data (including
-// the Supabase picks query) rather than fetching fresh data on every
-// cron invocation. That would cause the "who has already picked" check
-// to see stale/old data — e.g. missing picks submitted recently — which
-// is very likely what caused players who'd already picked to still
-// receive this "you haven't picked yet" reminder.
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -23,7 +17,16 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const supabase = await createClient();
+  // IMPORTANT: this uses the service-role admin client, not the regular
+  // cookie-based one. A cron job has no logged-in user/session behind
+  // it, so with the regular client it would be treated as a totally
+  // anonymous visitor — and if `picks` has a Row Level Security policy
+  // limiting reads to "your own picks only" (sensible for normal
+  // players), an anonymous request would silently get back ZERO rows.
+  // That would make every player look like they hadn't picked yet,
+  // which is very likely what caused already-picked players to still
+  // receive this reminder.
+  const supabase = createAdminClient();
 
   const { data: currentEvent, error: eventError } = await supabase
     .from("events")

@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
-import { createClient } from "@/app/lib/supabase/server";
+import { createAdminClient } from "@/app/lib/supabase/admin";
 import { getAllPlayerEmails } from "@/app/lib/email-recipients";
 import { wrapEmailHtml, standardEmailHeaders } from "@/app/lib/email-template";
 import { delay, EMAIL_SEND_DELAY_MS } from "@/app/lib/email-send-delay";
 
-// See final-reminder/route.ts for why this matters — without it, Next.js
-// can serve stale cached picks data instead of querying Supabase fresh
-// on every cron invocation.
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -20,7 +17,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const supabase = await createClient();
+  // Service-role admin client — see final-reminder/route.ts for why a
+  // cron job needs this instead of the regular cookie-based client.
+  const supabase = createAdminClient();
 
   const { data: currentEvent, error: eventError } = await supabase
     .from("events")
