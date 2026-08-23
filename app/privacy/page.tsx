@@ -56,6 +56,15 @@ export default function PrivacyPage() {
                 participated in.
               </p>
               <p className="mt-3">
+                <strong>Interest poll responses.</strong> If you
+                respond to a survey or poll (such as the Racepicks Pro
+                interest poll), we store your responses and, if you
+                choose to provide it, your email address, so we can
+                gauge interest and contact you about future features
+                you&apos;ve asked to hear about. You do not need an
+                account to respond to a poll.
+              </p>
+              <p className="mt-3">
                 <strong>Automatically collected information.</strong>{" "}
                 We may collect basic technical information such as
                 your IP address, browser type, and device information,
@@ -75,10 +84,12 @@ export default function PrivacyPage() {
               <p className="mt-3">
                 We use your information to create and manage your
                 account, operate the competition, send you
-                competition-related emails, maintain the security and
-                integrity of the Service, and improve and troubleshoot
-                the Service. We do not sell your personal information
-                to third parties.
+                competition-related emails, gauge interest in and
+                communicate about potential future features (such as
+                Racepicks Pro), maintain the security and integrity of
+                the Service, and improve and troubleshoot the Service.
+                We do not sell your personal information to third
+                parties.
               </p>
             </section>
 

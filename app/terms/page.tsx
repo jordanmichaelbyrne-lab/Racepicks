@@ -204,7 +204,36 @@ export default function TermsPage() {
 
             <section>
               <h2 className="text-2xl font-black text-white">
-                12. Contact
+                12. Racepicks Pro
+              </h2>
+              <p className="mt-3">
+                Racepicks Pro is a planned future competition,
+                separate from the core Racepicks Championship described
+                above. Racepicks Pro is not currently operating, and
+                no fees, subscriptions, or prizes are currently being
+                collected or offered in connection with it.
+              </p>
+              <p className="mt-3">
+                Where we invite you to register interest, respond to a
+                survey or poll, or provide your email address in
+                connection with Racepicks Pro, doing so does not
+                create any competition entry, subscription,
+                entitlement, or obligation on either party. It is
+                solely an expression of interest.
+              </p>
+              <p className="mt-3">
+                If and when Racepicks Pro launches, its own detailed
+                rules &mdash; including team composition, salary cap,
+                transfers, and scoring &mdash; will be published
+                separately, and participation in Racepicks Pro at that
+                time will be subject to those published rules in
+                addition to these Terms.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-2xl font-black text-white">
+                13. Contact
               </h2>
               <p className="mt-3">
                 Questions about these terms can be sent to{" "}

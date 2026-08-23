@@ -20,6 +20,7 @@ where the app is headed — not just what's immediately in front of us.
 - Open Racepicks to the public for the full 2027 season.
 - Same three series (SX, MX, SMX), expecting 50+ players.
 - Continue refining based on 2026 beta feedback.
+- Trademark filed (word mark + logo) ahead of public launch.
 
 ## Future Expansion — More Motocross/Supercross Series
 
@@ -168,132 +169,259 @@ capture for anyone (signed in or not).
 
 
 
-## Future — "RacePicks Pro: Team Manager" (Target: 2028, Not Yet Committed)
+## Racepicks Pro — Team Manager (Target: 2027, In Active Development)
 
-**Status:** Fully designed at a mechanical/rules level (V1 spec below,
-Aug 2026). Explicitly NOT committed to being built. Target timeline
-pushed to **2028**, not 2027 — Racepicks itself hasn't had its public
-launch yet, and this is a large enough build that it shouldn't compete
-for attention with getting the core product stable and proven first.
+**Status:** Committed to a 2027 target. A `/pro` landing page with a
+live interest poll (question 1: would you play; question 2: price
+sensitivity; question 3: what interests you most) is already built
+and collecting responses in `pro_interest_responses`. Terms &
+Privacy Policy updated with a forward-looking Pro section — no
+detailed competition rules are legally binding yet, since the exact
+scoring tables below are still marked TBC.
 
-**Before any engineering work begins:** build a landing page describing
-this concept once the 2027 public launch is live, with an interest
-poll ("would you pay for this?" style, not just generic
-interest/not-interested) to validate real demand before investing
-build time. See the Championship Selector section above for the same
-"Coming Soon" email-capture pattern this can reuse.
+This section replaces the earlier, less-refined V1 draft — several
+mechanics below are genuinely different from that first pass (most
+notably the profit-sharing rule), not just more detail on the same
+ideas. Where this spec conflicts with anything said about Pro
+earlier in this file's history, **this version is the current one.**
 
 ### Relationship to the core game
 
-RacePicks Pro is **completely separate** from the normal Championship
-— Pro subscribers keep playing the standard 1st/2nd/3rd/Wildcard game
-exactly as-is, and additionally get access to a much deeper fantasy
-team competition with its own leaderboard, scoring, and (potentially)
-its own larger prize pool.
+Racepicks Pro is a **completely separate championship** running
+alongside the normal Racepicks Championship — Pro subscribers keep
+making their normal 1st/2nd/3rd/Wildcard picks exactly as before, and
+additionally manage a season-long fantasy team with its own
+leaderboard and scoring. *"Pro does not replace Racepicks. It adds
+another championship."*
 
-Results import for Pro re-uses the same pattern already proven for
-the RacerX entry-list importer — but note MX scoring requires the
-**full finishing field down to ~35th-40th place**, not just the top
-few positions the current entry-list scraper handles, so the results
-importer will need meaningfully more parsing depth than what exists
-today.
+### 1. Team structure
 
-### V1 rules summary
+5 riders per manager, in one of two legal configurations:
 
-**Team structure:** 5 riders per manager, in either 3-Factory/2-Challenger
-or 2-Factory/3-Challenger configuration (min 2 / max 3 of either).
-"Factory vs Challenger" replaces the earlier "mandatory privateer"
-idea — Challenger covers satellite/supported/independent riders under
-one simpler category. Factory/Challenger classification is frozen per
-season stage (SX → MX → SMX Playoffs) to prevent exploiting temporary
-fill-in rides.
+| Structure | Factory | Challenger |
+|---|---|---|
+| Factory Heavy | 3 | 2 |
+| Challenger Heavy | 2 | 3 |
 
-**Master rider database:** riders are permanent records with
-per-stage (SX/MX/SMX) classification, eligibility, current + historical
-salary, and injury status.
+Every team must contain a minimum of 2 Factory and 2 Challenger
+riders — managers choose which strategy to lean into.
 
-**Salary cap:** same cap for every manager (exact figure — $25m/$30m/
-etc. — deliberately not locked yet; needs modelling against a realistic
-2027 rider field before launch). Rider salaries start at an admin-set
-opening value and move dynamically based on performance.
+### 2. Factory vs Challenger
 
-**Salary Adjustment Day:** Mondays only, after the weekend's results
-are scored. Salaries are fixed for the rest of the week — no
-mid-week or raceday price changes.
+Every eligible 450 rider gets a preseason classification:
 
-**Profit protection:** selling a rider is capped at the lower of
-current market value or 110% of purchase price — prevents budget
-farming via repeated trades, while still rewarding spotting a genuine
-undervalued rider.
+- **Factory** — genuinely on a full-factory racing program.
+- **Challenger** — everyone else (deliberately not called
+  "privateer," since modern satellite/independent teams don't fit
+  that older term cleanly).
 
-**Transfers:** 3 for the season on Factory riders, 5 on Challenger
-riders — deliberately scarce, forces real team-building decisions.
+**Classification freezes** before the relevant championship stage and
+doesn't shift mid-season based on results — including a Challenger
+temporarily riding a factory bike as an injury fill-in, which does
+NOT change their classification until the next freeze point. This
+prevents gaming the roster-composition rules.
 
-**Injury transfers:** admin manually flags a rider as injury-eligible;
-affected managers get a free replacement (doesn't use normal transfer
-allowance, no profit-taking allowed on the replacement value).
+### 3. Salary cap
 
-**Team lock:** Pro roster locks at the exact same time as normal
-Racepicks picks — no separate clock to manage.
+**Provisional $31.0 million** — supported by internal simulation
+work, but not final until run against the actual 2027 rider field.
+Preseason rider salaries are built from a historical weighting model
+(2026 results ~50%, 2025 ~30%, 2024 ~20%), with manual adjustment for
+cases the historical data can't price properly (e.g. a strong 250
+rider moving up to 450 for 2027).
 
-**Scoring — deliberately normalized across formats:**
-- SX: ~100 points for a perfect finish, +10 holeshot bonus.
-- MX: Moto 1 (25%) + Moto 2 (25%) + Overall (50%) = ~100 for a
-  perfect day; scoring table extends to ~35th-40th to keep
-  lower-field Challenger performance meaningful.
-- Triple Crown SX: three races at 20% each + Overall at 40% = ~100
-  for a perfect sweep (prevents Triple Crown weekends being worth 3x
-  a normal round).
-- Challenger bonus: extra points on top of base score, scaled by
-  finishing position, roughly halved per-moto in multi-moto formats
-  with a full bonus on the overall result.
-- SMX Playoffs: round multipliers ×1.0 / ×1.5 / ×2.0, final score
-  rounded to a whole number (no visible half-points).
-- Championship bonuses (SX / MX / Final SMX) — the Final SMX bonus is
-  the largest, reflecting it being the ultimate championship.
+**Salary bands** (establish starting ranges, not identical values
+within a band): Championship Favourite, Elite, Podium Threat, Strong
+Factory, Mid Factory / Elite Challenger, Strong Challenger, Mid
+Challenger, Lower Field / Occasional.
 
-**Anti-exploit protection — the part worth remembering most:**
-championship bonuses are **prorated by how many rounds of that
-championship the manager actually owned the rider for** — this
-specifically prevents someone buying the season's points leader right
-before the final round and pocketing a bonus they didn't earn. This
-detail alone is worth preserving even if nothing else about V1
-survives to an eventual build.
+### 4. Dynamic salaries
 
-**DNS/DNQ/DNF handling:** simple rule — if there's an official
-classified result, score it exactly as classified (no extra DNF
-penalty layered on top). No official result = 0. Same logic applies
-cleanly to shortened or partially cancelled events: score whatever
-portion has an official result, skip whatever doesn't.
+**Salary Adjustment Day: Monday after racing, every week.** No
+mid-week price movement. **Maximum ±5% per adjustment** — caps how
+much a single big result can swing a rider's price. This ±5% rule
+was specifically tested in a 17-round internal simulation.
 
-**Explicitly out of scope for V1:** qualifying position, fastest lap,
-positions gained, practice, heat races, laps led, manufacturer points.
-Deliberately excluded to avoid extra data-dependency and admin burden
-beyond official results + holeshots.
+Importantly: **the $31M cap only applies when building or changing
+your team.** If your existing team's market value grows past $31M
+through good picks, you are NOT forced to sell anything — the cap
+constrains transactions, not your team's ongoing value. This rewards
+spotting value early.
 
-**Weekly admin workflow (the actual design goal):** import/publish
-results → confirm holeshot winner(s) → click "Publish & Calculate" →
-system handles normal Racepicks scores, Pro rider scores, Pro team
-scores, and the Pro leaderboard automatically. Monday: review
-suggested salary changes, apply them. That should be the full weekly
-Pro admin surface — if it ends up being more manual than this in
-practice, that's a signal the design needs revisiting before launch,
-not after.
+### 5. Buying and selling — profit-sharing rule
 
-### What still needs deciding before this could be built
+**This is the mechanic that changed most from the earlier draft.**
+Managers do not keep 100% of a rider's appreciation:
 
-- **Starting salary cap and opening rider salaries** — deliberately
-  not locked yet. Needs modelling against a real hypothetical 2027
-  rider field to make sure the cap allows many viable team
-  combinations, not just "pick the five obvious stars."
-- Run a simulation comparing 3-Factory/2-Challenger against
-  2-Factory/3-Challenger before launch — if one build consistently
-  dominates, adjust salaries/Challenger bonuses rather than the whole
-  ruleset.
-- Real audience validation (see landing-page poll above) — this is
-  meaningfully more mechanical complexity than the core Racepicks
-  game, and worth confirming casual players actually want this level
-  of depth before committing engineering time to it.
+- **On a gain:** manager receives **50% of the appreciation**.
+  Example: bought at $8.0M, now valued at $9.0M → sale value $8.5M.
+- **On a loss:** manager absorbs **100% of the loss**. Example:
+  bought at $8.0M, now valued at $7.5M → sale value $7.5M.
 
-_Captured: August 2026 (concept) — expanded to full V1 spec Aug 2026.
-Target 2028, not committed. Validate demand before building._
+Every roster position tracks purchase price, current salary, and
+sale value separately to support this.
+
+### 6. Transfers
+
+- **Factory/Primary transfers:** 3 for the entire season.
+- **Challenger transfers:** 5 for the entire season (more, since many
+  Challengers don't compete in every discipline/event).
+
+### 7. Injury transfers
+
+A **genuinely, officially confirmed** multi-race injury qualifies for
+a **Free Injury Transfer** that doesn't consume a normal transfer
+credit. Explicitly NOT for "my rider isn't performing well" —
+prevents unfairly punishing managers for a real long-term injury
+without opening the door to abuse.
+
+### 8. Team lock
+
+Pro roster locks at the **exact same time** as normal Racepicks picks
+— no separate clock. Once locked, that round's 5-rider roster is
+snapshotted; any transfer made after that applies to a future
+eligible round, never rewrites the locked snapshot. Matters for
+scoring integrity and auditability.
+
+### 9. Scoring architecture (matters for how this gets built, not just the rules)
+
+**Calculate each rider's fantasy score once per event, store it, and
+have every manager who owned that rider inherit the same stored
+score** — rather than recalculating per-manager. Store: base points,
+Challenger bonus, holeshot bonus, multiplier, total. This is what
+makes the system viable at 1,000+ players instead of recalculating
+everything per roster. Manufacturer scoring is likewise calculated
+once per manufacturer per event, not per manager.
+
+### 10. Core scoring — by format
+
+- **Holeshot bonus:** flat **+10**, regardless of Factory/Challenger,
+  applies per race/moto (so a Triple Crown sweep = +30 holeshot
+  points alone).
+- **Normal SX:** finishing points + Challenger bonus (if applicable)
+  + holeshot bonus.
+- **Triple Crown SX:** each of the 3 races scored individually
+  (result + Challenger bonus + holeshot per race) — Challenger bonus
+  is deliberately *reduced* per-race here specifically so 3-race
+  weekends don't become disproportionately valuable just because more
+  races happened. Holeshots stay full value each race.
+- **Pro Motocross:** MX fields run much deeper (~40 riders vs SX's
+  ~22), so Challenger bonuses are judged against an MX-appropriate
+  finishing scale, not a copy-paste of the SX scale. Each moto scored
+  individually.
+- **Whole points only** — no half-points anywhere in Pro scoring.
+
+### 11. DNS / DNQ / DNF / disrupted events
+
+Same "official result is the source of truth" philosophy as the core
+Racepicks game:
+- **DNS:** no finishing-position points.
+- **SX DNQ:** treated identically to DNS, no special case.
+- **DNF:** score whatever position the sanctioning body officially
+  classifies the rider at.
+- **Shortened race with an official result:** score it normally, no
+  manual compensation for lost laps.
+- **Cancelled race/event with no valid result:** no Pro scoring for
+  that portion at all.
+- **Official result corrections after scoring** (penalties, DQs,
+  protests): admin "Recalculate Scores" function re-derives affected
+  rider scores and every affected manager's round score from the
+  corrected result.
+
+### 12. Championship bonuses
+
+Separate season-end bonuses for the SX Championship, Pro Motocross
+Championship, and SMX Playoffs/Championship. **Exact bonus values are
+TBC** — structure is agreed, numbers are not finalized (see TBC list
+below).
+
+### 13. SMX Playoff multipliers (locked)
+
+| Playoff | Multiplier |
+|---|---|
+| Playoff 1 | ×1 |
+| Playoff 2 | ×1.5 |
+| Playoff 3 / Final | ×2 |
+
+### 14. Manufacturer selection — new since the earlier draft
+
+Every manager picks **one manufacturer** for the entire SMX season, as
+a one-time preseason choice. It does **not** consume any of the $31M
+rider salary cap, and locks for the season once chosen.
+
+**Provisional 2027 tiers:**
+
+| Tier | Manufacturers |
+|---|---|
+| A | Honda, Yamaha, KTM |
+| B | Kawasaki, Husqvarna, Suzuki |
+| C | Ducati, Triumph |
+| D | Beta, GasGas |
+
+**Scoring:** only the manufacturer's **highest-finishing eligible 450
+rider** counts each race (prevents brands with more bikes on the
+grid getting an unfair edge just from grid density). Bonuses are
+**not cumulative** — a Tier D bike finishing 4th gets +4 only, not
++4 plus every lower bracket's bonus too:
+
+| Best finish | Tier A | Tier B | Tier C | Tier D |
+|---|---|---|---|---|
+| 1st | +3 | +4 | +5 | +6 |
+| 2nd–3rd | +2 | +3 | +4 | +5 |
+| 4th–5th | +1 | +2 | +3 | +4 |
+| 6th–10th | 0 | +1 | +2 | +3 |
+| 11th–15th | 0 | 0 | +1 | +1 |
+| 16th+ | 0 | 0 | 0 | 0 |
+
+Manufacturer championship bonuses (deliberately small — a side-game,
+not a substitute for good rider management): +5 for SX Manufacturer
+Champion, +5 MX, +5 SMX.
+
+**Design philosophy behind the tiers:** not intended to make every
+manufacturer mathematically equal — Tier A is the safer, lower-reward
+pick; Tier D is the underdog/higher-potential-reward pick. Internal
+simulation showed this keeps manufacturer scoring in a range that can
+matter in a close championship without ever dominating the actual
+rider-management game.
+
+### 15. Pro leaderboard
+
+Fully separate from the standard Racepicks leaderboard. Suggested
+layout: `POS | MANAGER | TEAM | ROUND | TOTAL | BEHIND`, with the
+ability to open another manager's team once the relevant round has
+locked (matches the existing core-game leaderboard's
+"view another player's picks after lock" pattern).
+
+### What's explicitly still TBC — do not treat these as final
+
+Carried over directly from the source spec, since inventing numbers
+here would be worse than leaving them open:
+
+- **Exact Factory/base finishing-points table** (final SX/MX
+  implementation numbers).
+- **Exact Challenger bonus tables** — especially the final split
+  between normal SX, Triple Crown races, and MX motos.
+- **Rider SX/MX/SMX Championship bonus values.**
+- **Final 2027 rider salaries** — can't be final until the actual
+  2027 field is sufficiently known.
+- **The $31M salary cap itself** — simulation-supported working
+  number, not locked until run against the completed 2027 rider pool.
+
+### Suggested implementation structure, when build work starts
+
+If/when this gets built into the Workshop area, split it into
+sections/tabs rather than one long page: **Overview | Team | Salary &
+Transfers | Scoring | Challengers | Manufacturer | Race Rules.** Matches
+how dense this specification already naturally divides.
+
+### The philosophy, worth keeping visible in the actual product
+
+*"Racepicks Pro rewards season-long team management — not just
+picking race winners. Build within the salary cap, identify
+undervalued riders, balance Factory stars against Challengers, manage
+limited transfers, react to injuries and form, and carry your team
+from Supercross through Pro Motocross and into the SMX Final."*
+
+_Captured: August 2026 (initial concept) — refined to this V2 spec
+Aug 2026. Target: 2027, alongside the core public launch. Several
+numeric tables remain TBC — see list above._

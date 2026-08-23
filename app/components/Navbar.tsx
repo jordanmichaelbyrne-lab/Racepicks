@@ -103,25 +103,33 @@ export default function Navbar() {
         </Link>
 
         <div className="hidden items-center gap-8 md:flex">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`text-sm font-bold transition ${
-                isActive(item.href)
-                  ? "text-white"
-                  : "text-zinc-500 hover:text-white"
-              } ${
-                item.href === "/pro"
-                  ? isActive(item.href)
-                    ? "text-orange-500"
-                    : "text-orange-500/80 hover:text-orange-400"
-                  : ""
-              }`}
-            >
-              {item.label}
-            </Link>
-          ))}
+          {navItems.map((item) =>
+            item.href === "/pro" ? (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`select-none rounded-full px-4 py-1.5 text-sm font-black transition ${
+                  isActive(item.href)
+                    ? "bg-orange-400 text-black"
+                    : "bg-orange-500 text-black hover:bg-orange-400"
+                }`}
+              >
+                {item.label}
+              </Link>
+            ) : (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`select-none text-sm font-bold transition ${
+                  isActive(item.href)
+                    ? "text-white"
+                    : "text-zinc-500 hover:text-white"
+                }`}
+              >
+                {item.label}
+              </Link>
+            )
+          )}
         </div>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
@@ -247,21 +255,37 @@ export default function Navbar() {
       {isMobileMenuOpen && (
         <div className="absolute left-0 right-0 top-full z-50 mt-3 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950 shadow-2xl md:hidden">
           <div className="divide-y divide-zinc-800">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setIsMobileMenuOpen(false)}
-                className={`flex items-center justify-between px-5 py-4 text-base font-black transition ${
-                  isActive(item.href)
-                    ? "bg-orange-500/10 text-orange-400"
-                    : "text-white hover:bg-zinc-900"
-                }`}
-              >
-                <span>{item.label}</span>
-                <span className="text-zinc-600">→</span>
-              </Link>
-            ))}
+            {navItems.map((item) =>
+              item.href === "/pro" ? (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`flex select-none items-center justify-between px-5 py-4 text-base font-black transition ${
+                    isActive(item.href)
+                      ? "bg-orange-400 text-black"
+                      : "bg-orange-500 text-black hover:bg-orange-400"
+                  }`}
+                >
+                  <span>{item.label}</span>
+                  <span>→</span>
+                </Link>
+              ) : (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`flex select-none items-center justify-between px-5 py-4 text-base font-black transition ${
+                    isActive(item.href)
+                      ? "bg-orange-500/10 text-orange-400"
+                      : "text-white hover:bg-zinc-900"
+                  }`}
+                >
+                  <span>{item.label}</span>
+                  <span className="text-zinc-600">→</span>
+                </Link>
+              )
+            )}
 
             {user ? (
               <>
