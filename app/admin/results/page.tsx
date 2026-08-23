@@ -341,6 +341,11 @@ export default async function AdminResultsPage({
 
                       <AdminSubmitButton
                         pendingText="Publishing results and emailing players…"
+                        confirmMessage={
+                          existingResult
+                            ? "Update this round's results and rescore all players? This will NOT re-send the results email, since it was already sent when first published."
+                            : "Publish these results? This will score every player's picks, update the leaderboard, and email ALL players immediately. Make sure all four positions are correct before continuing."
+                        }
                         className="w-full rounded-xl bg-orange-500 px-7 py-4 font-black uppercase text-black transition hover:bg-orange-400"
                       >
                         {existingResult

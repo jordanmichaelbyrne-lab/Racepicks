@@ -1,11 +1,16 @@
 "use client";
 
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { ButtonHTMLAttributes, ReactNode, MouseEvent } from "react";
 import { useFormStatus } from "react-dom";
 
 type AdminSubmitButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   children: ReactNode;
   pendingText?: string;
+  // Optional — if set, clicking the button shows a browser confirm()
+  // dialog with this message first. The form only submits if the
+  // person clicks "OK". Use this for actions that are hard to undo or
+  // that trigger side effects like emailing every player.
+  confirmMessage?: string;
 };
 
 export default function AdminSubmitButton({
@@ -14,11 +19,26 @@ export default function AdminSubmitButton({
   className = "",
   disabled = false,
   type = "submit",
+  confirmMessage,
+  onClick,
   ...buttonProps
 }: AdminSubmitButtonProps) {
   const { pending } = useFormStatus();
 
   const isDisabled = pending || disabled;
+
+  function handleClick(event: MouseEvent<HTMLButtonElement>) {
+    if (confirmMessage) {
+      const confirmed = window.confirm(confirmMessage);
+
+      if (!confirmed) {
+        event.preventDefault();
+        return;
+      }
+    }
+
+    onClick?.(event);
+  }
 
   return (
     <button
@@ -26,6 +46,7 @@ export default function AdminSubmitButton({
       type={type}
       disabled={isDisabled}
       aria-disabled={isDisabled}
+      onClick={handleClick}
       className={`${className} disabled:cursor-not-allowed disabled:opacity-60`}
     >
       {pending ? (

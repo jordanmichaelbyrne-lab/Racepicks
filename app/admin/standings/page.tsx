@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import Navbar from "@/app/components/Navbar";
+import AdminSubmitButton from "../components/AdminSubmitButton";
 import { createClient } from "@/app/lib/supabase/server";
 import { importChampionshipStandings } from "./actions";
 
@@ -233,12 +234,17 @@ export default async function AdminStandingsPage({
                 </div>
               </div>
 
-              <button
-                type="submit"
+              <AdminSubmitButton
+                pendingText="Importing standings…"
+                confirmMessage={
+                  latestStandingData
+                    ? `This will replace the current imported standings for ${latestStandingData.season} ${latestStandingData.series} 450. Continue?`
+                    : "Import these championship standings?"
+                }
                 className="mt-6 w-full rounded-full bg-orange-500 px-7 py-4 font-black uppercase text-black transition hover:bg-orange-400"
               >
                 Import 450 Standings
-              </button>
+              </AdminSubmitButton>
             </form>
           </section>
 

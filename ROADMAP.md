@@ -167,75 +167,133 @@ capture for anyone (signed in or not).
 
 
 
-## Future — "Team Manager" Pro Mode (Post-2027 Launch, Not Yet Committed)
- 
-A much larger, deeper game mode explored in concept only (Aug 2026) —
-captured here so the idea isn't lost, without committing engineering
-time to it before the core Racepicks product has had its public
-launch and proven itself at scale.
- 
-### The core idea
- 
-A second, separate competition sitting *alongside* the existing
-Championship — not a replacement, and not something that takes
-anything away from free players. Pro subscribers keep playing the
-normal Championship exactly as-is, and additionally get access to a
-deeper fantasy-team competition with its own leaderboard and
-(potentially) its own funded prize pool.
- 
-**Team Manager, in short:**
-- Player becomes a "team manager," builds a fictional factory team
-  under a salary cap (e.g. $25M budget across 4–5 riders).
-  Rider "values" are based on expected/actual performance.
-- Team must include at least one mandatory **privateer** rider —
-  forces real field knowledge, not just picking the four favourites.
-- Scoring goes well beyond 1st/2nd/3rd: bonus categories (holeshot,
-  fastest lap, positions gained, privateer podium/top 10), and for
-  Motocross specifically, moto-by-moto scoring (two motos + overall).
-- Limited transfers per season, injury replacement mechanics, and
-  optional deeper systems (manufacturer "development," a "Team
-  Leader" bonus-multiplier token used strategically).
-- Multiple leaderboards possible: overall Team Championship, Factory
-  Championship (manufacturer bragging rights), Privateer Cup.
-- Everyone gets identical budget/rules regardless of what they pay —
-  the subscription buys **entry into the competition**, not an
-  advantage. Important for credibility.
-### Why this is parked, not scheduled
- 
-This is realistically a second product, not a feature:
-- The rider valuation system alone (assigning and updating fair
-  dollar values every round) is a substantial ongoing build/admin
-  burden on its own — plausibly bigger than everything built in
-  Racepicks so far.
-- Racepicks hasn't had its public 2027 launch yet, and is still a
-  6-player private beta. Building this now risks pulling focus from
-  finishing and proving the core product.
-- **Legal risk compounds significantly** if this involves a recurring
-  paid subscription funding an ongoing cash prize pool — this is a
-  meaningfully bigger regulatory question than the single free-entry
-  prize already flagged elsewhere in this document, and should not be
-  pursued without dedicated legal advice specific to recurring paid
-  competitions, on top of the existing prize-pool legal review.
-### Suggested validation step, before any build work
- 
-Before committing engineering time: build a simple **Pro waitlist
-landing page** once the 2027 public launch is live, describing the
-Team Manager concept at a high level, with an "Interested / Not
-Interested" poll or an email-capture "notify me if this launches."
-This is a cheap, honest way to gauge real audience appetite before
-investing in something this size — same pattern already planned for
-gauging interest in new series tiles (see Championship Selector
-section above), just applied to a product idea instead of a series.
- 
-### If this is ever revisited
- 
-Design the database so Team Manager scoring stays completely
-separate from the existing Championship — a new `team_scores` table
-(and related tables like `fantasy_teams`, `team_riders`,
-`rider_values`, `team_transfers`) rather than touching `scores`.
-This keeps the two competitions independent, and means the existing
-Championship logic doesn't need to change regardless of whether Team
-Manager ever gets built.
- 
-_Captured: August 2026 — not committed, revisit post-2027-launch._
- 
+
+## Future — "RacePicks Pro: Team Manager" (Target: 2028, Not Yet Committed)
+
+**Status:** Fully designed at a mechanical/rules level (V1 spec below,
+Aug 2026). Explicitly NOT committed to being built. Target timeline
+pushed to **2028**, not 2027 — Racepicks itself hasn't had its public
+launch yet, and this is a large enough build that it shouldn't compete
+for attention with getting the core product stable and proven first.
+
+**Before any engineering work begins:** build a landing page describing
+this concept once the 2027 public launch is live, with an interest
+poll ("would you pay for this?" style, not just generic
+interest/not-interested) to validate real demand before investing
+build time. See the Championship Selector section above for the same
+"Coming Soon" email-capture pattern this can reuse.
+
+### Relationship to the core game
+
+RacePicks Pro is **completely separate** from the normal Championship
+— Pro subscribers keep playing the standard 1st/2nd/3rd/Wildcard game
+exactly as-is, and additionally get access to a much deeper fantasy
+team competition with its own leaderboard, scoring, and (potentially)
+its own larger prize pool.
+
+Results import for Pro re-uses the same pattern already proven for
+the RacerX entry-list importer — but note MX scoring requires the
+**full finishing field down to ~35th-40th place**, not just the top
+few positions the current entry-list scraper handles, so the results
+importer will need meaningfully more parsing depth than what exists
+today.
+
+### V1 rules summary
+
+**Team structure:** 5 riders per manager, in either 3-Factory/2-Challenger
+or 2-Factory/3-Challenger configuration (min 2 / max 3 of either).
+"Factory vs Challenger" replaces the earlier "mandatory privateer"
+idea — Challenger covers satellite/supported/independent riders under
+one simpler category. Factory/Challenger classification is frozen per
+season stage (SX → MX → SMX Playoffs) to prevent exploiting temporary
+fill-in rides.
+
+**Master rider database:** riders are permanent records with
+per-stage (SX/MX/SMX) classification, eligibility, current + historical
+salary, and injury status.
+
+**Salary cap:** same cap for every manager (exact figure — $25m/$30m/
+etc. — deliberately not locked yet; needs modelling against a realistic
+2027 rider field before launch). Rider salaries start at an admin-set
+opening value and move dynamically based on performance.
+
+**Salary Adjustment Day:** Mondays only, after the weekend's results
+are scored. Salaries are fixed for the rest of the week — no
+mid-week or raceday price changes.
+
+**Profit protection:** selling a rider is capped at the lower of
+current market value or 110% of purchase price — prevents budget
+farming via repeated trades, while still rewarding spotting a genuine
+undervalued rider.
+
+**Transfers:** 3 for the season on Factory riders, 5 on Challenger
+riders — deliberately scarce, forces real team-building decisions.
+
+**Injury transfers:** admin manually flags a rider as injury-eligible;
+affected managers get a free replacement (doesn't use normal transfer
+allowance, no profit-taking allowed on the replacement value).
+
+**Team lock:** Pro roster locks at the exact same time as normal
+Racepicks picks — no separate clock to manage.
+
+**Scoring — deliberately normalized across formats:**
+- SX: ~100 points for a perfect finish, +10 holeshot bonus.
+- MX: Moto 1 (25%) + Moto 2 (25%) + Overall (50%) = ~100 for a
+  perfect day; scoring table extends to ~35th-40th to keep
+  lower-field Challenger performance meaningful.
+- Triple Crown SX: three races at 20% each + Overall at 40% = ~100
+  for a perfect sweep (prevents Triple Crown weekends being worth 3x
+  a normal round).
+- Challenger bonus: extra points on top of base score, scaled by
+  finishing position, roughly halved per-moto in multi-moto formats
+  with a full bonus on the overall result.
+- SMX Playoffs: round multipliers ×1.0 / ×1.5 / ×2.0, final score
+  rounded to a whole number (no visible half-points).
+- Championship bonuses (SX / MX / Final SMX) — the Final SMX bonus is
+  the largest, reflecting it being the ultimate championship.
+
+**Anti-exploit protection — the part worth remembering most:**
+championship bonuses are **prorated by how many rounds of that
+championship the manager actually owned the rider for** — this
+specifically prevents someone buying the season's points leader right
+before the final round and pocketing a bonus they didn't earn. This
+detail alone is worth preserving even if nothing else about V1
+survives to an eventual build.
+
+**DNS/DNQ/DNF handling:** simple rule — if there's an official
+classified result, score it exactly as classified (no extra DNF
+penalty layered on top). No official result = 0. Same logic applies
+cleanly to shortened or partially cancelled events: score whatever
+portion has an official result, skip whatever doesn't.
+
+**Explicitly out of scope for V1:** qualifying position, fastest lap,
+positions gained, practice, heat races, laps led, manufacturer points.
+Deliberately excluded to avoid extra data-dependency and admin burden
+beyond official results + holeshots.
+
+**Weekly admin workflow (the actual design goal):** import/publish
+results → confirm holeshot winner(s) → click "Publish & Calculate" →
+system handles normal Racepicks scores, Pro rider scores, Pro team
+scores, and the Pro leaderboard automatically. Monday: review
+suggested salary changes, apply them. That should be the full weekly
+Pro admin surface — if it ends up being more manual than this in
+practice, that's a signal the design needs revisiting before launch,
+not after.
+
+### What still needs deciding before this could be built
+
+- **Starting salary cap and opening rider salaries** — deliberately
+  not locked yet. Needs modelling against a real hypothetical 2027
+  rider field to make sure the cap allows many viable team
+  combinations, not just "pick the five obvious stars."
+- Run a simulation comparing 3-Factory/2-Challenger against
+  2-Factory/3-Challenger before launch — if one build consistently
+  dominates, adjust salaries/Challenger bonuses rather than the whole
+  ruleset.
+- Real audience validation (see landing-page poll above) — this is
+  meaningfully more mechanical complexity than the core Racepicks
+  game, and worth confirming casual players actually want this level
+  of depth before committing engineering time to it.
+
+_Captured: August 2026 (concept) — expanded to full V1 spec Aug 2026.
+Target 2028, not committed. Validate demand before building._
