@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import { createClient } from "./supabase/server";
 import { wrapEmailHtml, standardEmailHeaders } from "./email-template";
+import { delay, EMAIL_SEND_DELAY_MS } from "./email-send-delay";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -161,7 +162,7 @@ export async function notifyPlayersOfWithdrawnRiders(
     `;
 
     try {
-      await resend.emails.send({
+      const result = await resend.emails.send({
         from: "Racepicks <notifications@racepicks.app>",
         to: profile.email,
         subject: `Action needed: your rider is no longer entered — ${event.venue}`,
@@ -173,12 +174,23 @@ export async function notifyPlayersOfWithdrawnRiders(
         }),
         headers: standardEmailHeaders,
       });
+
+      if (result.error) {
+        console.error(
+          `Withdrawn-rider notification: Resend API error for ${profile.email}:`,
+          result.error
+        );
+      }
     } catch (err) {
       console.error(
         `Withdrawn-rider notification: failed to email ${profile.email}:`,
         err
       );
     }
+
+    // Stay under Resend's 10 requests/second limit — matters once more
+    // than a handful of players are affected by a single withdrawal.
+    await delay(EMAIL_SEND_DELAY_MS);
   }
 }
 
@@ -198,11 +210,8 @@ export async function notifyPlayersOfResults(
   }
 
   // NOTE: we deliberately do NOT load or include the actual finishing
-  // positions (1st/2nd/3rd/Wildcard) in this email. Most email clients
-  // strip interactive/CSS "reveal" tricks, so there's no reliable way to
-  // hide a spoiler *inside* an email across every inbox. Instead, the
-  // email teases that results are in and links out to the leaderboard,
-  // so nobody sees a result unless they choose to click through.
+  // positions (1st/2nd/3rd/Wildcard) in this email — see the spoiler-free
+  // design note below in the body copy.
 
   const { data: players, error: playersError } = await supabase
     .from("profiles")
@@ -236,7 +245,7 @@ export async function notifyPlayersOfResults(
     `;
 
     try {
-      await resend.emails.send({
+      const result = await resend.emails.send({
         from: "Racepicks <notifications@racepicks.app>",
         to: player.email,
         subject: `Results are in — ${event.venue}`,
@@ -248,8 +257,20 @@ export async function notifyPlayersOfResults(
         }),
         headers: standardEmailHeaders,
       });
+
+      if (result.error) {
+        console.error(
+          `Results notification: Resend API error for ${player.email}:`,
+          result.error
+        );
+      }
     } catch (err) {
       console.error(`Failed to email ${player.email}:`, err);
     }
+
+    // Stay under Resend's 10 requests/second limit — this loop sends to
+    // every player, so this matters even at today's small scale, and is
+    // essential once the 2027 public launch brings in 50+ players.
+    await delay(EMAIL_SEND_DELAY_MS);
   }
 }
