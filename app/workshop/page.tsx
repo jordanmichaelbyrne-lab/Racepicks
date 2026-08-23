@@ -186,6 +186,13 @@ export default async function WorkshopPage() {
               >
                 Read the Rules
               </Link>
+
+              <Link
+                href="/pro/how-to-play"
+                className="mt-3 block text-center text-sm font-bold text-zinc-500 transition hover:text-orange-500"
+              >
+                New: How Racepicks Pro Works →
+              </Link>
             </section>
 
             <section className="rounded-3xl border border-zinc-800 bg-zinc-950 p-7 sm:p-8">

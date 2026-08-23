@@ -311,6 +311,28 @@ export default function ProLandingPage() {
           </p>
         </section>
 
+        <section className="mt-10 rounded-3xl border border-zinc-800 bg-zinc-950 p-7 text-center sm:p-9">
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
+            Want the full details first?
+          </p>
+
+          <h2 className="mt-3 text-2xl font-black uppercase sm:text-3xl">
+            Read How Racepicks Pro Works
+          </h2>
+
+          <p className="mx-auto mt-3 max-w-xl leading-7 text-zinc-400">
+            Team structure, salary cap, transfers, scoring — the complete
+            breakdown of the plan before you vote below.
+          </p>
+
+          <Link
+            href="/pro/how-to-play"
+            className="mt-6 inline-block rounded-full border border-orange-500 px-7 py-3 font-black text-orange-500 transition hover:bg-orange-500 hover:text-black"
+          >
+            Read the Full Rules
+          </Link>
+        </section>
+
         <section className="mt-10 rounded-[2rem] border border-zinc-800 bg-zinc-950 p-7 sm:p-10">
           <div className="mx-auto max-w-4xl text-center">
             <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
