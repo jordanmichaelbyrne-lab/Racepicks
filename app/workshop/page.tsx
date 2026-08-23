@@ -203,7 +203,7 @@ export default async function WorkshopPage() {
                   </p>
 
                   <h2 className="mt-3 text-3xl font-black">
-                    Membership
+                    Racepicks Pro
                   </h2>
                 </div>
 
@@ -214,26 +214,26 @@ export default async function WorkshopPage() {
 
               <div className="mt-7 rounded-2xl border border-orange-500/30 bg-orange-500/10 p-6">
                 <p className="text-xs font-black uppercase tracking-[0.25em] text-orange-400">
-                  Current Plan
+                  Coming 2027
                 </p>
 
                 <p className="mt-3 text-3xl font-black">
-                  Racepicks Member
+                  Team Manager
                 </p>
 
                 <p className="mt-3 leading-7 text-zinc-400">
-                  Membership options and competition entry features
-                  will appear here in a future update.
+                  Build a five-rider fantasy team, manage a salary cap,
+                  and compete in a separate season-long championship
+                  alongside your regular Racepicks picks.
                 </p>
               </div>
 
-              <button
-                type="button"
-                disabled
-                className="mt-6 w-full cursor-not-allowed rounded-full border border-zinc-700 px-6 py-3 font-black text-zinc-500"
+              <Link
+                href="/pro"
+                className="mt-6 block w-full rounded-full bg-orange-500 px-6 py-3 text-center font-black text-black transition hover:bg-orange-400"
               >
-                Membership Options — Coming Soon
-              </button>
+                Explore Racepicks Pro
+              </Link>
             </section>
 
             <section className="rounded-3xl border border-zinc-800 bg-zinc-950 p-7 sm:p-8">
