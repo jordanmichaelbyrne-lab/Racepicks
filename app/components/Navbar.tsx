@@ -81,6 +81,7 @@ export default function Navbar() {
     { href: "/results", label: "Race Results" },
     { href: "/banter", label: "Banter" },
     { href: "/news", label: "News" },
+    { href: "/pro", label: "Pro" },
   ];
 
   function isActive(href: string) {
@@ -110,6 +111,12 @@ export default function Navbar() {
                 isActive(item.href)
                   ? "text-white"
                   : "text-zinc-500 hover:text-white"
+              } ${
+                item.href === "/pro"
+                  ? isActive(item.href)
+                    ? "text-orange-500"
+                    : "text-orange-500/80 hover:text-orange-400"
+                  : ""
               }`}
             >
               {item.label}

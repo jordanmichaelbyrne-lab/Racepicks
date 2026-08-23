@@ -134,6 +134,22 @@ export default function MobileBottomNav() {
       ),
     },
     {
+      href: "/pro",
+      label: "Pro",
+      icon: (
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          className="h-5 w-5"
+          aria-hidden="true"
+        >
+          <path d="M12 2 9.5 8.5 3 9.5l5 4.5-1.5 7L12 17l5.5 4-1.5-7 5-4.5-6.5-1L12 2Z" />
+        </svg>
+      ),
+    },
+    {
       href: "/account",
       label: "Account",
       icon: (
@@ -165,7 +181,7 @@ export default function MobileBottomNav() {
       aria-label="Mobile navigation"
       className="fixed inset-x-0 bottom-0 z-50 border-t border-zinc-800 bg-black/95 px-2 pt-2 backdrop-blur md:hidden"
     >
-      <div className="mx-auto grid max-w-lg grid-cols-6 gap-1 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
+      <div className="mx-auto grid max-w-lg grid-cols-7 gap-1 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
         {navItems.map((item) => {
           const isActive =
             item.href === "/"
