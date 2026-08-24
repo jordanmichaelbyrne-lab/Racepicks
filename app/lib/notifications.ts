@@ -239,8 +239,8 @@ export async function notifyPlayersOfResults(
         The official results are in for <strong>${eventLabel}</strong>.
       </p>
       <p style="background-color:#f7f7f7;border-radius:6px;padding:16px 20px;margin:16px 0;font-weight:600;">
-        🏁 No spoilers here — tap below to reveal the podium, Wildcard,
-        and see how your picks scored.
+        🏁 No spoilers here — tap below to see how your own picks
+        scored this round.
       </p>
     `;
 
@@ -251,9 +251,9 @@ export async function notifyPlayersOfResults(
         subject: `Results are in — ${event.venue}`,
         html: wrapEmailHtml({
           bodyHtml,
-          ctaText: "Reveal the Results",
-          ctaHref: "https://racepicks.app/leaderboard",
-          preheaderText: `Results are in for ${event.venue} — no spoilers, tap to reveal`,
+          ctaText: "See How You Scored",
+          ctaHref: "https://racepicks.app/account",
+          preheaderText: `Results are in for ${event.venue} — no spoilers, see how you scored`,
         }),
         headers: standardEmailHeaders,
       });
