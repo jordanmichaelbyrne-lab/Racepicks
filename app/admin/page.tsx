@@ -57,6 +57,8 @@ function formatDateTime(date: string) {
   }).format(new Date(date));
 }
 
+const PRO_SEASON = 2027;
+
 export default async function AdminPage() {
   const supabase = await createClient();
 
@@ -216,6 +218,29 @@ export default async function AdminPage() {
     hasResults = Boolean(resultsResponse.data);
     scoredPlayerCount = scoresResponse.count ?? 0;
   }
+
+  // Racepicks Pro — how many active 450 riders still have no Pro
+  // configuration for the current Pro season. Approximate but cheap:
+  // total active riders minus how many already have a season row.
+  const [activeRiderCountResponse, proConfiguredCountResponse] =
+    await Promise.all([
+      supabase
+        .from("riders")
+        .select("id", { count: "exact", head: true })
+        .eq("is_active", true)
+        .eq("class_name", "450"),
+
+      supabase
+        .from("pro_rider_seasons")
+        .select("rider_id", { count: "exact", head: true })
+        .eq("season", PRO_SEASON),
+    ]);
+
+  const needsProSetupCount = Math.max(
+    0,
+    (activeRiderCountResponse.count ?? 0) -
+      (proConfiguredCountResponse.count ?? 0)
+  );
 
   const now = Date.now();
 
@@ -577,6 +602,45 @@ export default async function AdminPage() {
               </section>
             </>
           )}
+
+          {/* Racepicks Pro — separate section, visually distinct from
+              the core game admin tools below */}
+          <section className="mt-10 overflow-hidden rounded-3xl border border-orange-500/40 bg-orange-500/5 p-7 sm:p-9">
+            <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
+                  Racepicks Pro
+                </p>
+
+                <h2 className="mt-3 text-3xl font-black uppercase">
+                  Pro Rider Manager
+                </h2>
+
+                <p className="mt-3 max-w-xl leading-7 text-zinc-400">
+                  Configure Factory/Challenger classification, salary,
+                  and availability for each rider ahead of the{" "}
+                  {PRO_SEASON} Pro season.
+                </p>
+              </div>
+
+              {needsProSetupCount > 0 ? (
+                <span className="w-fit rounded-full border border-orange-500 bg-orange-500 px-4 py-2 text-xs font-black uppercase tracking-wider text-black">
+                  {needsProSetupCount} Need Setup
+                </span>
+              ) : (
+                <span className="w-fit rounded-full border border-green-500/40 bg-green-500/10 px-4 py-2 text-xs font-black uppercase tracking-wider text-green-400">
+                  All Configured
+                </span>
+              )}
+            </div>
+
+            <Link
+              href={`/admin/pro-riders?season=${PRO_SEASON}`}
+              className="mt-6 inline-block rounded-full bg-orange-500 px-7 py-3 font-black text-black transition hover:bg-orange-400"
+            >
+              Open Pro Rider Manager
+            </Link>
+          </section>
 
           <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {dashboardActions.map((action) => (
