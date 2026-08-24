@@ -28,21 +28,6 @@ type CurrentEvent = {
   status: string;
 };
 
-type RoundScore = {
-  user_id: string;
-  round_points: number;
-};
-
-type RoundWinner = {
-  user_id: string;
-  display_name: string;
-  avatar_url: string | null;
-  round_points: number;
-  venue: string;
-  series: string;
-  round_number: number;
-};
-
 type SubmittedPick = {
   user_id: string;
 };
@@ -242,8 +227,6 @@ export default async function LeaderboardPage({
     );
   }
 
-  let roundWinner: RoundWinner | null = null;
-
   const { data: latestEventData, error: latestEventError } =
     await supabase
       .from("events")
@@ -290,26 +273,6 @@ export default async function LeaderboardPage({
         score.round_points,
       ])
     );
-
-    const winningScore = previousRoundScores[0] as RoundScore | undefined;
-
-    if (winningScore) {
-      const winnerProfile = fullStandings.find(
-        (player) => player.user_id === winningScore.user_id
-      );
-
-      if (winnerProfile) {
-        roundWinner = {
-          user_id: winnerProfile.user_id,
-          display_name: winnerProfile.display_name,
-          avatar_url: winnerProfile.avatar_url,
-          round_points: winningScore.round_points,
-          venue: latestEvent.venue,
-          series: latestEvent.series,
-          round_number: latestEvent.round_number,
-        };
-      }
-    }
   }
 
   const { data: currentEventData, error: currentEventError } =
@@ -537,44 +500,6 @@ export default async function LeaderboardPage({
               Overall standings across all completed rounds.
             </p>
           </header>
-
-          {roundWinner && (
-            <section className="mt-8 overflow-hidden rounded-3xl border border-orange-500/40 bg-orange-500/10">
-              <div className="grid gap-6 p-6 sm:grid-cols-[auto_1fr_auto] sm:items-center sm:p-8">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-500 text-3xl">
-                  🏁
-                </div>
-
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-400">
-                    Latest Round Winner
-                  </p>
-
-                  <Link
-                    href={`/leaderboard/${roundWinner.user_id}`}
-                    className="mt-2 inline-block text-2xl font-black uppercase transition hover:text-orange-400"
-                  >
-                    {roundWinner.display_name}
-                  </Link>
-
-                  <p className="mt-1 text-sm text-neutral-400">
-                    {roundWinner.series} · Round{" "}
-                    {roundWinner.round_number} · {roundWinner.venue}
-                  </p>
-                </div>
-
-                <div className="text-left sm:text-right">
-                  <p className="text-4xl font-black text-orange-500">
-                    {roundWinner.round_points}
-                  </p>
-
-                  <p className="text-xs font-bold uppercase tracking-widest text-neutral-500">
-                    Round Points
-                  </p>
-                </div>
-              </div>
-            </section>
-          )}
 
           <section className="mt-8 grid gap-4 sm:grid-cols-3">
             <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-5">
