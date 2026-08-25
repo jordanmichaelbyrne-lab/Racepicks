@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
+import Navbar from "@/app/components/Navbar";
+import AdminSubmitButton from "../components/AdminSubmitButton";
 import { importProRidersCsv } from "./import-actions";
 
 type Rider = {
@@ -165,12 +167,23 @@ export default async function ProRidersPage({ searchParams }: PageProps) {
   return (
     <main className="min-h-screen bg-black px-4 py-10 text-white sm:px-6">
       <div className="mx-auto max-w-6xl">
+        <Navbar />
+
         <Link
           href="/admin"
           className="text-sm font-semibold text-neutral-400 transition hover:text-orange-500"
         >
           ← Back to admin dashboard
         </Link>
+
+        <div className="mt-4">
+          <Link
+            href={`/admin/pro-results?season=${season}`}
+            className="text-sm font-semibold text-neutral-400 transition hover:text-orange-500"
+          >
+            Pro Results Entry →
+          </Link>
+        </div>
 
         <header className="mt-8">
           <p className="text-xs font-bold uppercase tracking-[0.3em] text-orange-500">
@@ -258,12 +271,12 @@ export default async function ProRidersPage({ searchParams }: PageProps) {
               required
               className="flex-1 rounded-xl border border-neutral-700 bg-black px-4 py-3 text-sm text-white file:mr-4 file:rounded-lg file:border-0 file:bg-orange-500 file:px-4 file:py-2 file:font-black file:text-black"
             />
-            <button
-              type="submit"
+            <AdminSubmitButton
+              pendingText="Importing riders…"
               className="rounded-xl bg-orange-500 px-6 py-3 text-sm font-black text-black transition hover:bg-orange-400"
             >
               Import CSV
-            </button>
+            </AdminSubmitButton>
           </form>
         </section>
 

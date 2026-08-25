@@ -94,6 +94,46 @@ function classificationOrNull(value: string | undefined): string | null {
   return v === "factory" || v === "challenger" ? v : null;
 }
 
+// Maps loosely-formatted category text (spaces, extra words, mixed case —
+// e.g. what you'd naturally type in Excel) onto the exact snake_case
+// values the database actually requires. Falls back to null rather than
+// silently saving something the database would reject outright.
+const SALARY_CATEGORY_MAP: Record<string, string> = {
+  "championship favourite": "championship_favourite",
+  "championship favorite": "championship_favourite",
+  elite: "elite",
+  "podium threat": "podium_threat",
+  "strong factory": "strong_factory",
+  "mid factory elite challenger": "mid_factory_elite_challenger",
+  "mid factory / elite challenger": "mid_factory_elite_challenger",
+  "strong challenger": "strong_challenger",
+  "mid challenger": "mid_challenger",
+  "lower field occasional": "lower_field_occasional",
+  "lower field occasional racer": "lower_field_occasional",
+  "lower field / occasional": "lower_field_occasional",
+};
+
+function normalizeSalaryCategory(value: string | undefined): string | null {
+  const raw = (value ?? "").trim().toLowerCase();
+  if (!raw) return null;
+
+  const validValues = new Set(Object.values(SALARY_CATEGORY_MAP));
+
+  // Already in the correct snake_case format.
+  if (validValues.has(raw)) return raw;
+
+  // Try direct match against space-formatted keys.
+  if (SALARY_CATEGORY_MAP[raw]) return SALARY_CATEGORY_MAP[raw];
+
+  // Handle underscore-formatted variants (e.g. a bulk pre-fill that used
+  // "lower_field_occasional_racer" instead of spaces) by converting
+  // underscores to spaces and trying again.
+  const spaceVersion = raw.replace(/_/g, " ");
+  if (SALARY_CATEGORY_MAP[spaceVersion]) return SALARY_CATEGORY_MAP[spaceVersion];
+
+  return null;
+}
+
 export async function importProRidersCsv(formData: FormData) {
   const { supabase, userId } = await requireAdmin();
 
@@ -145,9 +185,19 @@ export async function importProRidersCsv(formData: FormData) {
     const sxClassification = classificationOrNull(col(row, "sx_classification"));
     const mxClassification = classificationOrNull(col(row, "mx_classification"));
     const smxClassification = classificationOrNull(col(row, "smx_classification"));
-    const salaryCategory = col(row, "salary_category")?.trim() || null;
+    const rawSalaryCategory = col(row, "salary_category")?.trim();
+    const salaryCategory = normalizeSalaryCategory(rawSalaryCategory);
+
+    if (rawSalaryCategory && !salaryCategory) {
+      errors.push(
+        `${col(row, "rider_name") ?? riderId}: couldn't match salary_category "${rawSalaryCategory}" — saved without a category, please fix and re-import.`
+      );
+    }
     const startingSalary = numOrNull(col(row, "starting_salary"));
-    const currentSalary = numOrNull(col(row, "current_salary"));
+    // At initial setup, current_salary should default to starting_salary —
+    // there's no price history yet to make them differ. Only a genuine
+    // Monday adjustment later should create a gap between the two.
+    const currentSalary = numOrNull(col(row, "current_salary")) ?? startingSalary;
     const sxActive = boolFromCsv(col(row, "sx_active"));
     const mxActive = boolFromCsv(col(row, "mx_active"));
     const smxActive = boolFromCsv(col(row, "smx_active"));
