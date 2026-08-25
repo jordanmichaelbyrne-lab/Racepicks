@@ -219,7 +219,7 @@ export default async function ProResultsPage({ searchParams }: PageProps) {
           </Link>
           <Link
             href={`/admin/pro-riders?season=${season}`}
-            className="text-sm font-semibold text-neutral-400 transition hover:text-orange-500"
+            className="rounded-full border border-orange-500 px-5 py-2 text-sm font-black text-orange-500 transition hover:bg-orange-500 hover:text-black"
           >
             Pro Rider Manager →
           </Link>

@@ -169,17 +169,17 @@ export default async function ProRidersPage({ searchParams }: PageProps) {
       <div className="mx-auto max-w-6xl">
         <Navbar />
 
-        <Link
-          href="/admin"
-          className="text-sm font-semibold text-neutral-400 transition hover:text-orange-500"
-        >
-          ← Back to admin dashboard
-        </Link>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Link
+            href="/admin"
+            className="text-sm font-semibold text-neutral-400 transition hover:text-orange-500"
+          >
+            ← Back to admin dashboard
+          </Link>
 
-        <div className="mt-4">
           <Link
             href={`/admin/pro-results?season=${season}`}
-            className="text-sm font-semibold text-neutral-400 transition hover:text-orange-500"
+            className="rounded-full border border-orange-500 px-5 py-2 text-sm font-black text-orange-500 transition hover:bg-orange-500 hover:text-black"
           >
             Pro Results Entry →
           </Link>
