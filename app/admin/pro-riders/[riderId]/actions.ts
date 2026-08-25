@@ -32,137 +32,253 @@ async function requireAdmin() {
   return { supabase, userId: user.id };
 }
 
-function parseClassification(value: FormDataEntryValue | null) {
-  const str = String(value ?? "").trim();
-  return str === "factory" || str === "challenger" ? str : null;
-}
+function parseCsv(text: string): string[][] {
+  // Simple CSV parser that handles quoted fields with embedded commas.
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = "";
+  let inQuotes = false;
 
-function parseSalary(value: FormDataEntryValue | null) {
-  const str = String(value ?? "").trim();
-  if (!str) return null;
-  const num = Number.parseFloat(str);
-  return Number.isFinite(num) ? num : null;
-}
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const next = text[i + 1];
 
-export async function saveProRiderSeason(formData: FormData) {
-  const { supabase, userId } = await requireAdmin();
-
-  const riderId = String(formData.get("rider_id") ?? "").trim();
-  const season = Number.parseInt(String(formData.get("season") ?? ""), 10);
-
-  if (!riderId || !season) {
-    throw new Error("Rider ID and season are required.");
-  }
-
-  const proEligible = formData.get("pro_eligible") === "on";
-  const manufacturer = String(formData.get("manufacturer") ?? "").trim() || null;
-  const sxClassification = parseClassification(formData.get("sx_classification"));
-  const mxClassification = parseClassification(formData.get("mx_classification"));
-  const smxClassification = parseClassification(formData.get("smx_classification"));
-  const salaryCategory = String(formData.get("salary_category") ?? "").trim() || null;
-  const startingSalary = parseSalary(formData.get("starting_salary"));
-  const newCurrentSalary = parseSalary(formData.get("current_salary"));
-  const sxActive = formData.get("sx_active") === "on";
-  const mxActive = formData.get("mx_active") === "on";
-  const smxActive = formData.get("smx_active") === "on";
-  const injuryStatus = String(formData.get("injury_status") ?? "healthy");
-  const injuryTransferEligible = formData.get("injury_transfer_eligible") === "on";
-  const adminNotes = String(formData.get("admin_notes") ?? "").trim() || null;
-
-  // Check for an existing row, so we can detect a real salary change
-  // and log it to the audit history.
-  const { data: existingRow, error: existingRowError } = await supabase
-    .from("pro_rider_seasons")
-    .select("current_salary")
-    .eq("rider_id", riderId)
-    .eq("season", season)
-    .maybeSingle();
-
-  if (existingRowError) {
-    console.error("Pro rider season lookup error:", existingRowError);
-    throw new Error(existingRowError.message);
-  }
-
-  const previousSalary = existingRow?.current_salary ?? null;
-
-  const salaryChanged =
-    newCurrentSalary !== null &&
-    previousSalary !== null &&
-    newCurrentSalary !== previousSalary;
-
-  const changePercent =
-    salaryChanged && previousSalary
-      ? Math.round(
-          ((newCurrentSalary! - previousSalary) / previousSalary) * 1000
-        ) / 10
-      : null;
-
-  const { error: upsertError } = await supabase
-    .from("pro_rider_seasons")
-    .upsert(
-      {
-        rider_id: riderId,
-        season,
-        manufacturer,
-        sx_classification: sxClassification,
-        mx_classification: mxClassification,
-        smx_classification: smxClassification,
-        salary_category: salaryCategory,
-        starting_salary: startingSalary,
-        current_salary: newCurrentSalary,
-        previous_salary: salaryChanged ? previousSalary : existingRow ? previousSalary : null,
-        salary_change_percent: changePercent,
-        salary_updated_at: salaryChanged ? new Date().toISOString() : undefined,
-        sx_active: sxActive,
-        mx_active: mxActive,
-        smx_active: smxActive,
-        injury_status: injuryStatus,
-        injury_transfer_eligible: injuryTransferEligible,
-        admin_notes: adminNotes,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "rider_id,season" }
-    );
-
-  if (upsertError) {
-    console.error("Save Pro rider season error:", upsertError);
-    throw new Error(upsertError.message);
-  }
-
-  // Update the general pro_eligible flag on the rider's master record.
-  const { error: riderUpdateError } = await supabase
-    .from("riders")
-    .update({ pro_eligible: proEligible })
-    .eq("id", riderId);
-
-  if (riderUpdateError) {
-    console.error("Rider pro_eligible update error:", riderUpdateError);
-    throw new Error(riderUpdateError.message);
-  }
-
-  // Log the salary change to the permanent audit history, if one
-  // genuinely occurred.
-  if (salaryChanged) {
-    const { error: historyError } = await supabase
-      .from("pro_salary_history")
-      .insert({
-        rider_id: riderId,
-        season,
-        old_salary: previousSalary,
-        new_salary: newCurrentSalary,
-        change_percent: changePercent,
-        changed_by: userId,
-      });
-
-    if (historyError) {
-      console.error("Salary history logging error:", historyError);
-      // Don't block the save over a history-logging failure — the
-      // primary save already succeeded above.
+    if (inQuotes) {
+      if (char === '"' && next === '"') {
+        field += '"';
+        i++;
+      } else if (char === '"') {
+        inQuotes = false;
+      } else {
+        field += char;
+      }
+    } else {
+      if (char === '"') {
+        inQuotes = true;
+      } else if (char === ",") {
+        row.push(field);
+        field = "";
+      } else if (char === "\n" || char === "\r") {
+        if (char === "\r" && next === "\n") i++;
+        row.push(field);
+        rows.push(row);
+        row = [];
+        field = "";
+      } else {
+        field += char;
+      }
     }
   }
 
-  revalidatePath("/admin/pro-riders");
-  revalidatePath(`/admin/pro-riders/${riderId}`);
+  if (field.length > 0 || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
 
-  redirect(`/admin/pro-riders?season=${season}&saved=true`);
+  return rows.filter((r) => r.some((cell) => cell.trim() !== ""));
+}
+
+function boolFromCsv(value: string | undefined, fallback = true): boolean {
+  if (value === undefined || value === "") return fallback;
+  return value.trim().toLowerCase() === "true";
+}
+
+function numOrNull(value: string | undefined): number | null {
+  if (!value || value.trim() === "") return null;
+  const num = Number.parseFloat(value);
+  return Number.isFinite(num) ? num : null;
+}
+
+function classificationOrNull(value: string | undefined): string | null {
+  const v = (value ?? "").trim().toLowerCase();
+  return v === "factory" || v === "challenger" ? v : null;
+}
+
+// Maps loosely-formatted category text (spaces, extra words, mixed case —
+// e.g. what you'd naturally type in Excel) onto the exact snake_case
+// values the database actually requires. Falls back to null rather than
+// silently saving something the database would reject outright.
+const SALARY_CATEGORY_MAP: Record<string, string> = {
+  "championship favourite": "championship_favourite",
+  "championship favorite": "championship_favourite",
+  elite: "elite",
+  "podium threat": "podium_threat",
+  "strong factory": "strong_factory",
+  "mid factory elite challenger": "mid_factory_elite_challenger",
+  "mid factory / elite challenger": "mid_factory_elite_challenger",
+  "strong challenger": "strong_challenger",
+  "mid challenger": "mid_challenger",
+  "lower field occasional": "lower_field_occasional",
+  "lower field occasional racer": "lower_field_occasional",
+  "lower field / occasional": "lower_field_occasional",
+};
+
+function normalizeSalaryCategory(value: string | undefined): string | null {
+  const raw = (value ?? "").trim().toLowerCase();
+  if (!raw) return null;
+
+  const validValues = new Set(Object.values(SALARY_CATEGORY_MAP));
+
+  // Already in the correct snake_case format.
+  if (validValues.has(raw)) return raw;
+
+  // Try direct match against space-formatted keys.
+  if (SALARY_CATEGORY_MAP[raw]) return SALARY_CATEGORY_MAP[raw];
+
+  // Handle underscore-formatted variants (e.g. a bulk pre-fill that used
+  // "lower_field_occasional_racer" instead of spaces) by converting
+  // underscores to spaces and trying again.
+  const spaceVersion = raw.replace(/_/g, " ");
+  if (SALARY_CATEGORY_MAP[spaceVersion]) return SALARY_CATEGORY_MAP[spaceVersion];
+
+  return null;
+}
+
+export async function importProRidersCsv(formData: FormData) {
+  const { supabase, userId } = await requireAdmin();
+
+  const season = Number.parseInt(String(formData.get("season") ?? ""), 10);
+  const file = formData.get("csv_file") as File | null;
+
+  if (!season || !file) {
+    throw new Error("Season and CSV file are required.");
+  }
+
+  const text = await file.text();
+  const rows = parseCsv(text);
+
+  if (rows.length < 2) {
+    throw new Error("CSV file appears to be empty.");
+  }
+
+  const headers = rows[0].map((h) => h.trim());
+  const dataRows = rows.slice(1);
+
+  function col(row: string[], name: string): string | undefined {
+    const idx = headers.indexOf(name);
+    return idx === -1 ? undefined : row[idx];
+  }
+
+  let updatedCount = 0;
+  let salaryChangesLogged = 0;
+  const errors: string[] = [];
+
+  // Fetch existing salaries up front, so we can detect real changes for history logging.
+  const { data: existingRows } = await supabase
+    .from("pro_rider_seasons")
+    .select("rider_id, current_salary")
+    .eq("season", season);
+
+  const existingSalaryByRiderId = new Map(
+    (existingRows ?? []).map((r) => [r.rider_id, r.current_salary])
+  );
+
+  for (const row of dataRows) {
+    const riderId = col(row, "rider_id")?.trim();
+
+    if (!riderId) {
+      continue;
+    }
+
+    const proEligible = boolFromCsv(col(row, "pro_eligible"), false);
+    const manufacturer = col(row, "pro_manufacturer")?.trim() || null;
+    const sxClassification = classificationOrNull(col(row, "sx_classification"));
+    const mxClassification = classificationOrNull(col(row, "mx_classification"));
+    const smxClassification = classificationOrNull(col(row, "smx_classification"));
+    const rawSalaryCategory = col(row, "salary_category")?.trim();
+    const salaryCategory = normalizeSalaryCategory(rawSalaryCategory);
+
+    if (rawSalaryCategory && !salaryCategory) {
+      errors.push(
+        `${col(row, "rider_name") ?? riderId}: couldn't match salary_category "${rawSalaryCategory}" — saved without a category, please fix and re-import.`
+      );
+    }
+    const startingSalary = numOrNull(col(row, "starting_salary"));
+    const currentSalary = numOrNull(col(row, "current_salary"));
+    const sxActive = boolFromCsv(col(row, "sx_active"));
+    const mxActive = boolFromCsv(col(row, "mx_active"));
+    const smxActive = boolFromCsv(col(row, "smx_active"));
+    const injuryStatus = col(row, "injury_status")?.trim() || "healthy";
+    const adminNotes = col(row, "admin_notes")?.trim() || null;
+
+    const previousSalary = existingSalaryByRiderId.get(riderId) ?? null;
+    const salaryChanged =
+      currentSalary !== null &&
+      previousSalary !== null &&
+      currentSalary !== previousSalary;
+
+    const changePercent =
+      salaryChanged && previousSalary
+        ? Math.round(((currentSalary! - previousSalary) / previousSalary) * 1000) / 10
+        : null;
+
+    const { error: upsertError } = await supabase
+      .from("pro_rider_seasons")
+      .upsert(
+        {
+          rider_id: riderId,
+          season,
+          manufacturer,
+          sx_classification: sxClassification,
+          mx_classification: mxClassification,
+          smx_classification: smxClassification,
+          salary_category: salaryCategory,
+          starting_salary: startingSalary,
+          current_salary: currentSalary,
+          previous_salary: salaryChanged ? previousSalary : undefined,
+          salary_change_percent: changePercent,
+          salary_updated_at: salaryChanged ? new Date().toISOString() : undefined,
+          sx_active: sxActive,
+          mx_active: mxActive,
+          smx_active: smxActive,
+          injury_status: injuryStatus,
+          admin_notes: adminNotes,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "rider_id,season" }
+      );
+
+    if (upsertError) {
+      errors.push(`${col(row, "rider_name") ?? riderId}: ${upsertError.message}`);
+      continue;
+    }
+
+    const { error: riderUpdateError } = await supabase
+      .from("riders")
+      .update({ pro_eligible: proEligible })
+      .eq("id", riderId);
+
+    if (riderUpdateError) {
+      errors.push(`${col(row, "rider_name") ?? riderId} (pro_eligible): ${riderUpdateError.message}`);
+    }
+
+    if (salaryChanged) {
+      const { error: historyError } = await supabase
+        .from("pro_salary_history")
+        .insert({
+          rider_id: riderId,
+          season,
+          old_salary: previousSalary,
+          new_salary: currentSalary,
+          change_percent: changePercent,
+          changed_by: userId,
+        });
+
+      if (!historyError) {
+        salaryChangesLogged += 1;
+      }
+    }
+
+    updatedCount += 1;
+  }
+
+  revalidatePath("/admin/pro-riders");
+
+  const errorParam = errors.length > 0
+    ? `&errors=${encodeURIComponent(errors.slice(0, 5).join(" | "))}`
+    : "";
+
+  redirect(
+    `/admin/pro-riders?season=${season}&imported=${updatedCount}&salaryChanges=${salaryChangesLogged}${errorParam}`
+  );
 }
