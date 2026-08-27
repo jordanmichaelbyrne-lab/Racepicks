@@ -333,6 +333,33 @@ export default function ProLandingPage() {
           </Link>
         </section>
 
+        <section className="mt-10 rounded-3xl border border-orange-500/30 bg-orange-500/10 p-7 text-center sm:p-9">
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
+            Ready to Play?
+          </p>
+
+          <h2 className="mt-3 text-2xl font-black uppercase sm:text-3xl">
+            Join Racepicks Pro
+          </h2>
+
+          <p className="mx-auto mt-3 max-w-xl leading-7 text-zinc-400">
+            Build your team, manage your salary cap, and compete for the{" "}
+            {new Date().getFullYear() < 2027 ? "2027" : "current"} season.
+          </p>
+
+          <button
+            type="button"
+            disabled
+            className="mt-6 cursor-not-allowed rounded-full border border-zinc-700 px-7 py-3 font-black text-zinc-500"
+          >
+            Join Pro — Coming Soon
+          </button>
+
+          <p className="mt-3 text-xs text-zinc-600">
+            Subscriptions aren&apos;t live yet — vote below to help shape it.
+          </p>
+        </section>
+
         <section className="mt-10 rounded-[2rem] border border-zinc-800 bg-zinc-950 p-7 sm:p-10">
           <div className="mx-auto max-w-4xl text-center">
             <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">

@@ -78,6 +78,7 @@ export async function calculateProRoundScores(
   error?: string;
   ridersScored?: number;
   manufacturersScored?: number;
+  teamsScored?: number;
 }> {
   const { supabase, userId, userEmail } = await requireAdmin();
 
@@ -385,7 +386,100 @@ export async function calculateProRoundScores(
     }
   }
 
+  // ============================================================
+  // Team scoring — sums each team's active roster's rider scores
+  // plus their chosen manufacturer's bonus, for this event. "Active
+  // roster" is determined by added_at/removed_at against this event's
+  // race date, so this stays correct once transfers exist later —
+  // no rework needed then.
+  // ============================================================
+
+  const { data: eventRow, error: eventRowError } = await supabase
+    .from("events")
+    .select("race_date")
+    .eq("id", eventId)
+    .single();
+
+  if (eventRowError || !eventRow) {
+    return { success: false, error: "Could not load event date for team scoring." };
+  }
+
+  const { data: teams, error: teamsError } = await supabase
+    .from("pro_teams")
+    .select("id, manufacturer")
+    .eq("season", season);
+
+  if (teamsError) {
+    return { success: false, error: teamsError.message };
+  }
+
+  const manufacturerBonusByName = new Map(
+    manufacturerScoreRows.map((m) => [m.manufacturer, m.bonus_points])
+  );
+
+  const riderScoreByRiderId = new Map(scoreRows.map((s) => [s.rider_id, s.total_points]));
+
+  let teamsScored = 0;
+
+  for (const team of teams ?? []) {
+    // Riders on this team's ACTIVE roster at the time of this event.
+    const { data: rosterRows, error: rosterError } = await supabase
+      .from("pro_team_riders")
+      .select("rider_id, added_at, removed_at")
+      .eq("team_id", team.id)
+      .lte("added_at", eventRow.race_date);
+
+    if (rosterError) {
+      console.error(`Team scoring: roster load failed for team ${team.id}:`, rosterError);
+      continue;
+    }
+
+    const activeRoster = (rosterRows ?? []).filter(
+      (r) => !r.removed_at || r.removed_at > eventRow.race_date
+    );
+
+    let riderPointsTotal = 0;
+    let missingCount = 0;
+
+    for (const rosterEntry of activeRoster) {
+      const points = riderScoreByRiderId.get(rosterEntry.rider_id);
+      if (points === undefined) {
+        missingCount += 1;
+      } else {
+        riderPointsTotal += points;
+      }
+    }
+
+    const manufacturerBonus = team.manufacturer
+      ? manufacturerBonusByName.get(team.manufacturer) ?? 0
+      : 0;
+
+    const { error: teamScoreUpsertError } = await supabase
+      .from("pro_team_round_scores")
+      .upsert(
+        {
+          team_id: team.id,
+          event_id: eventId,
+          season,
+          rider_points_total: riderPointsTotal,
+          manufacturer_bonus: manufacturerBonus,
+          total_points: riderPointsTotal + manufacturerBonus,
+          riders_missing_score: missingCount,
+          calculated_at: new Date().toISOString(),
+        },
+        { onConflict: "team_id,event_id" }
+      );
+
+    if (teamScoreUpsertError) {
+      console.error(`Team scoring: upsert failed for team ${team.id}:`, teamScoreUpsertError);
+      continue;
+    }
+
+    teamsScored += 1;
+  }
+
   revalidatePath("/admin/pro-results");
+  revalidatePath("/pro/leaderboard");
 
   await supabase.from("pro_audit_log").insert({
     admin_user_id: userId,
@@ -395,6 +489,7 @@ export async function calculateProRoundScores(
     details: {
       riders_scored: scoreRows.length,
       manufacturers_scored: manufacturerScoreRows.length,
+      teams_scored: teamsScored,
       event_type: eventType,
     },
   });
@@ -403,5 +498,6 @@ export async function calculateProRoundScores(
     success: true,
     ridersScored: scoreRows.length,
     manufacturersScored: manufacturerScoreRows.length,
+    teamsScored,
   };
 }

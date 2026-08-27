@@ -16,6 +16,7 @@ export default function CalculateScoresButton({
     error?: string;
     ridersScored?: number;
     manufacturersScored?: number;
+    teamsScored?: number;
   } | null>(null);
 
   function handleClick() {
@@ -55,7 +56,7 @@ export default function CalculateScoresButton({
           }`}
         >
           {result.success
-            ? `✓ Scored ${result.ridersScored} rider(s), ${result.manufacturersScored} manufacturer(s)`
+            ? `✓ Scored ${result.ridersScored} rider(s), ${result.manufacturersScored} manufacturer(s), ${result.teamsScored} team(s)`
             : `✗ ${result.error}`}
         </p>
       )}

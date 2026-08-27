@@ -275,6 +275,30 @@ credit. Explicitly NOT for "my rider isn't performing well" —
 prevents unfairly punishing managers for a real long-term injury
 without opening the door to abuse.
 
+**⚠️ CONFIRMED (Aug 2026) — Free SMX Non-Qualification Transfer.**
+A second, separate trigger for a free transfer: a rider who **fails
+to qualify for SMX Playoffs** at the end of the MX stage. This is
+deliberately treated the same way as a genuine injury — a manager
+who spent their limited season-long transfers reacting to earlier
+form or injuries elsewhere shouldn't be locked out of fixing their
+roster for the highest-stakes stretch of the season (SMX carries the
+biggest scoring multipliers, up to ×2) over something that isn't
+really a bad pick, just a hard end-of-season cutoff.
+
+Unlike the injury exception, this one needs **no admin judgment
+call** — SMX qualification is a public, binary fact, not something
+requiring case-by-case confirmation. In practice: if a rider's
+`smx_active` flag is `false` going into the SMX stage, they
+automatically qualify a manager for one free transfer to replace
+them, without touching the normal 3 Factory / 5 Challenger season
+allowance.
+
+**Deliberately NOT extended to the SX→MX boundary** — nearly every
+rider who races SX also races MX, so there's no equivalent hard
+qualification cutoff there. Adding a free transfer at that boundary
+would dilute the season-long transfer scarcity for no real problem
+it's solving.
+
 ### 8. Team lock
 
 Pro roster locks at the **exact same time** as normal Racepicks picks
@@ -295,21 +319,48 @@ once per manufacturer per event, not per manager.
 
 ### 10. Core scoring — by format
 
+**⚠️ FORMULA CONFIRMED (Aug 2026)** — this project has now seen two
+genuinely different descriptions of Triple Crown/MX scoring across
+different ChatGPT sessions pasted into this file's history: a
+weighted-percentage split, and a straight sum-per-race. **The
+weighted version below is the confirmed, final one** — if anything
+else in this document's earlier history says otherwise, this wins.
+
 - **Holeshot bonus:** flat **+10**, regardless of Factory/Challenger,
   applies per race/moto (so a Triple Crown sweep = +30 holeshot
   points alone).
 - **Normal SX:** finishing points + Challenger bonus (if applicable)
   + holeshot bonus.
-- **Triple Crown SX:** each of the 3 races scored individually
-  (result + Challenger bonus + holeshot per race) — Challenger bonus
-  is deliberately *reduced* per-race here specifically so 3-race
-  weekends don't become disproportionately valuable just because more
-  races happened. Holeshots stay full value each race.
-- **Pro Motocross:** MX fields run much deeper (~40 riders vs SX's
-  ~22), so Challenger bonuses are judged against an MX-appropriate
-  finishing scale, not a copy-paste of the SX scale. Each moto scored
-  individually.
+- **Triple Crown SX (CONFIRMED WEIGHTED FORMULA):** Race 1 = 20% +
+  Race 2 = 20% + Race 3 = 20% + Official Overall = 40%. A perfect
+  1-1-1 sweep still equals ~100 base points — the same ceiling as a
+  normal round — deliberately, so a Triple Crown weekend isn't worth
+  3x a normal SX round just because more races happened. Challenger
+  bonus is calculated per-race using a reduced/scaled bonus table
+  (not the full normal-SX bonus three times over), for the same
+  reason. Holeshots stay full value (+10) each race, uncapped by the
+  weighting.
+- **Pro Motocross (CONFIRMED WEIGHTED FORMULA):** Moto 1 = 25% +
+  Moto 2 = 25% + Official Overall = 50%. A perfect 1-1 / 1st-overall
+  day equals ~100 base points, keeping SX and MX roughly comparable
+  despite the different formats. MX fields run much deeper (~40
+  riders vs SX's ~22), so Challenger bonuses are judged against an
+  MX-appropriate finishing scale, not a copy of the SX scale.
+  Challenger bonus on MX = half bonus Moto 1 + half bonus Moto 2 +
+  full bonus on the Overall.
 - **Whole points only** — no half-points anywhere in Pro scoring.
+
+**Implication for the results-entry system (not yet built):** the
+existing free-game results form only captures 1st/2nd/3rd/Wildcard —
+nowhere near enough for Pro. Pro scoring requires the FULL classified
+finishing order for every Pro-eligible rider, per race, not just the
+top 3 — and for Triple Crown/MX specifically, that means capturing
+3 separate full classified results (Triple Crown) or 2 separate full
+classified results plus the calculated overall (MX), each with its
+own holeshot winner. This is a genuinely large unbuilt piece of work
+— bigger than the rider database + admin UI + CSV tooling combined —
+and should be scoped as its own project phase, not assumed to be a
+small extension of the existing results form.
 
 ### 11. DNS / DNQ / DNF / disrupted events
 
