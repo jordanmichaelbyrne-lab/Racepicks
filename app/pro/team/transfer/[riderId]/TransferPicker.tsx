@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { executeTransfer } from "./actions";
+import ConfirmModal from "@/app/components/ConfirmModal";
 
 type Rider = {
   rider_id: string;
@@ -38,6 +39,7 @@ export default function TransferPicker({
   const [search, setSearch] = useState("");
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const targetClassification = switchStructure
     ? outgoingRider.classification === "factory"
@@ -67,7 +69,13 @@ export default function TransferPicker({
     (tokensNeeded.factory > tokensRemaining.factory ||
       tokensNeeded.challenger > tokensRemaining.challenger);
 
-  function handleConfirm() {
+  const tokenSummary = isFreeTransfer
+    ? `a FREE transfer (${freeTransferReason === "injury" ? "confirmed injury" : "missed SMX qualification"}) — no season token used`
+    : switchStructure
+      ? "1 Factory token AND 1 Challenger token (structure change)"
+      : `1 ${outgoingRider.classification === "factory" ? "Factory" : "Challenger"} token`;
+
+  function handleConfirmClick() {
     if (!selectedId || !selectedRider) {
       setError("Select a replacement rider.");
       return;
@@ -81,18 +89,12 @@ export default function TransferPicker({
       return;
     }
 
-    const tokenSummary = isFreeTransfer
-      ? `a FREE transfer (${freeTransferReason === "injury" ? "confirmed injury" : "missed SMX qualification"})`
-      : switchStructure
-        ? "1 Factory token AND 1 Challenger token (structure change)"
-        : `1 ${outgoingRider.classification === "factory" ? "Factory" : "Challenger"} token`;
-
-    const confirmed = window.confirm(
-      `Transfer out ${outgoingRider.full_name}, transfer in ${selectedRider.full_name}?\n\nThis will use: ${tokenSummary}.\n\nThis cannot be undone.`
-    );
-    if (!confirmed) return;
-
     setError(null);
+    setShowConfirm(true);
+  }
+
+  function handleConfirmedTransfer() {
+    if (!selectedId) return;
 
     startTransition(async () => {
       const result = await executeTransfer(teamId, season, outgoingRider.rider_id, selectedId);
@@ -100,6 +102,7 @@ export default function TransferPicker({
       if (result.success) {
         router.push("/pro/team");
       } else {
+        setShowConfirm(false);
         setError(result.error ?? "Something went wrong.");
       }
     });
@@ -237,7 +240,7 @@ export default function TransferPicker({
 
       <button
         type="button"
-        onClick={handleConfirm}
+        onClick={handleConfirmClick}
         disabled={isPending || !selectedId}
         className="mt-6 w-full rounded-full bg-orange-500 px-7 py-4 font-black uppercase text-black transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-60"
       >
@@ -250,6 +253,37 @@ export default function TransferPicker({
           "Confirm Transfer"
         )}
       </button>
+
+      {showConfirm && selectedRider && (
+        <ConfirmModal
+          title="Confirm This Transfer?"
+          warning={`This will permanently use ${tokenSummary}. This action cannot be undone.`}
+          confirmLabel="Yes, Make This Transfer"
+          isPending={isPending}
+          onCancel={() => setShowConfirm(false)}
+          onConfirm={handleConfirmedTransfer}
+          details={
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="font-bold text-neutral-500">Transferring Out</span>
+                <span className="font-bold text-red-400">{outgoingRider.full_name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-bold text-neutral-500">Transferring In</span>
+                <span className="font-bold text-green-400">{selectedRider.full_name}</span>
+              </div>
+              <div className="flex justify-between border-t border-neutral-800 pt-2">
+                <span className="font-bold text-neutral-500">Tokens Used</span>
+                <span className="font-bold text-orange-400">{tokenSummary}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-bold text-neutral-500">New Team Value</span>
+                <span className="font-bold text-orange-400">${newTotal.toFixed(1)}M</span>
+              </div>
+            </div>
+          }
+        />
+      )}
     </div>
   );
 }

@@ -33,8 +33,10 @@ export default async function ProLeaderboardPage() {
   if (!teams || teams.length === 0) {
     return (
       <main className="min-h-screen bg-black px-4 py-10 text-white sm:px-6">
-        <div className="mx-auto max-w-3xl">
+        <div className="mx-auto max-w-7xl">
           <Navbar />
+        </div>
+        <div className="mx-auto max-w-3xl">
           <header className="mt-8">
             <p className="text-xs font-bold uppercase tracking-[0.3em] text-orange-500">
               Racepicks Pro · {SEASON}
@@ -99,9 +101,11 @@ export default async function ProLeaderboardPage() {
 
   return (
     <main className="min-h-screen bg-black px-4 py-10 text-white sm:px-6">
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-7xl">
         <Navbar />
+      </div>
 
+      <div className="mx-auto max-w-3xl">
         <header className="mt-8">
           <p className="text-xs font-bold uppercase tracking-[0.3em] text-orange-500">
             Racepicks Pro · {SEASON}

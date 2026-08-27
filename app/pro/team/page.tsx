@@ -3,9 +3,13 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
 import Navbar from "@/app/components/Navbar";
 import TeamBuilder from "./TeamBuilder";
+import SeasonProgression from "./SeasonProgression";
+import RiderTrendSparkline from "./RiderTrendSparkline";
 import { getCurrentTransferWindow } from "@/app/pro/lib/transferWindow";
 import { hasMxSeasonConcluded } from "@/app/pro/lib/seasonStage";
 import { getSalaryTrends } from "@/app/pro/lib/salaryTrend";
+import { getRiderRoundHistories } from "@/app/pro/lib/riderHistory";
+import { getTeamRankHistory } from "@/app/pro/lib/leagueRankHistory";
 
 const SEASON = 2027;
 
@@ -108,7 +112,7 @@ export default async function ProTeamPage() {
     );
 
     // Every round score for this team's riders — powers both the
-    // per-rider "points scored" total and the team progression chart.
+    // per-rider "points scored" total and the per-rider trend line.
     const { data: riderScoreRows } = await supabase
       .from("pro_round_scores")
       .select("rider_id, event_id, total_points")
@@ -119,26 +123,18 @@ export default async function ProTeamPage() {
       pointsByRiderId.set(row.rider_id, (pointsByRiderId.get(row.rider_id) ?? 0) + row.total_points);
     }
 
-    // Team's round-by-round total, joined with event info for labels.
-    const { data: teamRoundRows } = await supabase
-      .from("pro_team_round_scores")
-      .select("event_id, total_points, events(venue, round_number, race_date)")
-      .eq("team_id", existingTeam.id);
+    // Ordered per-round score history, per rider — powers the
+    // sparkline + slump detection on each roster row.
+    const riderRoundHistories = await getRiderRoundHistories(rosterRiderIds, SEASON);
 
-    const teamRounds = (teamRoundRows ?? [])
-      .map((row) => {
-        const event = Array.isArray(row.events) ? row.events[0] : row.events;
-        return {
-          venue: event?.venue ?? "Round",
-          roundNumber: event?.round_number ?? 0,
-          raceDate: event?.race_date ?? "",
-          points: row.total_points,
-        };
-      })
-      .sort((a, b) => (a.raceDate < b.raceDate ? -1 : 1));
+    // Team's cumulative season total + league rank AT EACH ROUND —
+    // powers the season progression chart.
+    const teamRankHistory = await getTeamRankHistory(existingTeam.id, SEASON);
 
-    const seasonTotal = teamRounds.reduce((sum, r) => sum + r.points, 0);
-    const maxRoundPoints = Math.max(1, ...teamRounds.map((r) => r.points));
+    const seasonTotal =
+      teamRankHistory.length > 0
+        ? teamRankHistory[teamRankHistory.length - 1].cumulativePoints
+        : 0;
 
     const totalValue = roster.reduce(
       (sum, r) => sum + (currentSalaryByRiderId.get(r.riderId) ?? r.purchasePrice),
@@ -184,30 +180,12 @@ export default async function ProTeamPage() {
       }
     }
 
-    // League position — same aggregation approach as the leaderboard page.
-    const { data: allTeams } = await supabase
-      .from("pro_teams")
-      .select("id")
-      .eq("season", SEASON);
-
-    const allTeamIds = (allTeams ?? []).map((t) => t.id);
-
-    const { data: allScoreRows } = await supabase
-      .from("pro_team_round_scores")
-      .select("team_id, total_points")
-      .in("team_id", allTeamIds.length > 0 ? allTeamIds : [""]);
-
-    const totalByTeamId = new Map<string, number>();
-    for (const row of allScoreRows ?? []) {
-      totalByTeamId.set(row.team_id, (totalByTeamId.get(row.team_id) ?? 0) + row.total_points);
-    }
-
-    const sortedTotals = allTeamIds
-      .map((id) => totalByTeamId.get(id) ?? 0)
-      .sort((a, b) => b - a);
-
-    const leaguePosition = sortedTotals.indexOf(seasonTotal) + 1;
-    const leagueSize = allTeamIds.length;
+    // League position — from the same rank history used by the chart,
+    // so the top stat card and the chart's final point always agree.
+    const leaguePosition =
+      teamRankHistory.length > 0 ? teamRankHistory[teamRankHistory.length - 1].rank : 0;
+    const leagueSize =
+      teamRankHistory.length > 0 ? teamRankHistory[teamRankHistory.length - 1].leagueSize : 0;
 
     return (
       <main className="min-h-screen bg-black px-4 py-10 text-white sm:px-6">
@@ -249,7 +227,7 @@ export default async function ProTeamPage() {
                 Season Points
               </p>
               <p className="mt-2 text-2xl font-black text-orange-500">{seasonTotal}</p>
-              <p className="mt-1 text-xs text-neutral-600">{teamRounds.length} round(s) scored</p>
+              <p className="mt-1 text-xs text-neutral-600">{teamRankHistory.length} round(s) scored</p>
             </div>
             <div className="rounded-2xl border border-orange-500/40 bg-orange-500/10 p-5">
               <p className="text-xs font-bold uppercase tracking-widest text-orange-400">
@@ -312,36 +290,15 @@ export default async function ProTeamPage() {
             )}
           </div>
 
-          {/* Season progression chart */}
+          {/* Season progression chart — cumulative total + league rank per round */}
           <section className="mt-6 rounded-2xl border border-neutral-800 bg-neutral-950 p-6">
             <p className="text-xs font-black uppercase tracking-widest text-neutral-500">
               Season Progression
             </p>
-            {teamRounds.length === 0 ? (
-              <p className="mt-4 text-sm text-neutral-500">
-                No rounds scored yet — check back after the first event.
-              </p>
-            ) : (
-              <div className="mt-5 flex items-end gap-3 overflow-x-auto pb-2">
-                {teamRounds.map((round) => (
-                  <div key={round.venue + round.roundNumber} className="flex flex-col items-center gap-2">
-                    <span className="text-xs font-black text-orange-500">{round.points}</span>
-                    <div
-                      className="w-10 rounded-t-md bg-orange-500"
-                      style={{
-                        height: `${Math.max(8, (round.points / maxRoundPoints) * 120)}px`,
-                      }}
-                    />
-                    <span className="w-14 truncate text-center text-[10px] text-neutral-500">
-                      {round.venue}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
+            <SeasonProgression rounds={teamRankHistory} />
           </section>
 
-          {/* Roster with salary movement + points contribution */}
+          {/* Roster with salary movement + per-rider trend/slump */}
           <section className="mt-6 overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-950">
             <div className="border-b border-neutral-800 px-6 py-4">
               <p className="text-xs font-black uppercase tracking-widest text-neutral-500">
@@ -355,10 +312,11 @@ export default async function ProTeamPage() {
                 const changePct = r.purchasePrice ? (change / r.purchasePrice) * 100 : 0;
                 const pointsScored = pointsByRiderId.get(r.riderId) ?? 0;
                 const freeTransferReason = freeTransferByRiderId.get(r.riderId);
+                const roundHistory = riderRoundHistories.get(r.riderId) ?? [];
 
                 return (
                   <div key={r.riderId} className="px-6 py-4">
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="flex items-center gap-3">
                         <span className="font-black text-neutral-500">#{r.raceNumber ?? "—"}</span>
                         <div>
@@ -373,11 +331,14 @@ export default async function ProTeamPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-5 text-right">
+                      <div className="flex flex-wrap items-center gap-5 text-right">
                         <div>
                           <p className="text-xs text-neutral-500">Points</p>
                           <p className="font-black text-orange-500">{pointsScored}</p>
                         </div>
+
+                        <RiderTrendSparkline history={roundHistory} />
+
                         <div>
                           <p className="text-xs text-neutral-500">Salary</p>
                           <div className="flex items-center justify-end gap-2">

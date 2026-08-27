@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { saveTeam } from "./actions";
+import ConfirmModal from "@/app/components/ConfirmModal";
 
 const SALARY_CAP = 31.0;
 
@@ -52,6 +53,7 @@ export default function TeamBuilder({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const selectedRiders = riders.filter((r) => selectedIds.includes(r.rider_id));
   const totalCost = selectedRiders.reduce((sum, r) => sum + r.salary, 0);
@@ -82,7 +84,7 @@ export default function TeamBuilder({
     .filter((r) => r.full_name.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => b.salary - a.salary);
 
-  function handleSubmit() {
+  function handleSubmitClick() {
     if (selectedIds.length !== 5) {
       setError("Select exactly 5 riders.");
       return;
@@ -96,13 +98,11 @@ export default function TeamBuilder({
       return;
     }
 
-    const confirmed = window.confirm(
-      "Once saved, your team can't be edited yet (transfers coming soon). Confirm your 5 riders and manufacturer are final?"
-    );
-    if (!confirmed) return;
-
     setError(null);
+    setShowConfirm(true);
+  }
 
+  function handleConfirmedSave() {
     startTransition(async () => {
       const formData = new FormData();
       formData.set("season", String(season));
@@ -113,8 +113,10 @@ export default function TeamBuilder({
       const result = await saveTeam(formData);
 
       if (result.success) {
+        setShowConfirm(false);
         setSuccess(true);
       } else {
+        setShowConfirm(false);
         setError(result.error ?? "Something went wrong.");
       }
     });
@@ -289,8 +291,8 @@ export default function TeamBuilder({
               <thead>
                 <tr>
                   <th className="pb-1 text-left font-bold text-neutral-500">Finish</th>
-                  <th className="pb-1 text-right font-bold text-orange-400">Race</th>
-                  <th className="pb-1 text-right font-bold text-neutral-500">Moto</th>
+                  <th className="pb-1 text-right font-bold text-orange-400">Single Event</th>
+                  <th className="pb-1 text-right font-bold text-neutral-500">Per Leg</th>
                 </tr>
               </thead>
               <tbody>
@@ -322,12 +324,19 @@ export default function TeamBuilder({
                 })()}
               </tbody>
             </table>
+          </div>
+          <p className="mt-2 text-[11px] text-neutral-500">
+            Challengers earn this on top of normal finishing points — a Challenger
+            finishing top 3 scores a real bonus a Factory rider doesn't get.
+          </p>
+          <p className="mt-2 text-[11px] text-neutral-500">
+            <span className="font-bold text-neutral-400">Single Event</span> applies to a
+            normal one-race round like Supercross. For multi-part rounds (Pro Motocross,
+            Triple Crown), <span className="font-bold text-neutral-400">Per Leg</span>{" "}
+            applies to each individual moto/race, on top of the Single Event bonus
+            applied once to the combined overall result.
+          </p>
         </div>
-        <p className="mt-2 text-[11px] text-neutral-500">
-          Challengers earn this on top of normal finishing points — a Challenger
-          finishing top 3 scores a real bonus a Factory rider doesn't get.
-        </p>
-      </div>
       </div>
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -434,7 +443,7 @@ export default function TeamBuilder({
 
       <button
         type="button"
-        onClick={handleSubmit}
+        onClick={handleSubmitClick}
         disabled={isPending}
         className="mt-6 w-full rounded-full bg-orange-500 px-7 py-4 font-black uppercase text-black transition hover:bg-orange-400 disabled:cursor-not-allowed disabled:opacity-60"
       >
@@ -447,6 +456,55 @@ export default function TeamBuilder({
           "Save My Team"
         )}
       </button>
+
+      {showConfirm && (
+        <ConfirmModal
+          title="Lock In Your Team?"
+          warning="Once saved, your 5 riders and manufacturer pick are locked for the season. You can't edit this team directly — only future transfers can change your riders."
+          confirmLabel="Yes, Save My Team"
+          isPending={isPending}
+          onCancel={() => setShowConfirm(false)}
+          onConfirm={handleConfirmedSave}
+          details={
+            <div className="space-y-2">
+              <div>
+                <span className="font-bold text-neutral-500">Riders ({selectedRiders.length}/5):</span>
+                <ul className="mt-1 space-y-0.5">
+                  {selectedRiders.map((r) => (
+                    <li key={r.rider_id} className="flex justify-between">
+                      <span>
+                        {r.full_name}{" "}
+                        <span
+                          className={
+                            r.classification === "factory" ? "text-neutral-400" : "text-orange-400"
+                          }
+                        >
+                          ({r.classification})
+                        </span>
+                      </span>
+                      <span className="font-bold text-orange-400">${r.salary}M</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="flex justify-between border-t border-neutral-800 pt-2">
+                <span className="font-bold text-neutral-500">Manufacturer</span>
+                <span className="font-bold text-orange-400">{manufacturer}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-bold text-neutral-500">Total Cost</span>
+                <span className="font-bold text-orange-400">${totalCost.toFixed(1)}M</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-bold text-neutral-500">Structure</span>
+                <span className="font-bold">
+                  {factoryCount}F / {challengerCount}C
+                </span>
+              </div>
+            </div>
+          }
+        />
+      )}
     </div>
   );
 }
