@@ -406,7 +406,6 @@ export default function PicksForm({
                       <div className="border-b border-zinc-800 p-3">
                         <input
                           type="search"
-                          autoFocus
                           value={searches[field.key]}
                           onChange={(event) =>
                             setSearches((current) => ({
