@@ -196,7 +196,7 @@ export default function SignUpPage() {
                     setFirstName(event.target.value)
                   }
                   className="mt-2 w-full rounded-2xl border border-zinc-700 bg-black px-4 py-3 text-white outline-none transition focus:border-orange-500"
-                  placeholder="Jordan"
+                  placeholder="James"
                 />
               </div>
 
@@ -219,7 +219,7 @@ export default function SignUpPage() {
                     setLastName(event.target.value)
                   }
                   className="mt-2 w-full rounded-2xl border border-zinc-700 bg-black px-4 py-3 text-white outline-none transition focus:border-orange-500"
-                  placeholder="Byrne"
+                  placeholder="Stewart"
                 />
               </div>
             </div>
@@ -253,7 +253,7 @@ export default function SignUpPage() {
                       ? "border-green-500"
                       : "border-zinc-700"
                 }`}
-                placeholder="e.g. JordanB"
+                placeholder="e.g. BubbaScrub259"
               />
 
               {usernameStatus === "checking" && (
