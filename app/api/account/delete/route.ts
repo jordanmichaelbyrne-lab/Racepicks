@@ -53,16 +53,67 @@ export async function DELETE() {
       }
     );
 
-    const { error: deleteError } =
-      await adminSupabase.auth.admin.deleteUser(user.id);
+    // Racepicks has a public leaderboard and threaded Banter discussions
+    // that reference this user's picks/posts/comments — most of those
+    // tables have no real foreign key to profiles, so a hard delete
+    // would either cascade-wipe historical scoring data or leave
+    // dangling user_id references pointing at nothing. Instead: strip
+    // all personal info from the profile and rename it, but keep the
+    // row so every past pick/post/team stays correctly attributed and
+    // displayed under a generic name. This is the same pattern most
+    // apps with public social/leaderboard features use for account
+    // deletion.
+    const shortId = user.id.slice(0, 8);
 
-    if (deleteError) {
-      console.error("Unable to delete Supabase user:", deleteError);
+    const { error: anonymizeError } = await adminSupabase
+      .from("profiles")
+      .update({
+        display_name: `Deleted User ${shortId}`,
+        first_name: null,
+        last_name: null,
+        email: null,
+        avatar_url: null,
+        favourite_rider: null,
+        favourite_manufacturer: null,
+        pro_access: false,
+        deleted_at: new Date().toISOString(),
+      })
+      .eq("id", user.id);
+
+    if (anonymizeError) {
+      console.error("Unable to anonymize profile:", anonymizeError);
 
       return NextResponse.json(
         {
           error:
             "We could not delete your account. Please try again.",
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
+    // Ban the auth account so it can never sign in again, and scramble
+    // the email so the original address is freed up for a future
+    // signup — the account is fully unusable from this point on, even
+    // though the underlying row is kept for referential integrity.
+    const { error: banError } =
+      await adminSupabase.auth.admin.updateUserById(user.id, {
+        ban_duration: "87600h", // ~10 years — effectively permanent
+        email: `deleted-${user.id}@racepicks.invalid`,
+      });
+
+    if (banError) {
+      console.error(
+        "Unable to disable Supabase auth user:",
+        banError
+      );
+
+      return NextResponse.json(
+        {
+          error:
+            "We could not fully delete your account. Please contact Racepicks support.",
         },
         {
           status: 500,
