@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
 import Navbar from "@/app/components/Navbar";
 
@@ -147,6 +148,19 @@ export default async function LeaderboardPage({
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Same pattern as Banter and every other player-facing page — the
+  // leaderboard shows real player names/points, so it's for logged-in
+  // players only, not public/anonymous visitors.
+  if (!user) {
+    redirect("/login");
+  }
+
+  // Captured as a plain string right after the check above — TypeScript
+  // can't carry the "user is non-null" narrowing into the CompactPlayerRow
+  // closure below, since it's a separate nested function, but a primitive
+  // value captured here is safe.
+  const currentUserId = user.id;
+
   const { data, error } = await supabase
     .from("leaderboard")
     .select(
@@ -203,13 +217,11 @@ export default async function LeaderboardPage({
     fullStandings.map((player, index) => [player.user_id, index + 1])
   );
 
-  const currentUserEntry = user
-    ? fullStandings.find((player) => player.user_id === user.id)
-    : undefined;
+  const currentUserEntry = fullStandings.find(
+    (player) => player.user_id === currentUserId
+  );
 
-  const currentUserPosition = user
-    ? positionByUserId.get(user.id)
-    : undefined;
+  const currentUserPosition = positionByUserId.get(currentUserId);
 
   const { count: completedRounds, error: completedRoundsError } =
     await supabase
@@ -373,7 +385,7 @@ export default async function LeaderboardPage({
 
   function CompactPlayerRow({ player }: { player: LeaderboardPlayer }) {
     const position = positionByUserId.get(player.user_id) ?? 0;
-    const isCurrentUser = user?.id === player.user_id;
+    const isCurrentUser = currentUserId === player.user_id;
 
     const hasCurrentPicks =
       currentEvent && submittedPickUserIds.has(player.user_id);
