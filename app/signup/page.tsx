@@ -10,10 +10,14 @@ export default function SignUpPage() {
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [displayName, setDisplayName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [usernameStatus, setUsernameStatus] = useState<
+    "idle" | "checking" | "available" | "taken"
+  >("idle");
 
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<
@@ -22,6 +26,30 @@ export default function SignUpPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  async function checkUsernameAvailability() {
+    const cleaned = username.trim();
+
+    if (cleaned.length < 3) {
+      setUsernameStatus("idle");
+      return;
+    }
+
+    setUsernameStatus("checking");
+
+    const { data, error } = await supabase.rpc("is_display_name_taken", {
+      check_name: cleaned,
+    });
+
+    if (error) {
+      // Don't block signup on a check failure — the pre-submit check
+      // and the unique index are the real guards; this is just UX.
+      setUsernameStatus("idle");
+      return;
+    }
+
+    setUsernameStatus(data ? "taken" : "available");
+  }
+
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>
   ) {
@@ -29,7 +57,7 @@ export default function SignUpPage() {
 
     const cleanedFirstName = firstName.trim();
     const cleanedLastName = lastName.trim();
-    const cleanedDisplayName = displayName.trim();
+    const cleanedUsername = username.trim();
     const cleanedEmail = email.trim().toLowerCase();
 
     setMessage("");
@@ -37,6 +65,12 @@ export default function SignUpPage() {
 
     if (!cleanedFirstName || !cleanedLastName) {
       setMessage("Please enter your first and last name.");
+      setMessageType("error");
+      return;
+    }
+
+    if (cleanedUsername.length < 3) {
+      setMessage("Your username must be at least 3 characters.");
       setMessageType("error");
       return;
     }
@@ -57,9 +91,27 @@ export default function SignUpPage() {
 
     setIsSubmitting(true);
 
-    const publicDisplayName =
-      cleanedDisplayName ||
-      `${cleanedFirstName} ${cleanedLastName}`;
+    // Final authoritative check right before submit — the on-blur check
+    // is just UX; someone else could have taken the name in between.
+    const { data: isTaken, error: checkError } = await supabase.rpc(
+      "is_display_name_taken",
+      { check_name: cleanedUsername }
+    );
+
+    if (checkError) {
+      setMessage("Could not verify your username. Please try again.");
+      setMessageType("error");
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (isTaken) {
+      setUsernameStatus("taken");
+      setMessage("That username is already taken. Please choose another.");
+      setMessageType("error");
+      setIsSubmitting(false);
+      return;
+    }
 
     const { error } = await supabase.auth.signUp({
       email: cleanedEmail,
@@ -68,14 +120,26 @@ export default function SignUpPage() {
         data: {
           first_name: cleanedFirstName,
           last_name: cleanedLastName,
-          display_name: publicDisplayName,
+          display_name: cleanedUsername,
         },
         emailRedirectTo: `${window.location.origin}/login`,
       },
     });
 
     if (error) {
-      setMessage(error.message);
+      // Rare race: someone else took the name in the gap between our
+      // check and the insert. The database's unique index is the real
+      // guard here — this just gives a friendly message instead of a
+      // raw database error if that race happens.
+      const looksLikeDuplicateName =
+        error.message.toLowerCase().includes("duplicate") ||
+        error.message.toLowerCase().includes("unique");
+
+      setMessage(
+        looksLikeDuplicateName
+          ? "That username was just taken by someone else. Please choose another."
+          : error.message
+      );
       setMessageType("error");
       setIsSubmitting(false);
       return;
@@ -162,33 +226,60 @@ export default function SignUpPage() {
 
             <div>
               <label
-                htmlFor="displayName"
+                htmlFor="username"
                 className="text-sm font-bold text-zinc-300"
               >
-                Display name{" "}
-                <span className="font-normal text-zinc-500">
-                  — optional
-                </span>
+                Username
               </label>
 
               <input
-                id="displayName"
-                name="displayName"
+                id="username"
+                name="username"
                 type="text"
+                required
+                minLength={3}
                 autoComplete="nickname"
                 maxLength={40}
-                value={displayName}
-                onChange={(event) =>
-                  setDisplayName(event.target.value)
-                }
-                className="mt-2 w-full rounded-2xl border border-zinc-700 bg-black px-4 py-3 text-white outline-none transition focus:border-orange-500"
-                placeholder="Jordan B"
+                value={username}
+                onChange={(event) => {
+                  setUsername(event.target.value);
+                  setUsernameStatus("idle");
+                }}
+                onBlur={checkUsernameAvailability}
+                className={`mt-2 w-full rounded-2xl border bg-black px-4 py-3 text-white outline-none transition focus:border-orange-500 ${
+                  usernameStatus === "taken"
+                    ? "border-red-500"
+                    : usernameStatus === "available"
+                      ? "border-green-500"
+                      : "border-zinc-700"
+                }`}
+                placeholder="e.g. JordanB"
               />
 
-              <p className="mt-2 text-sm leading-6 text-zinc-500">
-                This is the name shown publicly on the leaderboard
-                and banter page. Leave it blank to use your full name.
-              </p>
+              {usernameStatus === "checking" && (
+                <p className="mt-2 text-sm text-zinc-500">
+                  Checking availability…
+                </p>
+              )}
+
+              {usernameStatus === "taken" && (
+                <p className="mt-2 text-sm font-bold text-red-400">
+                  That username is already taken.
+                </p>
+              )}
+
+              {usernameStatus === "available" && (
+                <p className="mt-2 text-sm font-bold text-green-400">
+                  Username is available.
+                </p>
+              )}
+
+              {usernameStatus === "idle" && (
+                <p className="mt-2 text-sm leading-6 text-zinc-500">
+                  This is the name shown publicly on the leaderboard
+                  and banter page. At least 3 characters.
+                </p>
+              )}
             </div>
 
             <div>

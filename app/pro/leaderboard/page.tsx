@@ -74,8 +74,11 @@ export default async function ProLeaderboardPage() {
 
   const userIds = Array.from(new Set(teams.map((t) => t.user_id)));
 
+  // These are OTHER managers' profiles, not necessarily the current
+  // user's own row — must read from the public-safe view, since RLS
+  // now restricts direct profiles reads to the caller's own row.
   const { data: profiles } = await supabase
-    .from("profiles")
+    .from("public_profiles")
     .select("id, display_name, avatar_url")
     .in("id", userIds);
 

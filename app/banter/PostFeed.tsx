@@ -89,8 +89,11 @@ export default function PostFeed({
     let profilesById = new Map<string, PostProfile>();
 
     if (authorIds.length > 0) {
+      // Other people's posts — must read from the public-safe view, not
+      // the base profiles table, since RLS now restricts profiles reads
+      // to the caller's own row.
       const { data: profiles } = await supabase
-        .from("profiles")
+        .from("public_profiles")
         .select("id, display_name, avatar_url")
         .in("id", authorIds);
 

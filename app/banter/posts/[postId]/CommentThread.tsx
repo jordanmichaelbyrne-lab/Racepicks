@@ -99,8 +99,11 @@ export default function CommentThread({
     let profilesById = new Map<string, CommentProfile>();
 
     if (authorIds.length > 0) {
+      // Commenters are other people, not just the current user — must
+      // read from the public-safe view, since RLS now restricts direct
+      // profiles reads to the caller's own row.
       const { data: profiles } = await supabase
-        .from("profiles")
+        .from("public_profiles")
         .select("id, display_name, avatar_url")
         .in("id", authorIds);
 

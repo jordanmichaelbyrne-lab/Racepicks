@@ -89,9 +89,12 @@ export default function GroupsPanel({
       >();
 
       if (inviterIds.length > 0) {
+        // Inviters are other people, not the current user — must read
+        // from the public-safe view since RLS now restricts direct
+        // profiles reads to the caller's own row.
         const { data: inviterProfiles, error: inviterProfilesError } =
           await supabase
-            .from("profiles")
+            .from("public_profiles")
             .select("id, display_name")
             .in("id", inviterIds);
 

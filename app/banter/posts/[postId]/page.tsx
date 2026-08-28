@@ -32,12 +32,17 @@ export default async function PostPage({ params }: PageProps) {
     notFound();
   }
 
+  // The post's author is not necessarily the current user — read from
+  // the public-safe view, since RLS now restricts direct profiles
+  // reads to the caller's own row.
   const { data: authorProfile } = await supabase
-    .from("profiles")
+    .from("public_profiles")
     .select("display_name")
     .eq("id", post.user_id)
     .maybeSingle();
 
+  // This one IS the current user checking their own role — profiles
+  // (not public_profiles) is correct here.
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")

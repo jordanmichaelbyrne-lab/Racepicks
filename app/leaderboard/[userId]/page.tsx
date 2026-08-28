@@ -88,9 +88,6 @@ type PageProps = {
   }>;
 };
 
-// Same shape as the account page's PickResultCard — actual rider name,
-// green when it scored, red when it didn't. Kept local to this file
-// rather than shared, matching how the account page defines it too.
 function PickResultCard({
   label,
   riderName,
@@ -203,8 +200,11 @@ export default async function PlayerHistoryPage({
     { data: allScoreData, error: allScoresError },
     { data: currentEventData, error: currentEventError },
   ] = await Promise.all([
+    // This player is not necessarily the current user — read from the
+    // public-safe view, since RLS now restricts direct profiles reads
+    // to the caller's own row.
     supabase
-      .from("profiles")
+      .from("public_profiles")
       .select("id, display_name, avatar_url")
       .eq("id", userId)
       .single(),
@@ -411,9 +411,9 @@ export default async function PlayerHistoryPage({
     : [];
 
   // Every past pick for THIS player, across every scored round shown
-  // in Round History below (not just the last 5) — plus the rider
-  // names those picks resolve to, so each round can show who was
-  // actually picked instead of just a points pill.
+  // in Round History below — plus the rider names those picks
+  // resolve to, so each round can show who was actually picked
+  // instead of just a points pill.
   const allRoundEventIds = scores.map((score) => score.event_id);
 
   let pastPicksByEventId = new Map<string, PastPickRow>();
