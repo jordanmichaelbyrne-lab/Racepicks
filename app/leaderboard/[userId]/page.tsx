@@ -59,6 +59,14 @@ type CurrentPick = {
   updated_at: string;
 };
 
+type PastPickRow = {
+  event_id: string;
+  first_rider_id: string;
+  second_rider_id: string;
+  third_rider_id: string;
+  wildcard_rider_id: string;
+};
+
 type Rider = {
   id: string;
   full_name: string;
@@ -79,6 +87,51 @@ type PageProps = {
     userId: string;
   }>;
 };
+
+// Same shape as the account page's PickResultCard — actual rider name,
+// green when it scored, red when it didn't. Kept local to this file
+// rather than shared, matching how the account page defines it too.
+function PickResultCard({
+  label,
+  riderName,
+  points,
+}: {
+  label: string;
+  riderName: string | null;
+  points: number;
+}) {
+  const hit = points > 0;
+
+  return (
+    <div
+      className={`rounded-xl border px-3 py-2 ${
+        hit
+          ? "border-green-500/40 bg-green-500/10"
+          : "border-red-500/30 bg-red-500/10"
+      }`}
+    >
+      <p
+        className={`text-[10px] font-black uppercase tracking-widest ${
+          hit ? "text-green-400" : "text-red-400"
+        }`}
+      >
+        {label}
+      </p>
+
+      <p className="mt-0.5 truncate text-sm font-bold text-white">
+        {riderName ?? "—"}
+      </p>
+
+      <p
+        className={`mt-0.5 text-xs font-black ${
+          hit ? "text-green-400" : "text-red-400"
+        }`}
+      >
+        +{points}
+      </p>
+    </div>
+  );
+}
 
 function getEvent(score: ScoreRow): EventDetails | null {
   if (Array.isArray(score.events)) {
@@ -356,6 +409,74 @@ export default async function PlayerHistoryPage({
         },
       ]
     : [];
+
+  // Every past pick for THIS player, across every scored round shown
+  // in Round History below (not just the last 5) — plus the rider
+  // names those picks resolve to, so each round can show who was
+  // actually picked instead of just a points pill.
+  const allRoundEventIds = scores.map((score) => score.event_id);
+
+  let pastPicksByEventId = new Map<string, PastPickRow>();
+  let riderNameById = new Map<string, string>();
+
+  if (allRoundEventIds.length > 0) {
+    const { data: pastPicksData, error: pastPicksError } = await supabase
+      .from("picks")
+      .select(
+        `
+          event_id,
+          first_rider_id,
+          second_rider_id,
+          third_rider_id,
+          wildcard_rider_id
+        `
+      )
+      .eq("user_id", userId)
+      .in("event_id", allRoundEventIds);
+
+    if (pastPicksError) {
+      console.error("Round history pick loading error:", pastPicksError);
+    }
+
+    const pastPicks = (pastPicksData ?? []) as PastPickRow[];
+
+    pastPicksByEventId = new Map(
+      pastPicks.map((pick) => [pick.event_id, pick])
+    );
+
+    const pickedRiderIds = Array.from(
+      new Set(
+        pastPicks.flatMap((pick) => [
+          pick.first_rider_id,
+          pick.second_rider_id,
+          pick.third_rider_id,
+          pick.wildcard_rider_id,
+        ])
+      )
+    ).filter(Boolean);
+
+    if (pickedRiderIds.length > 0) {
+      const { data: pickedRidersData, error: pickedRidersError } =
+        await supabase
+          .from("riders")
+          .select("id, full_name")
+          .in("id", pickedRiderIds);
+
+      if (pickedRidersError) {
+        console.error(
+          "Round history rider name loading error:",
+          pickedRidersError
+        );
+      }
+
+      riderNameById = new Map(
+        (pickedRidersData ?? []).map((rider) => [
+          rider.id,
+          rider.full_name as string,
+        ])
+      );
+    }
+  }
 
   const playerSummary = leaderboardRows.find(
     (row) => row.user_id === userId
@@ -743,7 +864,7 @@ export default async function PlayerHistoryPage({
             </h2>
 
             <p className="mt-1 text-sm text-neutral-500">
-              Points earned at each completed round.
+              Picks made and points earned at each completed round.
             </p>
           </div>
 
@@ -762,11 +883,12 @@ export default async function PlayerHistoryPage({
             <div className="divide-y divide-neutral-800">
               {scores.map((score) => {
                 const event = getEvent(score);
+                const pastPick = pastPicksByEventId.get(score.event_id);
 
                 return (
                   <article
                     key={score.event_id}
-                    className="grid gap-5 px-6 py-5 transition hover:bg-neutral-800/40 sm:grid-cols-[1fr_auto] sm:items-center"
+                    className="grid gap-5 px-6 py-5 transition hover:bg-neutral-800/40 sm:grid-cols-[1fr_auto] sm:items-start"
                   >
                     <div>
                       <p className="text-xs font-black uppercase tracking-widest text-orange-500">
@@ -778,46 +900,43 @@ export default async function PlayerHistoryPage({
                         {event?.venue ?? "Unknown event"}
                       </h3>
 
-                      <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
-                        <span
-                          className={`rounded-full px-3 py-1 ${
-                            score.first_points > 0
-                              ? "bg-green-950 text-green-400"
-                              : "bg-neutral-800 text-neutral-500"
-                          }`}
-                        >
-                          1st +{score.first_points}
-                        </span>
-
-                        <span
-                          className={`rounded-full px-3 py-1 ${
-                            score.second_points > 0
-                              ? "bg-green-950 text-green-400"
-                              : "bg-neutral-800 text-neutral-500"
-                          }`}
-                        >
-                          2nd +{score.second_points}
-                        </span>
-
-                        <span
-                          className={`rounded-full px-3 py-1 ${
-                            score.third_points > 0
-                              ? "bg-green-950 text-green-400"
-                              : "bg-neutral-800 text-neutral-500"
-                          }`}
-                        >
-                          3rd +{score.third_points}
-                        </span>
-
-                        <span
-                          className={`rounded-full px-3 py-1 ${
-                            score.wildcard_points > 0
-                              ? "bg-green-950 text-green-400"
-                              : "bg-neutral-800 text-neutral-500"
-                          }`}
-                        >
-                          Wildcard +{score.wildcard_points}
-                        </span>
+                      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        <PickResultCard
+                          label="1st"
+                          riderName={
+                            pastPick
+                              ? riderNameById.get(pastPick.first_rider_id) ?? null
+                              : null
+                          }
+                          points={score.first_points}
+                        />
+                        <PickResultCard
+                          label="2nd"
+                          riderName={
+                            pastPick
+                              ? riderNameById.get(pastPick.second_rider_id) ?? null
+                              : null
+                          }
+                          points={score.second_points}
+                        />
+                        <PickResultCard
+                          label="3rd"
+                          riderName={
+                            pastPick
+                              ? riderNameById.get(pastPick.third_rider_id) ?? null
+                              : null
+                          }
+                          points={score.third_points}
+                        />
+                        <PickResultCard
+                          label="Wildcard"
+                          riderName={
+                            pastPick
+                              ? riderNameById.get(pastPick.wildcard_rider_id) ?? null
+                              : null
+                          }
+                          points={score.wildcard_points}
+                        />
                       </div>
                     </div>
 
