@@ -2,6 +2,7 @@ import { Resend } from "resend";
 import { createClient } from "./supabase/server";
 import { wrapEmailHtml, standardEmailHeaders } from "./email-template";
 import { delay, EMAIL_SEND_DELAY_MS } from "./email-send-delay";
+import { isSeriesFinaleEvent, formatSeriesName } from "./series-finale";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -209,6 +210,20 @@ export async function notifyPlayersOfResults(
     return;
   }
 
+  // If this was the final round of its series, players get a distinctly
+  // different "Championship Complete" email that links to the public
+  // /results page (where the series recap popup lives), instead of the
+  // normal spoiler-free /account link. Every other round is completely
+  // unaffected by this check.
+  const isFinale = await isSeriesFinaleEvent(
+    supabase,
+    event.series,
+    event.season,
+    event.round_number
+  );
+
+  const seriesLabel = formatSeriesName(event.series);
+
   // NOTE: we deliberately do NOT load or include the actual finishing
   // positions (1st/2nd/3rd/Wildcard) in this email — see the spoiler-free
   // design note below in the body copy.
@@ -233,27 +248,49 @@ export async function notifyPlayersOfResults(
       continue;
     }
 
-    const bodyHtml = `
-      <p>Hi ${player.display_name ?? "there"},</p>
-      <p>
-        The official results are in for <strong>${eventLabel}</strong>.
-      </p>
-      <p style="background-color:#f7f7f7;border-radius:6px;padding:16px 20px;margin:16px 0;font-weight:600;">
-        🏁 No spoilers here — tap below to see how your own picks
-        scored this round.
-      </p>
-    `;
+    const firstName = player.display_name ?? "there";
+
+    const bodyHtml = isFinale
+      ? `
+        <p>Hi ${firstName},</p>
+        <p>
+          That's it — the official results are in for
+          <strong>${eventLabel}</strong>, and with it, the
+          <strong>${event.season} ${seriesLabel} Championship</strong>
+          is complete. 🏁
+        </p>
+        <p style="background-color:#fff4e8;border-left:3px solid #f97316;padding:10px 16px;font-weight:700;">
+          See who topped the final ${seriesLabel} standings — tap
+          below for the full recap.
+        </p>
+      `
+      : `
+        <p>Hi ${firstName},</p>
+        <p>
+          The official results are in for <strong>${eventLabel}</strong>.
+        </p>
+        <p style="background-color:#f7f7f7;border-radius:6px;padding:16px 20px;margin:16px 0;font-weight:600;">
+          🏁 No spoilers here — tap below to see how your own picks
+          scored this round.
+        </p>
+      `;
 
     try {
       const result = await resend.emails.send({
         from: "Racepicks <notifications@racepicks.app>",
         to: player.email,
-        subject: `Results are in — ${event.venue}`,
+        subject: isFinale
+          ? `🏁 The ${seriesLabel} Championship is decided — ${event.venue}`
+          : `Results are in — ${event.venue}`,
         html: wrapEmailHtml({
           bodyHtml,
-          ctaText: "See How You Scored",
-          ctaHref: "https://racepicks.app/account",
-          preheaderText: `Results are in for ${event.venue} — no spoilers, see how you scored`,
+          ctaText: isFinale ? "View Final Standings" : "See How You Scored",
+          ctaHref: isFinale
+            ? "https://racepicks.app/results"
+            : "https://racepicks.app/account",
+          preheaderText: isFinale
+            ? `The ${event.season} ${seriesLabel} Championship is complete — see the final standings`
+            : `Results are in for ${event.venue} — no spoilers, see how you scored`,
         }),
         headers: standardEmailHeaders,
       });

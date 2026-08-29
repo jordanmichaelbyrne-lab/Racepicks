@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import Navbar from "@/app/components/Navbar";
 import { createClient } from "@/app/lib/supabase/server";
+import { getSeriesStandings } from "@/app/lib/series-standings";
 
 type CompetitionEvent = {
   id: string;
@@ -139,11 +140,30 @@ function isCompletedStatus(status: string) {
   );
 }
 
+function getInitials(displayName: string) {
+  return displayName
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("");
+}
+
+function getStandingMedalStyle(position: number) {
+  if (position === 1) return "bg-orange-500 text-black";
+  if (position <= 3) return "bg-zinc-700 text-white";
+  return "bg-zinc-900 text-zinc-400";
+}
+
 export default async function CompetitionPage({
   params,
 }: PageProps) {
   const { competitionId } = await params;
   const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const { data, error } = await supabase
     .from("events")
@@ -246,6 +266,13 @@ export default async function CompetitionPage({
     : completedRounds === events.length
       ? "Completed"
       : "Upcoming";
+
+  // Racepicks standings for THIS series + season — same calculation
+  // used by the series-finale celebration popup, but the full ranked
+  // list rather than just the top 3, meant to be browsable any time,
+  // not only right when the series wraps.
+  const standings = await getSeriesStandings(supabase, series, season);
+  const standingsLeader = standings.length > 0 ? standings[0] : null;
 
   return (
     <main className="min-h-screen bg-black text-white">
@@ -481,6 +508,185 @@ export default async function CompetitionPage({
             </div>
           </section>
 
+          {/* Racepicks Standings — full ranked table for this series
+              + season, browsable any time (not just right after it
+              ends). Empty state shown until at least one round here
+              has been scored. */}
+          <section className="mt-12">
+            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
+                  Racepicks Standings
+                </p>
+
+                <h2 className="mt-3 text-4xl font-black">
+                  {competitionName} Leaderboard
+                </h2>
+              </div>
+
+              {standingsLeader && (
+                <p className="text-sm text-zinc-500">
+                  {standings.length} player
+                  {standings.length === 1 ? "" : "s"} scored
+                </p>
+              )}
+            </div>
+
+            {standings.length === 0 ? (
+              <div className="mt-7 rounded-3xl border border-zinc-800 bg-zinc-950 p-10 text-center">
+                <h3 className="text-xl font-black uppercase">
+                  No Rounds Scored Yet
+                </h3>
+
+                <p className="mx-auto mt-3 max-w-xl leading-7 text-zinc-500">
+                  Standings for this competition will appear here once
+                  the first round has been published and scored.
+                </p>
+              </div>
+            ) : (
+              <>
+                {standingsLeader && (
+                  <div className="mt-7 rounded-3xl border border-orange-500/30 bg-orange-500/10 p-6 sm:p-8">
+                    <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
+                      <div className="flex items-center gap-5">
+                        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-orange-500 text-2xl font-black text-black">
+                          1
+                        </span>
+
+                        {standingsLeader.avatar_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={standingsLeader.avatar_url}
+                            alt={standingsLeader.display_name}
+                            className="h-14 w-14 rounded-2xl object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-orange-500/40 bg-black text-lg font-black text-orange-400">
+                            {getInitials(standingsLeader.display_name) ||
+                              "RP"}
+                          </div>
+                        )}
+
+                        <div>
+                          <p className="text-xs font-black uppercase tracking-widest text-orange-400">
+                            Leading This Series
+                          </p>
+
+                          <h3 className="mt-2 text-2xl font-black sm:text-3xl">
+                            {standingsLeader.display_name}
+                            {user &&
+                              user.id === standingsLeader.user_id && (
+                                <span className="ml-3 rounded-full bg-orange-500 px-3 py-1 align-middle text-xs font-black uppercase text-black">
+                                  You
+                                </span>
+                              )}
+                          </h3>
+                        </div>
+                      </div>
+
+                      <div className="sm:text-right">
+                        <p className="text-4xl font-black">
+                          {standingsLeader.series_points}
+                        </p>
+
+                        <p className="text-xs font-black uppercase tracking-widest text-orange-400">
+                          Points
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <section className="mt-5 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950">
+                  <div className="hidden grid-cols-[100px_1fr_130px_110px] border-b border-zinc-800 bg-zinc-900 px-6 py-4 text-xs font-black uppercase tracking-widest text-zinc-500 md:grid">
+                    <div>Position</div>
+                    <div>Player</div>
+                    <div className="text-right">Rounds</div>
+                    <div className="text-right">Points</div>
+                  </div>
+
+                  <div className="divide-y divide-zinc-800">
+                    {standings.map((standing, index) => {
+                      const position = index + 1;
+                      const isYou =
+                        user && user.id === standing.user_id;
+
+                      return (
+                        <article
+                          key={standing.user_id}
+                          className={`grid grid-cols-[52px_1fr_auto] items-center gap-3 px-4 py-5 sm:px-6 md:grid-cols-[100px_1fr_130px_110px] ${
+                            isYou ? "bg-orange-500/10" : ""
+                          }`}
+                        >
+                          <div>
+                            <span
+                              className={`flex h-10 w-10 items-center justify-center rounded-full font-black ${getStandingMedalStyle(
+                                position
+                              )}`}
+                            >
+                              {position}
+                            </span>
+                          </div>
+
+                          <div className="flex min-w-0 items-center gap-3">
+                            {standing.avatar_url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={standing.avatar_url}
+                                alt={standing.display_name}
+                                className="h-9 w-9 shrink-0 rounded-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-700 bg-black text-[11px] font-black text-zinc-400">
+                                {getInitials(standing.display_name) ||
+                                  "RP"}
+                              </div>
+                            )}
+
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="truncate font-black sm:text-lg">
+                                  {standing.display_name}
+                                </p>
+
+                                {isYou && (
+                                  <span className="rounded-full bg-orange-500 px-2 py-0.5 text-[10px] font-black uppercase text-black">
+                                    You
+                                  </span>
+                                )}
+                              </div>
+
+                              <p className="mt-0.5 text-xs text-zinc-500 md:hidden">
+                                {standing.rounds_scored} round
+                                {standing.rounds_scored === 1
+                                  ? ""
+                                  : "s"}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="hidden text-right text-sm font-bold text-zinc-500 md:block">
+                            {standing.rounds_scored}
+                          </div>
+
+                          <div className="text-right">
+                            <span className="text-xl font-black">
+                              {standing.series_points}
+                            </span>
+
+                            <span className="ml-1 text-[10px] font-black uppercase text-zinc-600">
+                              pts
+                            </span>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                </section>
+              </>
+            )}
+          </section>
+
           <section className="mt-12">
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
               <div>
@@ -590,22 +796,7 @@ export default async function CompetitionPage({
             </div>
           </section>
 
-          <section className="mt-12 grid gap-5 sm:grid-cols-3">
-            <div className="rounded-3xl border border-zinc-800 bg-zinc-950 p-7">
-              <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
-                Stage 2
-              </p>
-
-              <h3 className="mt-3 text-2xl font-black">
-                Racepicks Standings
-              </h3>
-
-              <p className="mt-3 leading-7 text-zinc-500">
-                Competition-specific player standings will appear
-                here once championship scoring is connected.
-              </p>
-            </div>
-
+          <section className="mt-12 grid gap-5 sm:grid-cols-2">
             <div className="rounded-3xl border border-zinc-800 bg-zinc-950 p-7">
               <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
                 Stage 2

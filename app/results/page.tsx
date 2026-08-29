@@ -1,6 +1,8 @@
 import Link from "next/link";
 import Navbar from "../components/Navbar";
 import { createClient } from "../lib/supabase/server";
+import SeriesChampionshipModal from "../components/SeriesChampionshipModal";
+import { isSeriesFinaleEvent, formatSeriesName } from "../lib/series-finale";
 
 type Event = {
   id: string;
@@ -53,6 +55,13 @@ type DisplayedRaceResult = {
   wildcard: boolean;
 };
 
+type SeriesTopPlayer = {
+  user_id: string;
+  display_name: string;
+  avatar_url: string | null;
+  series_points: number;
+};
+
 function ordinal(position: number) {
   const finalTwoDigits = position % 100;
 
@@ -87,24 +96,6 @@ function formatUpdatedDate(date: string) {
     minute: "2-digit",
     timeZone: "Australia/Brisbane",
   }).format(new Date(date));
-}
-
-function formatSeriesName(series: string) {
-  const normalised = series.trim().toLowerCase();
-
-  if (normalised === "motocross" || normalised === "mx") {
-    return "Pro Motocross";
-  }
-
-  if (normalised === "supercross" || normalised === "sx") {
-    return "Supercross";
-  }
-
-  if (normalised === "smx") {
-    return "SMX";
-  }
-
-  return series;
 }
 
 export default async function ResultsPage() {
@@ -299,6 +290,123 @@ export default async function ResultsPage() {
     }
   }
 
+  /*
+   * Series-finale detection: the just-completed event is treated as
+   * a series championship finale when no LATER round exists in the
+   * same series + season. This mirrors the exact same check the
+   * results-publish rollover uses to decide whether to open a next
+   * round — kept independent here (read-only) so this page's popup
+   * logic can never affect the rollover itself.
+   *
+   * IMPORTANT: this only powers a celebratory popup for that one
+   * series. It never touches the season-long overall Racepicks
+   * Championship leaderboard, which keeps accumulating across all
+   * three series until the final SMX round.
+   */
+  let isSeriesFinale = false;
+  let seriesTopThree: SeriesTopPlayer[] = [];
+
+  if (latestEvent) {
+    isSeriesFinale = await isSeriesFinaleEvent(
+      supabase,
+      latestEvent.series,
+      latestEvent.season,
+      latestEvent.round_number
+    );
+
+    if (isSeriesFinale) {
+      const { data: seriesEvents, error: seriesEventsError } =
+        await supabase
+          .from("events")
+          .select("id")
+          .eq("series", latestEvent.series)
+          .eq("season", latestEvent.season);
+
+      if (seriesEventsError) {
+        console.error(
+          "Series events loading error:",
+          seriesEventsError
+        );
+      }
+
+      const seriesEventIds = (seriesEvents ?? []).map(
+        (event) => event.id
+      );
+
+      if (seriesEventIds.length > 0) {
+        const { data: seriesScoreRows, error: seriesScoresError } =
+          await supabase
+            .from("scores")
+            .select("user_id, round_points")
+            .in("event_id", seriesEventIds);
+
+        if (seriesScoresError) {
+          console.error(
+            "Series scores loading error:",
+            seriesScoresError
+          );
+        }
+
+        const totalsByUserId = new Map<string, number>();
+
+        for (const row of seriesScoreRows ?? []) {
+          totalsByUserId.set(
+            row.user_id,
+            (totalsByUserId.get(row.user_id) ?? 0) +
+              (row.round_points ?? 0)
+          );
+        }
+
+        const sortedTotals = Array.from(totalsByUserId.entries())
+          .sort((first, second) => second[1] - first[1])
+          .slice(0, 3);
+
+        const topUserIds = sortedTotals.map(([userId]) => userId);
+
+        let profileById = new Map<
+          string,
+          { display_name: string; avatar_url: string | null }
+        >();
+
+        if (topUserIds.length > 0) {
+          // Public-safe profile lookup — same view used everywhere
+          // else another player's name/avatar needs to be shown.
+          const { data: topProfiles, error: topProfilesError } =
+            await supabase
+              .from("public_profiles")
+              .select("id, display_name, avatar_url")
+              .in("id", topUserIds);
+
+          if (topProfilesError) {
+            console.error(
+              "Series top-3 profile loading error:",
+              topProfilesError
+            );
+          }
+
+          profileById = new Map(
+            (topProfiles ?? []).map((profile) => [
+              profile.id,
+              {
+                display_name: profile.display_name,
+                avatar_url: profile.avatar_url,
+              },
+            ])
+          );
+        }
+
+        seriesTopThree = sortedTotals.map(([userId, points]) => ({
+          user_id: userId,
+          display_name:
+            profileById.get(userId)?.display_name ??
+            "Racepicks Player",
+          avatar_url: profileById.get(userId)?.avatar_url ?? null,
+          series_points: points,
+        }));
+      }
+    }
+  }
+
   const standingsLeader =
     championshipStandings.length > 0
       ? championshipStandings[0]
@@ -308,6 +416,15 @@ export default async function ResultsPage() {
     <main className="min-h-screen bg-black text-white">
       <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
         <Navbar />
+
+        {latestEvent && isSeriesFinale && (
+          <SeriesChampionshipModal
+            eventId={latestEvent.id}
+            seriesName={formatSeriesName(latestEvent.series)}
+            season={latestEvent.season}
+            topThree={seriesTopThree}
+          />
+        )}
 
         <section className="mt-12 sm:mt-16">
           <p className="text-xs font-black uppercase tracking-[0.35em] text-orange-500">

@@ -2,6 +2,7 @@ import Link from "next/link";
 import Countdown from "./components/Countdown";
 import Navbar from "./components/Navbar";
 import { createClient } from "./lib/supabase/server";
+import { isSeriesFinaleEvent, formatSeriesName } from "./lib/series-finale";
 
 type HomeEvent = {
   id: string;
@@ -179,6 +180,56 @@ export default async function Home() {
     );
   }
 
+  /*
+   * A round only becomes "ready to feature" once it genuinely has a
+   * wildcard position set — that only happens via the results-publish
+   * rollover, or a deliberate admin action when crossing into a new
+   * series (like MX finishing and SMX opening). Until then, showing a
+   * live countdown or "Enter Picks" against placeholder data would be
+   * actively misleading, so this renders a distinct "not open yet"
+   * hero instead of the normal one.
+   */
+  const eventIsReady = typeof currentEvent.wildcard_position === "number";
+
+  /*
+   * If the featured event isn't ready yet, check whether the PREVIOUS
+   * series (the one that just wrapped) was a finale — lets the "not
+   * ready" hero reference what just happened ("The Pro Motocross
+   * Championship is complete") rather than showing a blank gap.
+   */
+  let justCompletedSeriesLabel: string | null = null;
+
+  if (!eventIsReady) {
+    const { data: mostRecentCompleted, error: mostRecentCompletedError } =
+      await supabase
+        .from("events")
+        .select("series, season, round_number")
+        .eq("status", "completed")
+        .order("race_date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (mostRecentCompletedError) {
+      console.error(
+        "Homepage: error loading most recent completed event:",
+        mostRecentCompletedError
+      );
+    } else if (mostRecentCompleted) {
+      const wasFinale = await isSeriesFinaleEvent(
+        supabase,
+        mostRecentCompleted.series,
+        mostRecentCompleted.season,
+        mostRecentCompleted.round_number
+      );
+
+      if (wasFinale) {
+        justCompletedSeriesLabel = formatSeriesName(
+          mostRecentCompleted.series
+        );
+      }
+    }
+  }
+
   const activeSeason = currentEvent.season;
 
   /*
@@ -267,6 +318,178 @@ export default async function Home() {
 
   const backgroundImage = getEventBackground();
   const picksAreOpen = currentEvent.status === "open";
+
+  /*
+   * "Not ready yet" hero — same background/frame as the normal hero,
+   * but no countdown, no wildcard box, and no "Enter Picks" button,
+   * since none of that data is real yet.
+   */
+  if (!eventIsReady) {
+    return (
+      <main className="min-h-screen bg-black text-white">
+        <section
+          className="relative min-h-screen overflow-hidden bg-cover bg-center"
+          style={{
+            backgroundImage: `url(${backgroundImage})`,
+          }}
+        >
+          <div className="absolute inset-0 bg-black/70" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/35 to-black" />
+
+          <div className="relative z-10 mx-auto flex min-h-screen max-w-7xl flex-col px-4 py-6 sm:px-6 sm:py-8">
+            <Navbar />
+
+            <div className="flex flex-1 flex-col items-center justify-center py-14 text-center sm:py-16">
+              {justCompletedSeriesLabel && (
+                <p className="mb-3 text-sm font-black uppercase tracking-[0.35em] text-green-400">
+                  {justCompletedSeriesLabel} Championship Complete 🏁
+                </p>
+              )}
+
+              <p className="mb-3 text-sm font-black uppercase tracking-[0.4em] text-orange-500">
+                Up Next
+              </p>
+
+              <p className="mb-5 text-sm font-bold uppercase tracking-[0.25em] text-zinc-300">
+                {getSeriesLabel(currentEvent)}
+              </p>
+
+              <h1 className="max-w-5xl text-6xl font-black uppercase leading-none tracking-tight sm:text-7xl md:text-8xl">
+                {currentEvent.venue}
+              </h1>
+
+              <p className="mt-6 text-lg font-medium text-zinc-300 md:text-2xl">
+                Round {currentEvent.round_number}
+                {currentEvent.location
+                  ? ` • ${currentEvent.location}`
+                  : ""}
+              </p>
+
+              <div className="mt-10 w-full max-w-2xl rounded-3xl border border-white/15 bg-black/55 px-6 py-8 backdrop-blur-lg sm:px-10">
+                <p className="text-sm font-black uppercase tracking-[0.3em] text-orange-500">
+                  Picks Aren&apos;t Open Yet
+                </p>
+
+                <p className="mt-4 text-lg leading-8 text-zinc-300">
+                  The entry list and wildcard for this round are still
+                  being finalised. Check back soon — picks will open
+                  here as soon as they&apos;re ready.
+                </p>
+              </div>
+
+              {/*
+                Countdown to the RACE DATE, not picks_close_at — that
+                field isn't meaningful yet for a round that hasn't been
+                set up. This is purely informational guidance for when
+                to check back; it never opens picks on its own, and
+                reaching zero does not imply picks have opened.
+              */}
+              <div className="mt-6 w-full max-w-2xl rounded-3xl border border-white/15 bg-black/40 px-5 py-7 backdrop-blur-lg sm:px-6 sm:py-8">
+                <p className="mb-6 text-sm font-black uppercase tracking-[0.4em] text-zinc-400">
+                  Round Opens Around
+                </p>
+
+                <Countdown targetDate={currentEvent.race_date} />
+
+                <p className="mt-5 text-xs font-bold uppercase tracking-widest text-zinc-600">
+                  Exact picks-open time will be confirmed closer to the
+                  date
+                </p>
+              </div>
+
+              <div className="mt-8 flex w-full max-w-sm flex-col gap-4 sm:max-w-none sm:flex-row sm:justify-center">
+                <Link
+                  href="/results"
+                  className="rounded-full bg-orange-500 px-10 py-4 text-center text-lg font-black text-black transition hover:scale-105 hover:bg-orange-400"
+                >
+                  View Latest Results
+                </Link>
+
+                <Link
+                  href="/leaderboard"
+                  className="rounded-full border border-white/25 bg-black/30 px-10 py-4 text-center text-lg font-black text-white backdrop-blur transition hover:scale-105 hover:bg-white/10"
+                >
+                  View Leaderboard
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-7xl px-6 py-20">
+          <div className="text-center">
+            <p className="text-sm font-black uppercase tracking-[0.35em] text-orange-500">
+              {activeSeason} Championship Series
+            </p>
+
+            <h2 className="mt-4 text-4xl font-black tracking-tight md:text-6xl">
+              Choose a Competition
+            </h2>
+
+            <p className="mx-auto mt-4 max-w-2xl text-lg text-zinc-400">
+              Follow the current event from the homepage or browse each
+              championship separately.
+            </p>
+          </div>
+
+          <div
+            className={`mt-12 grid gap-6 ${
+              seasonCompetitions.length === 2
+                ? "mx-auto max-w-4xl md:grid-cols-2"
+                : "lg:grid-cols-3"
+            }`}
+          >
+            {seasonCompetitions.map((competition) => (
+              <div
+                key={competition.slug}
+                className="flex flex-col rounded-3xl border border-zinc-800 bg-zinc-950 p-8 transition hover:-translate-y-1 hover:border-orange-500/50"
+              >
+                <p className="text-sm font-black uppercase tracking-[0.25em] text-orange-500">
+                  {competition.season}
+                </p>
+
+                <h3 className="mt-4 text-3xl font-black">
+                  {competition.title}
+                </h3>
+
+                <p className="mt-4 flex-1 leading-7 text-zinc-400">
+                  {competition.description}
+                </p>
+
+                <div className="mt-6 flex items-center justify-between border-t border-zinc-800 pt-6">
+                  <span className="font-bold text-zinc-300">
+                    {competition.roundCount}{" "}
+                    {competition.roundCount === 1
+                      ? "Round"
+                      : "Rounds"}
+                  </span>
+
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider ${
+                      competition.status === "Live"
+                        ? "bg-green-500/10 text-green-400"
+                        : competition.status === "Completed"
+                          ? "bg-blue-500/10 text-blue-400"
+                          : "bg-zinc-900 text-zinc-400"
+                    }`}
+                  >
+                    {competition.status}
+                  </span>
+                </div>
+
+                <Link
+                  href={`/competitions/${competition.slug}`}
+                  className="mt-8 rounded-full border border-zinc-700 px-6 py-3 text-center font-black transition hover:border-orange-500 hover:bg-orange-500 hover:text-black"
+                >
+                  View Competition
+                </Link>
+              </div>
+            ))}
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-black text-white">
