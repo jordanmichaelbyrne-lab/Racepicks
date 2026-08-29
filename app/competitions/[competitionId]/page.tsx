@@ -251,14 +251,7 @@ export default async function CompetitionPage({
 
   const seasonProgress =
     events.length > 0
-      ? Math.min(
-          100,
-          Math.round(
-            (Math.max(completedRounds, activeRoundNumber - 1) /
-              events.length) *
-              100
-          )
-        )
+      ? Math.min(100, Math.round((completedRounds / events.length) * 100))
       : 0;
 
   const currentStatus = liveEvent
@@ -273,6 +266,145 @@ export default async function CompetitionPage({
   // not only right when the series wraps.
   const standings = await getSeriesStandings(supabase, series, season);
   const standingsLeader = standings.length > 0 ? standings[0] : null;
+
+  // "Championship Stats" — total players, average round score, and
+  // the most-picked riders, all scoped to just this competition's own
+  // events. Reuses the already-loaded `events` list, so this stays
+  // correctly scoped for any series/season without extra queries to
+  // work out which rounds belong here.
+  const eventIds = events.map((event) => event.id);
+
+  let totalPlayersParticipated = 0;
+  let totalPicksSubmitted = 0;
+  let averageRoundScore = 0;
+  let mostPickedRiders: {
+    riderId: string;
+    fullName: string;
+    raceNumber: number | null;
+    pickCount: number;
+  }[] = [];
+
+  if (eventIds.length > 0) {
+    const { data: seriesPicksData, error: seriesPicksError } =
+      await supabase
+        .from("picks")
+        .select(
+          "user_id, first_rider_id, second_rider_id, third_rider_id, wildcard_rider_id"
+        )
+        .in("event_id", eventIds);
+
+    if (seriesPicksError) {
+      console.error(
+        "Championship stats: error loading picks:",
+        seriesPicksError
+      );
+    }
+
+    const picks = seriesPicksData ?? [];
+    totalPicksSubmitted = picks.length;
+    totalPlayersParticipated = new Set(
+      picks.map((pick) => pick.user_id)
+    ).size;
+
+    const riderPickCounts = new Map<string, number>();
+
+    for (const pick of picks) {
+      for (const riderId of [
+        pick.first_rider_id,
+        pick.second_rider_id,
+        pick.third_rider_id,
+        pick.wildcard_rider_id,
+      ]) {
+        if (!riderId) continue;
+        riderPickCounts.set(
+          riderId,
+          (riderPickCounts.get(riderId) ?? 0) + 1
+        );
+      }
+    }
+
+    const topRiderIds = Array.from(riderPickCounts.entries())
+      .sort((first, second) => second[1] - first[1])
+      .slice(0, 3)
+      .map(([riderId]) => riderId);
+
+    if (topRiderIds.length > 0) {
+      const { data: riderNameRows, error: riderNameError } =
+        await supabase
+          .from("riders")
+          .select("id, full_name, race_number")
+          .in("id", topRiderIds);
+
+      if (riderNameError) {
+        console.error(
+          "Championship stats: error loading rider names:",
+          riderNameError
+        );
+      }
+
+      const riderById = new Map(
+        (riderNameRows ?? []).map((rider) => [rider.id, rider])
+      );
+
+      mostPickedRiders = topRiderIds.map((riderId) => ({
+        riderId,
+        fullName:
+          riderById.get(riderId)?.full_name ?? "Unknown rider",
+        raceNumber: riderById.get(riderId)?.race_number ?? null,
+        pickCount: riderPickCounts.get(riderId) ?? 0,
+      }));
+    }
+
+    const { data: seriesScoresData, error: seriesScoresError } =
+      await supabase
+        .from("scores")
+        .select("round_points")
+        .in("event_id", eventIds);
+
+    if (seriesScoresError) {
+      console.error(
+        "Championship stats: error loading scores:",
+        seriesScoresError
+      );
+    }
+
+    const scoreRows = seriesScoresData ?? [];
+
+    averageRoundScore =
+      scoreRows.length > 0
+        ? Math.round(
+            scoreRows.reduce(
+              (sum, row) => sum + (row.round_points ?? 0),
+              0
+            ) / scoreRows.length
+          )
+        : 0;
+  }
+
+  // "Official Standings" — the real-world riders' championship, for
+  // this exact season + series. This is the same championship_standings
+  // table your Racer X importer already writes to on /admin/standings —
+  // scoping by this page's own season/series (rather than "whatever
+  // was imported most recently", which is what /results does) means
+  // this always shows the right series' standings even after a newer
+  // import has happened for a different series since.
+  const { data: officialStandingsData, error: officialStandingsError } =
+    await supabase
+      .from("championship_standings")
+      .select("id, position, rider_name, race_number, manufacturer, points")
+      .eq("season", season)
+      .eq("series", series)
+      .eq("class_name", "450")
+      .order("position", { ascending: true });
+
+  if (officialStandingsError) {
+    console.error(
+      "Official standings loading error:",
+      officialStandingsError
+    );
+  }
+
+  const officialStandings = officialStandingsData ?? [];
 
   return (
     <main className="min-h-screen bg-black text-white">
@@ -369,11 +501,7 @@ export default async function CompetitionPage({
                     </p>
 
                     <p className="text-sm font-black text-zinc-300">
-                      {Math.max(
-                        completedRounds,
-                        activeRoundNumber - 1
-                      )}{" "}
-                      / {events.length} rounds
+                      {completedRounds} / {events.length} rounds
                     </p>
                   </div>
 
@@ -390,123 +518,218 @@ export default async function CompetitionPage({
             </div>
           </div>
 
-          <section className="mt-8 grid gap-5 lg:grid-cols-2">
-            <div className="rounded-3xl border border-orange-500/30 bg-orange-500/5 p-7 sm:p-8">
-              <div className="flex items-start justify-between gap-5">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
-                    {liveEvent
-                      ? "Current Event"
-                      : "Next Event"}
-                  </p>
+          {series === "SMX" ? (
+            /* SMX Playoffs is only ever 3 rounds — short enough that
+               "Next" + "Coming Up" would leave the Final off-screen
+               entirely. Show every round as its own tile instead. */
+            <section className="mt-8 grid gap-5 lg:grid-cols-3">
+              {events.map((event) => {
+                const isNext = event.id === nextEvent.id;
+                const status = getStatusDetails(event.status);
+                const multiplier = Number(event.points_multiplier ?? 1);
 
-                  <h2 className="mt-3 text-4xl font-black uppercase">
-                    {nextEvent.venue}
-                  </h2>
-
-                  <p className="mt-3 text-zinc-400">
-                    Round {nextEvent.round_number}
-                    {nextEvent.location
-                      ? ` • ${nextEvent.location}`
-                      : ""}
-                  </p>
-                </div>
-
-                <span
-                  className={`shrink-0 rounded-full border px-3 py-1 text-xs font-black uppercase ${
-                    getStatusDetails(nextEvent.status).classes
-                  }`}
-                >
-                  {getStatusDetails(nextEvent.status).label}
-                </span>
-              </div>
-
-              <div className="mt-7 grid gap-4 sm:grid-cols-2">
-                <div className="rounded-2xl border border-zinc-800 bg-black/70 p-5">
-                  <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
-                    Race Date
-                  </p>
-
-                  <p className="mt-2 text-xl font-black">
-                    {formatDate(nextEvent.race_date)}
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-zinc-800 bg-black/70 p-5">
-                  <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
-                    Wildcard
-                  </p>
-
-                  <p className="mt-2 text-xl font-black">
-                    {typeof nextEvent.wildcard_position ===
-                    "number"
-                      ? ordinal(nextEvent.wildcard_position)
-                      : "Pending"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                {nextEvent.status === "open" && (
-                  <Link
-                    href="/picks"
-                    className="rounded-full bg-orange-500 px-7 py-3 text-center font-black text-black transition hover:bg-orange-400"
+                return (
+                  <div
+                    key={event.id}
+                    className={`rounded-3xl border p-7 ${
+                      isNext
+                        ? "border-orange-500/30 bg-orange-500/5"
+                        : "border-zinc-800 bg-zinc-950"
+                    }`}
                   >
-                    Enter Picks
-                  </Link>
-                )}
+                    <div className="flex items-start justify-between gap-3">
+                      <p
+                        className={`text-xs font-black uppercase tracking-[0.3em] ${
+                          isNext ? "text-orange-500" : "text-zinc-500"
+                        }`}
+                      >
+                        Round {event.round_number}
+                        {multiplier > 1 ? ` · ${multiplier}× Points` : ""}
+                      </p>
 
-                <Link
-                  href="/results"
-                  className="rounded-full border border-zinc-700 px-7 py-3 text-center font-black transition hover:border-orange-500 hover:bg-orange-500 hover:text-black"
-                >
-                  View Race Results
-                </Link>
-              </div>
-            </div>
+                      <span
+                        className={`shrink-0 rounded-full border px-3 py-1 text-[10px] font-black uppercase ${status.classes}`}
+                      >
+                        {status.label}
+                      </span>
+                    </div>
 
-            <div className="rounded-3xl border border-zinc-800 bg-zinc-950 p-7 sm:p-8">
-              <p className="text-xs font-black uppercase tracking-[0.3em] text-zinc-500">
-                Coming Up
-              </p>
+                    <h2 className="mt-3 text-2xl font-black uppercase leading-tight sm:text-3xl">
+                      {event.venue}
+                    </h2>
 
-              {nextAfterCurrent ? (
-                <>
-                  <h2 className="mt-3 text-4xl font-black uppercase">
-                    {nextAfterCurrent.venue}
-                  </h2>
+                    {event.location && (
+                      <p className="mt-2 text-sm text-zinc-400">
+                        {event.location}
+                      </p>
+                    )}
 
-                  <p className="mt-3 text-zinc-400">
-                    Round {nextAfterCurrent.round_number}
-                    {nextAfterCurrent.location
-                      ? ` • ${nextAfterCurrent.location}`
-                      : ""}
-                  </p>
+                    <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-2xl border border-zinc-800 bg-black/70 p-4">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                          Race Date
+                        </p>
 
-                  <div className="mt-7 rounded-2xl border border-zinc-800 bg-black p-5">
+                        <p className="mt-1 text-sm font-black">
+                          {formatDate(event.race_date)}
+                        </p>
+                      </div>
+
+                      <div className="rounded-2xl border border-zinc-800 bg-black/70 p-4">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                          Wildcard
+                        </p>
+
+                        <p className="mt-1 text-sm font-black">
+                          {typeof event.wildcard_position === "number"
+                            ? ordinal(event.wildcard_position)
+                            : "Pending"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                      {event.status === "open" && (
+                        <Link
+                          href="/picks"
+                          className="rounded-full bg-orange-500 px-6 py-2.5 text-center text-sm font-black text-black transition hover:bg-orange-400"
+                        >
+                          Enter Picks
+                        </Link>
+                      )}
+
+                      {isCompletedStatus(event.status) && (
+                        <Link
+                          href="/results"
+                          className="rounded-full border border-zinc-700 px-6 py-2.5 text-center text-sm font-black transition hover:border-orange-500 hover:bg-orange-500 hover:text-black"
+                        >
+                          View Results
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </section>
+          ) : (
+            <section className="mt-8 grid gap-5 lg:grid-cols-2">
+              <div className="rounded-3xl border border-orange-500/30 bg-orange-500/5 p-7 sm:p-8">
+                <div className="flex items-start justify-between gap-5">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
+                      {liveEvent
+                        ? "Current Event"
+                        : "Next Event"}
+                    </p>
+
+                    <h2 className="mt-3 text-4xl font-black uppercase">
+                      {nextEvent.venue}
+                    </h2>
+
+                    <p className="mt-3 text-zinc-400">
+                      Round {nextEvent.round_number}
+                      {nextEvent.location
+                        ? ` • ${nextEvent.location}`
+                        : ""}
+                    </p>
+                  </div>
+
+                  <span
+                    className={`shrink-0 rounded-full border px-3 py-1 text-xs font-black uppercase ${
+                      getStatusDetails(nextEvent.status).classes
+                    }`}
+                  >
+                    {getStatusDetails(nextEvent.status).label}
+                  </span>
+                </div>
+
+                <div className="mt-7 grid gap-4 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-zinc-800 bg-black/70 p-5">
                     <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
                       Race Date
                     </p>
 
                     <p className="mt-2 text-xl font-black">
-                      {formatDate(nextAfterCurrent.race_date)}
+                      {formatDate(nextEvent.race_date)}
                     </p>
                   </div>
-                </>
-              ) : (
-                <div className="flex min-h-56 flex-col justify-center text-center">
-                  <h2 className="text-3xl font-black">
-                    Final Round
-                  </h2>
 
-                  <p className="mt-3 text-zinc-400">
-                    There are no later events currently loaded for
-                    this championship.
-                  </p>
+                  <div className="rounded-2xl border border-zinc-800 bg-black/70 p-5">
+                    <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
+                      Wildcard
+                    </p>
+
+                    <p className="mt-2 text-xl font-black">
+                      {typeof nextEvent.wildcard_position ===
+                      "number"
+                        ? ordinal(nextEvent.wildcard_position)
+                        : "Pending"}
+                    </p>
+                  </div>
                 </div>
-              )}
-            </div>
-          </section>
+
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                  {nextEvent.status === "open" && (
+                    <Link
+                      href="/picks"
+                      className="rounded-full bg-orange-500 px-7 py-3 text-center font-black text-black transition hover:bg-orange-400"
+                    >
+                      Enter Picks
+                    </Link>
+                  )}
+
+                  <Link
+                    href="/results"
+                    className="rounded-full border border-zinc-700 px-7 py-3 text-center font-black transition hover:border-orange-500 hover:bg-orange-500 hover:text-black"
+                  >
+                    View Race Results
+                  </Link>
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-zinc-800 bg-zinc-950 p-7 sm:p-8">
+                <p className="text-xs font-black uppercase tracking-[0.3em] text-zinc-500">
+                  Coming Up
+                </p>
+
+                {nextAfterCurrent ? (
+                  <>
+                    <h2 className="mt-3 text-4xl font-black uppercase">
+                      {nextAfterCurrent.venue}
+                    </h2>
+
+                    <p className="mt-3 text-zinc-400">
+                      Round {nextAfterCurrent.round_number}
+                      {nextAfterCurrent.location
+                        ? ` • ${nextAfterCurrent.location}`
+                        : ""}
+                    </p>
+
+                    <div className="mt-7 rounded-2xl border border-zinc-800 bg-black p-5">
+                      <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
+                        Race Date
+                      </p>
+
+                      <p className="mt-2 text-xl font-black">
+                        {formatDate(nextAfterCurrent.race_date)}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex min-h-56 flex-col justify-center text-center">
+                    <h2 className="text-3xl font-black">
+                      Final Round
+                    </h2>
+
+                    <p className="mt-3 text-zinc-400">
+                      There are no later events currently loaded for
+                      this championship.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
 
           {/* Racepicks Standings — full ranked table for this series
               + season, browsable any time (not just right after it
@@ -796,35 +1019,145 @@ export default async function CompetitionPage({
             </div>
           </section>
 
-          <section className="mt-12 grid gap-5 sm:grid-cols-2">
+          <section className="mt-12 grid gap-5 lg:grid-cols-2">
             <div className="rounded-3xl border border-zinc-800 bg-zinc-950 p-7">
               <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
-                Stage 2
+                Player Insights
               </p>
 
               <h3 className="mt-3 text-2xl font-black">
                 Championship Stats
               </h3>
 
-              <p className="mt-3 leading-7 text-zinc-500">
-                Player totals, average scores and popular rider picks
-                will be added here.
-              </p>
+              {totalPicksSubmitted === 0 ? (
+                <p className="mt-4 leading-7 text-zinc-500">
+                  Stats for this competition will appear here once
+                  players start submitting picks.
+                </p>
+              ) : (
+                <>
+                  <div className="mt-5 grid grid-cols-2 gap-3">
+                    <div className="rounded-2xl border border-zinc-800 bg-black p-4">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                        Players
+                      </p>
+                      <p className="mt-1 text-2xl font-black">
+                        {totalPlayersParticipated}
+                      </p>
+                    </div>
+
+                    <div className="rounded-2xl border border-zinc-800 bg-black p-4">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                        Picks Submitted
+                      </p>
+                      <p className="mt-1 text-2xl font-black">
+                        {totalPicksSubmitted}
+                      </p>
+                    </div>
+
+                    <div className="col-span-2 rounded-2xl border border-zinc-800 bg-black p-4">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                        Average Round Score
+                      </p>
+                      <p className="mt-1 text-2xl font-black text-orange-500">
+                        {averageRoundScore}
+                        <span className="ml-1 text-xs font-bold uppercase text-zinc-600">
+                          pts
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+
+                  {mostPickedRiders.length > 0 && (
+                    <div className="mt-5">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                        Most Picked Riders
+                      </p>
+
+                      <div className="mt-3 space-y-2">
+                        {mostPickedRiders.map((rider) => (
+                          <div
+                            key={rider.riderId}
+                            className="flex items-center justify-between rounded-xl border border-zinc-800 bg-black px-4 py-3"
+                          >
+                            <p className="min-w-0 truncate text-sm font-bold">
+                              #{rider.raceNumber ?? "—"}{" "}
+                              {rider.fullName}
+                            </p>
+
+                            <p className="shrink-0 text-sm font-black text-orange-500">
+                              {rider.pickCount}×
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
 
             <div className="rounded-3xl border border-zinc-800 bg-zinc-950 p-7">
               <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
-                Stage 3
+                Official Championship
               </p>
 
               <h3 className="mt-3 text-2xl font-black">
                 Official Standings
               </h3>
 
-              <p className="mt-3 leading-7 text-zinc-500">
-                Official rider championship standings will be
-                connected later.
-              </p>
+              {officialStandings.length === 0 ? (
+                <p className="mt-4 leading-7 text-zinc-500">
+                  Official rider championship standings haven&apos;t
+                  been imported for this competition yet.
+                </p>
+              ) : (
+                <div className="mt-5 space-y-2">
+                  {officialStandings.map((standing) => (
+                    <div
+                      key={standing.id}
+                      className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-black px-4 py-3"
+                    >
+                      <span
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black ${
+                          standing.position === 1
+                            ? "bg-orange-500 text-black"
+                            : "bg-zinc-900 text-zinc-400"
+                        }`}
+                      >
+                        {standing.position}
+                      </span>
+
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-bold">
+                          {standing.rider_name}
+                        </p>
+
+                        {(standing.race_number ||
+                          standing.manufacturer) && (
+                          <p className="truncate text-xs text-zinc-600">
+                            {standing.race_number
+                              ? `#${standing.race_number}`
+                              : ""}
+                            {standing.race_number &&
+                            standing.manufacturer
+                              ? " • "
+                              : ""}
+                            {standing.manufacturer ?? ""}
+                          </p>
+                        )}
+                      </div>
+
+                      <p className="shrink-0 text-sm font-black">
+                        {standing.points}
+                        <span className="ml-1 text-[10px] font-bold uppercase text-zinc-600">
+                          pts
+                        </span>
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </section>
         </section>
