@@ -29,6 +29,54 @@ async function requireAdmin() {
   return supabase;
 }
 
+function buildErrorRedirect(
+  message: string,
+  extra?: { conflictRiderId?: string; conflictRiderName?: string }
+): never {
+  const params = new URLSearchParams({ error: message });
+
+  if (extra?.conflictRiderId) {
+    params.set("conflictRiderId", extra.conflictRiderId);
+  }
+
+  if (extra?.conflictRiderName) {
+    params.set("conflictRiderName", extra.conflictRiderName);
+  }
+
+  redirect(`/admin/riders?${params.toString()}`);
+}
+
+// Race numbers only need to be unique among ACTIVE riders within the
+// same class. A disabled rider (e.g. lost their licence, didn't renew)
+// frees their number up automatically — no separate "release number"
+// step needed, disabling them is enough.
+async function findActiveNumberClash(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  raceNumber: number,
+  className: string,
+  excludeRiderId?: string
+) {
+  let query = supabase
+    .from("riders")
+    .select("id, full_name")
+    .eq("race_number", raceNumber)
+    .eq("class_name", className)
+    .eq("is_active", true);
+
+  if (excludeRiderId) {
+    query = query.neq("id", excludeRiderId);
+  }
+
+  const { data, error } = await query.maybeSingle();
+
+  if (error) {
+    console.error("Race number clash check error:", error);
+    return null;
+  }
+
+  return data;
+}
+
 export async function addRider(formData: FormData) {
   const supabase = await requireAdmin();
 
@@ -42,20 +90,29 @@ export async function addRider(formData: FormData) {
   const imageUrl = String(formData.get("image_url") ?? "").trim();
 
   if (!fullName) {
-    throw new Error("Rider name is required.");
+    buildErrorRedirect("Rider name is required.");
   }
 
   const raceNumber =
     raceNumberValue === "" ? null : Number.parseInt(raceNumberValue, 10);
 
   if (
-  raceNumberValue !== "" &&
-  (raceNumber === null ||
-    !Number.isInteger(raceNumber) ||
-    raceNumber < 0)
-) {
-  throw new Error("Race number must be a valid number.");
-}
+    raceNumberValue !== "" &&
+    (raceNumber === null || !Number.isInteger(raceNumber) || raceNumber < 0)
+  ) {
+    buildErrorRedirect("Race number must be a valid number.");
+  }
+
+  if (raceNumber !== null) {
+    const clash = await findActiveNumberClash(supabase, raceNumber, className);
+
+    if (clash) {
+      buildErrorRedirect(
+        `#${raceNumber} (${className}) is already in use by an active rider: ${clash.full_name}. Disable or renumber them first, then try again.`,
+        { conflictRiderId: clash.id, conflictRiderName: clash.full_name }
+      );
+    }
+  }
 
   const { error } = await supabase.from("riders").insert({
     full_name: fullName,
@@ -71,11 +128,13 @@ export async function addRider(formData: FormData) {
 
   if (error) {
     console.error("Add rider error:", error);
-    throw new Error(error.message);
+    buildErrorRedirect(error.message);
   }
 
   revalidatePath("/admin/riders");
   revalidatePath("/picks");
+
+  redirect(`/admin/riders?added=${encodeURIComponent(fullName)}`);
 }
 
 export async function toggleRiderStatus(formData: FormData) {
@@ -104,6 +163,7 @@ export async function toggleRiderStatus(formData: FormData) {
   revalidatePath("/admin/riders");
   revalidatePath("/picks");
 }
+
 export async function updateRider(formData: FormData) {
   const supabase = await requireAdmin();
 
@@ -122,20 +182,34 @@ export async function updateRider(formData: FormData) {
   }
 
   if (!fullName) {
-    throw new Error("Rider name is required.");
+    buildErrorRedirect("Rider name is required.");
   }
 
   const raceNumber =
     raceNumberValue === "" ? null : Number.parseInt(raceNumberValue, 10);
 
   if (
-  raceNumberValue !== "" &&
-  (raceNumber === null ||
-    !Number.isInteger(raceNumber) ||
-    raceNumber < 0)
-) {
-  throw new Error("Race number must be a valid number.");
-}
+    raceNumberValue !== "" &&
+    (raceNumber === null || !Number.isInteger(raceNumber) || raceNumber < 0)
+  ) {
+    buildErrorRedirect("Race number must be a valid number.");
+  }
+
+  if (raceNumber !== null) {
+    const clash = await findActiveNumberClash(
+      supabase,
+      raceNumber,
+      className,
+      riderId
+    );
+
+    if (clash) {
+      buildErrorRedirect(
+        `#${raceNumber} (${className}) is already in use by an active rider: ${clash.full_name}. Disable or renumber them first, then try again.`,
+        { conflictRiderId: clash.id, conflictRiderName: clash.full_name }
+      );
+    }
+  }
 
   const { error } = await supabase
     .from("riders")
@@ -154,12 +228,12 @@ export async function updateRider(formData: FormData) {
 
   if (error) {
     console.error("Update rider error:", error);
-    throw new Error(error.message);
+    buildErrorRedirect(error.message);
   }
 
   revalidatePath("/admin/riders");
   revalidatePath(`/admin/riders/${riderId}`);
   revalidatePath("/picks");
 
-  redirect("/admin/riders");
+  redirect(`/admin/riders?updated=${encodeURIComponent(fullName)}`);
 }

@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
-import { addRider, toggleRiderStatus } from "./actions";
+import AdminSubmitButton from "../components/AdminSubmitButton";
+import RiderList from "./RiderList";
+import { addRider } from "./actions";
 
 type Rider = {
   id: string;
@@ -16,7 +18,18 @@ type Rider = {
   is_active: boolean;
 };
 
-export default async function AdminRidersPage() {
+type PageProps = {
+  searchParams: Promise<{
+    added?: string;
+    updated?: string;
+    error?: string;
+    conflictRiderId?: string;
+    conflictRiderName?: string;
+  }>;
+};
+
+export default async function AdminRidersPage({ searchParams }: PageProps) {
+  const params = await searchParams;
   const supabase = await createClient();
 
   const {
@@ -86,6 +99,33 @@ export default async function AdminRidersPage() {
             Add riders and control who is available for RacePicks.
           </p>
         </header>
+
+        {params.added && (
+          <div className="mt-8 rounded-xl border border-green-900 bg-green-950/40 px-5 py-4 text-sm font-semibold text-green-400">
+            {decodeURIComponent(params.added)} was added successfully.
+          </div>
+        )}
+
+        {params.updated && (
+          <div className="mt-8 rounded-xl border border-green-900 bg-green-950/40 px-5 py-4 text-sm font-semibold text-green-400">
+            {decodeURIComponent(params.updated)} was updated successfully.
+          </div>
+        )}
+
+        {params.error && (
+          <div className="mt-8 rounded-xl border border-red-900 bg-red-950/40 px-5 py-4 text-sm font-semibold text-red-400">
+            <p>{decodeURIComponent(params.error)}</p>
+
+            {params.conflictRiderId && params.conflictRiderName && (
+              <Link
+                href={`/admin/riders/${params.conflictRiderId}`}
+                className="mt-3 inline-block rounded-lg border border-red-500/40 px-4 py-2 text-xs font-bold uppercase text-red-300 transition hover:bg-red-500/10"
+              >
+                Edit {decodeURIComponent(params.conflictRiderName)} →
+              </Link>
+            )}
+          </div>
+        )}
 
         <div className="mt-8 grid gap-4 sm:grid-cols-3">
           <div className="rounded-2xl border border-neutral-800 bg-neutral-950 p-5">
@@ -268,12 +308,12 @@ export default async function AdminRidersPage() {
                 />
               </div>
 
-              <button
-                type="submit"
+              <AdminSubmitButton
+                pendingText="Saving Rider…"
                 className="w-full rounded-xl bg-orange-500 px-5 py-3 font-black uppercase text-black transition hover:bg-orange-400"
               >
                 Save Rider
-              </button>
+              </AdminSubmitButton>
             </form>
           </section>
 
@@ -291,92 +331,10 @@ export default async function AdminRidersPage() {
                 <p className="mt-2 text-sm text-neutral-400">
                   Add the first rider using the form.
                 </p>
-              </div>) : (
-  <div className="space-y-3">
-    {riders.map((rider) => (
-      <article
-        key={rider.id}
-        className={`flex flex-col gap-5 rounded-2xl border p-5 sm:flex-row sm:items-center sm:justify-between ${
-          rider.is_active
-            ? "border-neutral-800 bg-neutral-950"
-            : "border-neutral-900 bg-neutral-950/50 opacity-60"
-        }`}
-      >
-        <div className="flex items-center gap-4">
-          {rider.image_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={rider.image_url}
-              alt={rider.full_name}
-              className="h-16 w-16 rounded-xl object-cover"
-            />
-          ) : (
-            <div className="flex h-16 min-w-16 items-center justify-center rounded-xl bg-orange-500 px-3 text-xl font-black text-black">
-              #{rider.race_number ?? "—"}
-            </div>
-          )}
-
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-lg font-black">{rider.full_name}</h3>
-
-              <span className="rounded-full bg-neutral-800 px-2 py-1 text-[10px] font-bold uppercase text-neutral-400">
-                {rider.class_name}
-              </span>
-            </div>
-
-            <p className="mt-1 text-sm text-neutral-400">
-              {rider.manufacturer || "Unknown manufacturer"}
-              {rider.team_name ? ` · ${rider.team_name}` : ""}
-            </p>
-
-            {rider.nationality && (
-              <p className="mt-1 text-xs text-neutral-600">
-                {rider.nationality}
-              </p>
+              </div>
+            ) : (
+              <RiderList riders={riders} />
             )}
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${
-              rider.is_active
-                ? "bg-green-950 text-green-400"
-                : "bg-neutral-800 text-neutral-400"
-            }`}
-          >
-            {rider.is_active ? "Active" : "Disabled"}
-          </span>
-
-          <Link
-            href={`/admin/riders/${rider.id}`}
-            className="rounded-xl border border-orange-500 px-4 py-2 text-sm font-bold text-orange-500 transition hover:bg-orange-500 hover:text-black"
-          >
-            Edit
-          </Link>
-
-          <form action={toggleRiderStatus}>
-            <input type="hidden" name="rider_id" value={rider.id} />
-
-            <input
-              type="hidden"
-              name="current_status"
-              value={String(rider.is_active)}
-            />
-
-            <button
-              type="submit"
-              className="rounded-xl border border-neutral-700 px-4 py-2 text-sm font-bold transition hover:border-orange-500 hover:text-orange-500"
-            >
-              {rider.is_active ? "Disable" : "Enable"}
-            </button>
-          </form>
-        </div>
-      </article>
-    ))}
-  </div>
-)}
           </section>
         </div>
       </div>
