@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import Navbar from "../components/Navbar";
 import { createClient } from "../lib/supabase/server";
+import { formatSeriesName } from "../lib/series-finale";
 
 type AdminEvent = {
   id: string;
@@ -151,6 +152,60 @@ export default async function AdminPage() {
     }
 
     currentEvent = upcomingEvent as AdminEvent | null;
+  }
+
+  /*
+   * Season/series transition banner. Compares the dashboard's current
+   * (next actionable) event against the most recently COMPLETED event
+   * to work out what kind of transition — if any — the admin is
+   * walking into:
+   *
+   *  - season differs   -> a brand new Championship is starting
+   *    (a Championship spans one full season: SX + MX + SMX Playoffs,
+   *    branded the "{season} SMX World Championship")
+   *  - season same, series differs -> the same Championship continues,
+   *    just moving into its next series (e.g. MX wrapped, SMX Playoffs
+   *    starting next)
+   *
+   * Only shown while the next event isn't open yet — once picks are
+   * actually live for it, it's no longer "starting", it's underway.
+   */
+  let transitionBanner: {
+    kind: "championship" | "series";
+    title: string;
+    description: string;
+  } | null = null;
+
+  if (currentEvent && currentEvent.status !== "open") {
+    const { data: mostRecentCompleted, error: mostRecentCompletedError } =
+      await supabase
+        .from("events")
+        .select("series, season")
+        .eq("status", "completed")
+        .order("race_date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (mostRecentCompletedError) {
+      console.error(
+        "Admin dashboard: error loading most recent completed event:",
+        mostRecentCompletedError
+      );
+    } else if (mostRecentCompleted) {
+      if (mostRecentCompleted.season !== currentEvent.season) {
+        transitionBanner = {
+          kind: "championship",
+          title: `New Championship Starting — ${currentEvent.season} SMX World Championship`,
+          description: `The ${mostRecentCompleted.season} season is complete. Carefully work through the checklist below to set up the ${currentEvent.season} season from scratch — new rider roster, entry list, and wildcard.`,
+        };
+      } else if (mostRecentCompleted.series !== currentEvent.series) {
+        transitionBanner = {
+          kind: "series",
+          title: `New Series Starting — ${currentEvent.season} ${formatSeriesName(currentEvent.series)}`,
+          description: `The ${formatSeriesName(mostRecentCompleted.series)} series has wrapped. The ${currentEvent.season} SMX World Championship continues into ${formatSeriesName(currentEvent.series)} — re-check the entry list and wildcard below before opening picks.`,
+        };
+      }
+    }
   }
 
   let confirmedRiderCount = 0;
@@ -408,6 +463,13 @@ export default async function AdminPage() {
       status: "Manage",
       href: "/admin/players",
     },
+    {
+      title: "Audit Log",
+      description:
+        "Review every admin action across the core game and Racepicks Pro — who did what, and when.",
+      status: "View",
+      href: "/admin/audit-log",
+    },
   ];
 
   return (
@@ -435,6 +497,32 @@ export default async function AdminPage() {
               Administrator
             </span>
           </div>
+
+          {transitionBanner && (
+            <div
+              className={`mt-8 rounded-3xl border p-6 sm:p-7 ${
+                transitionBanner.kind === "championship"
+                  ? "border-orange-500 bg-orange-500/10"
+                  : "border-orange-500/40 bg-orange-500/5"
+              }`}
+            >
+              <div className="flex items-start gap-4">
+                <span className="text-3xl">
+                  {transitionBanner.kind === "championship" ? "🏆" : "🏁"}
+                </span>
+
+                <div>
+                  <h2 className="text-xl font-black uppercase text-orange-400 sm:text-2xl">
+                    {transitionBanner.title}
+                  </h2>
+
+                  <p className="mt-2 max-w-3xl leading-6 text-zinc-300">
+                    {transitionBanner.description}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {!currentEvent ? (
             <div className="mt-12 rounded-3xl border border-yellow-500/30 bg-yellow-500/10 p-8 text-center">
