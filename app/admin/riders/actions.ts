@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
+import { logAdminAction } from "@/app/lib/admin-audit";
 
 async function requireAdmin() {
   const supabase = await createClient();
@@ -114,22 +115,39 @@ export async function addRider(formData: FormData) {
     }
   }
 
-  const { error } = await supabase.from("riders").insert({
-    full_name: fullName,
-    race_number: raceNumber,
-    team_name: teamName || null,
-    manufacturer: manufacturer || null,
-    nationality: nationality || null,
-    class_name: className,
-    racerx_slug: racerxSlug || null,
-    image_url: imageUrl || null,
-    is_active: true,
-  });
+  const { data: newRider, error } = await supabase
+    .from("riders")
+    .insert({
+      full_name: fullName,
+      race_number: raceNumber,
+      team_name: teamName || null,
+      manufacturer: manufacturer || null,
+      nationality: nationality || null,
+      class_name: className,
+      racerx_slug: racerxSlug || null,
+      image_url: imageUrl || null,
+      is_active: true,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     console.error("Add rider error:", error);
     buildErrorRedirect(error.message);
   }
+
+  await logAdminAction(supabase, {
+    actionType: "rider_added",
+    targetTable: "riders",
+    targetId: newRider?.id,
+    details: {
+      full_name: fullName,
+      race_number: raceNumber,
+      class_name: className,
+      team_name: teamName || null,
+      manufacturer: manufacturer || null,
+    },
+  });
 
   revalidatePath("/admin/riders");
   revalidatePath("/picks");
@@ -159,6 +177,13 @@ export async function toggleRiderStatus(formData: FormData) {
     console.error("Toggle rider error:", error);
     throw new Error(error.message);
   }
+
+  await logAdminAction(supabase, {
+    actionType: currentStatus ? "rider_disabled" : "rider_enabled",
+    targetTable: "riders",
+    targetId: riderId,
+    details: { previous_status: currentStatus, new_status: !currentStatus },
+  });
 
   revalidatePath("/admin/riders");
   revalidatePath("/picks");
@@ -230,6 +255,19 @@ export async function updateRider(formData: FormData) {
     console.error("Update rider error:", error);
     buildErrorRedirect(error.message);
   }
+
+  await logAdminAction(supabase, {
+    actionType: "rider_updated",
+    targetTable: "riders",
+    targetId: riderId,
+    details: {
+      full_name: fullName,
+      race_number: raceNumber,
+      class_name: className,
+      team_name: teamName || null,
+      manufacturer: manufacturer || null,
+    },
+  });
 
   revalidatePath("/admin/riders");
   revalidatePath(`/admin/riders/${riderId}`);

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
 import { chooseBalancedWildcard } from "@/app/lib/wildcard";
 import { notifyPlayersOfResults } from "@/app/lib/notifications";
+import { logAdminAction } from "@/app/lib/admin-audit";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -396,6 +397,21 @@ export async function saveResults(formData: FormData) {
 
   const { playersScored } = await calculateEventScores(supabase, eventId);
 
+  await logAdminAction(supabase, {
+    actionType: resultsAlreadyPublished
+      ? "results_updated"
+      : "results_published",
+    targetTable: "events",
+    targetId: eventId,
+    details: {
+      first_rider_id: firstRiderId,
+      second_rider_id: secondRiderId,
+      third_rider_id: thirdRiderId,
+      wildcard_rider_id: wildcardRiderId,
+      players_scored: playersScored,
+    },
+  });
+
   if (!resultsAlreadyPublished) {
     // Only notify players and roll over to the next round the FIRST time
     // results are published for this event. If this function is called
@@ -428,6 +444,13 @@ export async function scoreEvent(formData: FormData) {
   }
 
   const { playersScored } = await calculateEventScores(supabase, eventId);
+
+  await logAdminAction(supabase, {
+    actionType: "scores_recalculated",
+    targetTable: "events",
+    targetId: eventId,
+    details: { players_scored: playersScored },
+  });
 
   revalidateResultsPages();
 

@@ -4,6 +4,7 @@ import * as cheerio from "cheerio";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/app/lib/supabase/server";
+import { logAdminAction } from "@/app/lib/admin-audit";
 
 type ImportedStanding = {
   season: number;
@@ -552,6 +553,19 @@ export async function importChampionshipStandings(
         standing.manufacturer !== null ||
         standing.race_number !== null
     ).length;
+
+  await logAdminAction(supabase, {
+    actionType: "standings_imported",
+    targetTable: "championship_standings",
+    targetId: `${season}-${series}-450`,
+    details: {
+      season,
+      series,
+      source_url: url.toString(),
+      rows_imported: standings.length,
+      matched_to_riders: matchedRiderCount,
+    },
+  });
 
   revalidatePath("/admin");
   revalidatePath("/admin/standings");
