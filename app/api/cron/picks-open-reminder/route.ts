@@ -9,6 +9,27 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+const EMAIL_TYPE = "picks_open_reminder";
+
+async function logRun(
+  supabase: ReturnType<typeof createAdminClient>,
+  status: string,
+  message: string,
+  extra?: { eventId?: string; recipientsCount?: number; failedCount?: number }
+) {
+  const { error } = await supabase.from("scheduled_email_log").insert({
+    email_type: EMAIL_TYPE,
+    status,
+    event_id: extra?.eventId ?? null,
+    recipients_count: extra?.recipientsCount ?? null,
+    failed_count: extra?.failedCount ?? null,
+    message,
+  });
+
+  if (error) {
+    console.error("Picks-open reminder: failed to write log row:", error);
+  }
+}
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -31,10 +52,12 @@ export async function GET(request: Request) {
 
   if (eventError) {
     console.error("Picks-open reminder: event lookup error:", eventError);
+    await logRun(supabase, "error", eventError.message);
     return NextResponse.json({ error: eventError.message }, { status: 500 });
   }
 
   if (!currentEvent) {
+    await logRun(supabase, "no_event", "No event currently open, nothing to send.");
     return NextResponse.json({ message: "No event currently open, nothing to send." });
   }
 
@@ -43,16 +66,15 @@ export async function GET(request: Request) {
     (1000 * 60 * 60 * 24);
 
   if (daysUntilRace > 6) {
-    return NextResponse.json({
-      message: `Race is ${Math.round(
-        daysUntilRace
-      )} days away — not this week's race, skipping.`,
-    });
+    const message = `Race is ${Math.round(daysUntilRace)} days away — not this week's race, skipping.`;
+    await logRun(supabase, "skipped", message, { eventId: currentEvent.id });
+    return NextResponse.json({ message });
   }
 
   const players = await getAllPlayerEmails(supabase);
 
   if (players.length === 0) {
+    await logRun(supabase, "skipped", "No player emails found.", { eventId: currentEvent.id });
     return NextResponse.json({ message: "No player emails found." });
   }
 
@@ -113,8 +135,13 @@ export async function GET(request: Request) {
     );
   }
 
-  return NextResponse.json({
-    message: `Picks-open reminder sent to ${sentCount} of ${players.length} players.`,
-    failedEmails,
+  const message = `Picks-open reminder sent to ${sentCount} of ${players.length} players.`;
+
+  await logRun(supabase, "sent", message, {
+    eventId: currentEvent.id,
+    recipientsCount: sentCount,
+    failedCount: failedEmails.length,
   });
+
+  return NextResponse.json({ message, failedEmails });
 }

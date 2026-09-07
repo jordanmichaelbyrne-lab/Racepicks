@@ -470,6 +470,13 @@ export default async function AdminPage() {
       status: "View",
       href: "/admin/audit-log",
     },
+    {
+      title: "Scheduled Emails",
+      description:
+        "See when the next pick reminder is due to go out, and review recently sent emails.",
+      status: "View",
+      href: "/admin/scheduled-emails",
+    },
   ];
 
   return (
