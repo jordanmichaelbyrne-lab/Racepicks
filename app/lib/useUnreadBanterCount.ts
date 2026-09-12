@@ -5,28 +5,37 @@ import { createClient } from "./supabase/client";
 
 const REFRESH_INTERVAL_MS = 60_000; // 1 minute
 
+export type UnreadBanterData = {
+  totalUnread: number;
+  unreadByGroup: Map<string, number>;
+};
+
+const EMPTY: UnreadBanterData = {
+  totalUnread: 0,
+  unreadByGroup: new Map(),
+};
+
 /**
- * Total unread message count across every private group the given
- * user belongs to. "Unread" = messages from OTHER people, posted
- * after that group's last_read_at (or all of them, if the group has
- * never been opened — last_read_at is null).
+ * Unread message counts across every private group the given user
+ * belongs to — both a total (for the navbar/tab badge) and a
+ * per-group breakdown (so the groups list can show exactly which
+ * group has new messages, rather than just an unhelpful total).
+ *
+ * "Unread" = messages from OTHER people, posted after that group's
+ * last_read_at (or all of them, if the group has never been opened —
+ * last_read_at is null).
  *
  * Deliberately polling-based rather than a permanent Realtime
- * subscription: this hook runs inside Navbar, which renders on every
- * page of the app, so a live socket here would mean every user has an
- * always-open WebSocket connection for the entire time they're using
- * Racepicks, on top of whatever page-specific channels (Banter feed,
- * a group's own chat) are already open. A badge is a low-priority,
- * "close enough" indicator — refetching on an interval and whenever
- * the tab regains focus keeps it reasonably fresh without holding
- * that connection open everywhere, all the time.
+ * subscription — see markAsRead in GroupChatBoard for the same-tab
+ * event that forces an immediate recheck right when a group is read,
+ * so this doesn't rely solely on the interval to feel responsive.
  */
-export function useUnreadBanterCount(userId: string | null) {
-  const [unreadCount, setUnreadCount] = useState(0);
+export function useUnreadBanterCount(userId: string | null): UnreadBanterData {
+  const [data, setData] = useState<UnreadBanterData>(EMPTY);
 
   useEffect(() => {
     if (!userId) {
-      setUnreadCount(0);
+      setData(EMPTY);
       return;
     }
 
@@ -45,7 +54,7 @@ export function useUnreadBanterCount(userId: string | null) {
       }
 
       if (!memberships || memberships.length === 0) {
-        if (isMounted) setUnreadCount(0);
+        if (isMounted) setData(EMPTY);
         return;
       }
 
@@ -67,6 +76,7 @@ export function useUnreadBanterCount(userId: string | null) {
         return;
       }
 
+      const unreadByGroup = new Map<string, number>();
       let total = 0;
 
       for (const message of messages ?? []) {
@@ -75,14 +85,20 @@ export function useUnreadBanterCount(userId: string | null) {
         }
 
         const lastRead = lastReadByGroup.get(message.group_id);
+        const isUnread =
+          !lastRead || new Date(message.created_at) > new Date(lastRead);
 
-        if (!lastRead || new Date(message.created_at) > new Date(lastRead)) {
+        if (isUnread) {
+          unreadByGroup.set(
+            message.group_id,
+            (unreadByGroup.get(message.group_id) ?? 0) + 1
+          );
           total += 1;
         }
       }
 
       if (isMounted) {
-        setUnreadCount(total);
+        setData({ totalUnread: total, unreadByGroup });
       }
     }
 
@@ -98,10 +114,6 @@ export function useUnreadBanterCount(userId: string | null) {
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("focus", loadUnreadCount);
-
-    // Fired by GroupChatBoard the instant it marks a group as read, so
-    // the badge updates immediately instead of waiting for the next
-    // interval tick or tab-focus event.
     window.addEventListener("racepicks:banter-read", loadUnreadCount);
 
     return () => {
@@ -113,5 +125,5 @@ export function useUnreadBanterCount(userId: string | null) {
     };
   }, [userId]);
 
-  return unreadCount;
+  return data;
 }

@@ -16,7 +16,7 @@ export default function Navbar() {
   const [isLoading, setIsLoading] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const unreadBanterCount = useUnreadBanterCount(user?.id ?? null);
+  const { totalUnread: unreadBanterCount } = useUnreadBanterCount(user?.id ?? null);
 
   useEffect(() => {
     async function loadAvatar(userId: string) {

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { createClient } from "../lib/supabase/client";
+import { useUnreadBanterCount } from "../lib/useUnreadBanterCount";
 
 type GroupsPanelProps = {
   currentUserId: string;
@@ -31,6 +32,7 @@ export default function GroupsPanel({
   currentUserId,
 }: GroupsPanelProps) {
   const supabase = createClient();
+  const { unreadByGroup } = useUnreadBanterCount(currentUserId);
 
   const [myGroups, setMyGroups] = useState<MyGroup[]>([]);
   const [pendingInvites, setPendingInvites] = useState<
@@ -320,13 +322,25 @@ export default function GroupsPanel({
                 return null;
               }
 
+              const unreadInGroup =
+                unreadByGroup.get(membership.group_id) ?? 0;
+
               return (
                 <Link
                   key={membership.group_id}
                   href={`/banter/groups/${group.id}`}
                   className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-950 p-5 transition hover:border-orange-500/50"
                 >
-                  <p className="font-black">{group.name}</p>
+                  <div className="flex items-center gap-3">
+                    <p className="font-black">{group.name}</p>
+
+                    {unreadInGroup > 0 && (
+                      <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-orange-500 px-2 text-xs font-black text-black">
+                        {unreadInGroup > 99 ? "99+" : unreadInGroup}
+                      </span>
+                    )}
+                  </div>
+
                   <span className="text-zinc-600">→</span>
                 </Link>
               );

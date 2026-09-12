@@ -17,7 +17,7 @@ export default function BanterTabs({
   isAdmin,
 }: BanterTabsProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("feed");
-  const unreadCount = useUnreadBanterCount(currentUserId);
+  const { totalUnread: unreadCount } = useUnreadBanterCount(currentUserId);
 
   const tabs: { key: TabKey; label: string }[] = [
     { key: "feed", label: "Feed" },
