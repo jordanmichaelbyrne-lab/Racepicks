@@ -3,6 +3,7 @@ import Link from "next/link";
 import Navbar from "@/app/components/Navbar";
 import { createClient } from "@/app/lib/supabase/server";
 import GroupChatBoard from "./GroupChatBoard";
+import GroupSettings from "./GroupSettings";
 
 type PageProps = {
   params: Promise<{
@@ -64,7 +65,7 @@ export default async function GroupChatPage({ params }: PageProps) {
 
   const { data: group, error: groupError } = await supabase
     .from("chat_groups")
-    .select("id, name")
+    .select("id, name, created_by")
     .eq("id", groupId)
     .single();
 
@@ -157,6 +158,19 @@ export default async function GroupChatPage({ params }: PageProps) {
           <h1 className="mt-4 text-5xl font-black uppercase tracking-tight sm:text-6xl">
             {group.name}
           </h1>
+
+          <GroupSettings
+            groupId={group.id}
+            groupName={group.name}
+            currentUserId={user.id}
+            isOwner={group.created_by === user.id}
+            members={memberRows.map((member) => ({
+              user_id: member.user_id,
+              role: member.role,
+              display_name:
+                member.profiles?.display_name?.trim() || "Racepicks Player",
+            }))}
+          />
 
           {groupLeaderboard.length > 0 && (
             <section className="mt-8 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950">
