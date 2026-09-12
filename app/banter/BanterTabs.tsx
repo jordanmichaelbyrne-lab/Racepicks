@@ -3,6 +3,7 @@
 import { useState } from "react";
 import PostFeed from "./PostFeed";
 import GroupsPanel from "./GroupsPanel";
+import { useUnreadBanterCount } from "@/app/lib/useUnreadBanterCount";
 
 type BanterTabsProps = {
   currentUserId: string;
@@ -16,6 +17,7 @@ export default function BanterTabs({
   isAdmin,
 }: BanterTabsProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("feed");
+  const unreadCount = useUnreadBanterCount(currentUserId);
 
   const tabs: { key: TabKey; label: string }[] = [
     { key: "feed", label: "Feed" },
@@ -30,13 +32,25 @@ export default function BanterTabs({
             key={tab.key}
             type="button"
             onClick={() => setActiveTab(tab.key)}
-            className={`flex-1 rounded-xl px-5 py-3 text-sm font-black uppercase tracking-wider transition ${
+            className={`relative flex-1 rounded-xl px-5 py-3 text-sm font-black uppercase tracking-wider transition ${
               activeTab === tab.key
                 ? "bg-orange-500 text-black"
                 : "text-zinc-500 hover:text-white"
             }`}
           >
             {tab.label}
+
+            {tab.key === "groups" && unreadCount > 0 && (
+              <span
+                className={`ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-black ${
+                  activeTab === "groups"
+                    ? "bg-black text-orange-500"
+                    : "bg-orange-500 text-black"
+                }`}
+              >
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            )}
           </button>
         ))}
       </div>

@@ -3,14 +3,13 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { createClient } from "@/app/lib/supabase/client";
 
-type MemberProfile = {
-  display_name: string | null;
-};
-
 type MemberRow = {
   user_id: string;
   role: string;
-  profiles: MemberProfile | MemberProfile[] | null;
+};
+
+type SenderProfile = {
+  display_name: string | null;
 };
 
 type GroupMessage = {
@@ -18,7 +17,7 @@ type GroupMessage = {
   user_id: string;
   message: string;
   created_at: string;
-  profiles: MemberProfile | MemberProfile[] | null;
+  profiles: SenderProfile | null;
 };
 
 type SearchResult = {
@@ -31,14 +30,6 @@ type GroupChatBoardProps = {
   currentUserId: string;
   initialMembers: MemberRow[];
 };
-
-function getProfile(profile: MemberProfile | MemberProfile[] | null) {
-  if (Array.isArray(profile)) {
-    return profile[0] ?? null;
-  }
-
-  return profile;
-}
 
 function getInitials(displayName: string) {
   return displayName
@@ -72,6 +63,21 @@ export default function GroupChatBoard({
 
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  // Marks this group as read for the current user — called once on
+  // load, and again whenever a new message arrives while this page is
+  // open (since the user is actively looking at it right now).
+  async function markAsRead() {
+    const { error } = await supabase
+      .from("chat_group_members")
+      .update({ last_read_at: new Date().toISOString() })
+      .eq("group_id", groupId)
+      .eq("user_id", currentUserId);
+
+    if (error) {
+      console.error("Mark-as-read error:", error);
+    }
+  }
+
   async function loadMessages() {
     const { data: rawMessages, error } = await supabase
       .from("chat_group_messages")
@@ -96,9 +102,12 @@ export default function GroupChatBoard({
     >();
 
     if (senderIds.length > 0) {
+      // Other members' messages — must read from the public-safe view,
+      // not the base profiles table, since RLS restricts direct
+      // profiles reads to the caller's own row.
       const { data: senderProfiles, error: senderProfilesError } =
         await supabase
-          .from("profiles")
+          .from("public_profiles")
           .select("id, display_name")
           .in("id", senderIds);
 
@@ -130,17 +139,12 @@ export default function GroupChatBoard({
   }
 
   async function loadMembers() {
+    // Only user_id/role are actually used (member count, and excluding
+    // existing members from invite search) — no display name is
+    // rendered from this list, so no profile lookup is needed here.
     const { data, error } = await supabase
       .from("chat_group_members")
-      .select(
-        `
-          user_id,
-          role,
-          profiles (
-            display_name
-          )
-        `
-      )
+      .select("user_id, role")
       .eq("group_id", groupId);
 
     if (error) {
@@ -152,7 +156,7 @@ export default function GroupChatBoard({
   }
 
   useEffect(() => {
-    loadMessages();
+    loadMessages().then(() => markAsRead());
 
     const channel = supabase
       .channel(`group-chat-${groupId}`)
@@ -165,7 +169,7 @@ export default function GroupChatBoard({
           filter: `group_id=eq.${groupId}`,
         },
         () => {
-          loadMessages();
+          loadMessages().then(() => markAsRead());
         }
       )
       .on(
@@ -262,8 +266,12 @@ export default function GroupChatBoard({
 
     const memberIds = members.map((member) => member.user_id);
 
+    // Searching for OTHER players — must read from the public-safe
+    // view, not the base profiles table, since RLS restricts direct
+    // profiles reads to the caller's own row. This is the fix for the
+    // invite search only ever finding your own name.
     const { data, error } = await supabase
-      .from("profiles")
+      .from("public_profiles")
       .select("id, display_name")
       .ilike("display_name", `%${trimmedTerm}%`)
       .limit(10);
@@ -386,9 +394,9 @@ export default function GroupChatBoard({
           ) : (
             <div className="space-y-5">
               {messages.map((chatMessage) => {
-                const profile = getProfile(chatMessage.profiles);
                 const displayName =
-                  profile?.display_name?.trim() || "Racepicks Player";
+                  chatMessage.profiles?.display_name?.trim() ||
+                  "Racepicks Player";
                 const isCurrentUser =
                   chatMessage.user_id === currentUserId;
 

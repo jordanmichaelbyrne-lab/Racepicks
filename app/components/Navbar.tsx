@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { usePathname } from "next/navigation";
 import { createClient } from "../lib/supabase/client";
+import { useUnreadBanterCount } from "../lib/useUnreadBanterCount";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -14,6 +15,8 @@ export default function Navbar() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const unreadBanterCount = useUnreadBanterCount(user?.id ?? null);
 
   useEffect(() => {
     async function loadAvatar(userId: string) {
@@ -120,13 +123,19 @@ export default function Navbar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`select-none text-sm font-bold transition ${
+                className={`relative select-none text-sm font-bold transition ${
                   isActive(item.href)
                     ? "text-white"
                     : "text-zinc-500 hover:text-white"
                 }`}
               >
                 {item.label}
+
+                {item.href === "/banter" && unreadBanterCount > 0 && (
+                  <span className="absolute -right-3 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-orange-500 px-1 text-[9px] font-black text-black">
+                    {unreadBanterCount > 99 ? "99+" : unreadBanterCount}
+                  </span>
+                )}
               </Link>
             )
           )}
@@ -223,7 +232,7 @@ export default function Navbar() {
                 : "Open navigation menu"
             }
             aria-expanded={isMobileMenuOpen}
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-zinc-700 text-white transition hover:border-orange-500 hover:bg-zinc-900 md:hidden"
+            className="relative flex h-10 w-10 items-center justify-center rounded-full border border-zinc-700 text-white transition hover:border-orange-500 hover:bg-zinc-900 md:hidden"
           >
             <span className="relative block h-4 w-5">
               <span
@@ -248,6 +257,12 @@ export default function Navbar() {
                 }`}
               />
             </span>
+
+            {!isMobileMenuOpen && unreadBanterCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-orange-500 px-1 text-[9px] font-black text-black">
+                {unreadBanterCount > 99 ? "99+" : unreadBanterCount}
+              </span>
+            )}
           </button>
         </div>
       </div>
@@ -281,7 +296,15 @@ export default function Navbar() {
                       : "text-white hover:bg-zinc-900"
                   }`}
                 >
-                  <span>{item.label}</span>
+                  <span className="flex items-center gap-2">
+                    {item.label}
+
+                    {item.href === "/banter" && unreadBanterCount > 0 && (
+                      <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-orange-500 px-1.5 text-[10px] font-black text-black">
+                        {unreadBanterCount > 99 ? "99+" : unreadBanterCount}
+                      </span>
+                    )}
+                  </span>
                   <span className="text-zinc-600">→</span>
                 </Link>
               )
