@@ -174,14 +174,28 @@ function validateRacerXUrl(rawUrl: string) {
 
   const validSeries = ["mx", "sx", "smx"];
 
+  // Racer X names SMX's combined-points class "450smx" rather than
+  // plain "450" — it's a genuinely different number (SX + MX +
+  // Playoffs combined), not a typo on their end. Everywhere else in
+  // Racepicks still stores this as class_name = "450" for
+  // consistency with how /results and the competition pages query
+  // it — only the URL's accepted class segment differs here.
+  const expectedClassSegment =
+    pathParts[0] === "smx" ? "450smx" : "450";
+
   if (
     pathParts.length < 4 ||
     !validSeries.includes(pathParts[0]) ||
     pathParts[2] !== "points" ||
-    pathParts[3] !== "450"
+    pathParts[3] !== expectedClassSegment
   ) {
+    const exampleUrl =
+      pathParts[0] === "smx"
+        ? "/smx/2026/points/450smx"
+        : "/mx/2026/points/450";
+
     throw new Error(
-      "Use a Racer X 450 standings URL such as /mx/2026/points/450."
+      `Use a Racer X 450 standings URL such as ${exampleUrl}.`
     );
   }
 
