@@ -290,13 +290,15 @@ export default async function PlayerHistoryPage({
   const leaderboardRows =
     (leaderboardData ?? []) as LeaderboardRow[];
 
+  // Sorted newest-first — Round History renders this list directly,
+  // top to bottom, so this order IS the display order.
   const scores = ((scoreData ?? []) as ScoreRow[]).sort((a, b) => {
     const eventA = getEvent(a);
     const eventB = getEvent(b);
 
     return (
-      new Date(eventA?.race_date ?? 0).getTime() -
-      new Date(eventB?.race_date ?? 0).getTime()
+      new Date(eventB?.race_date ?? 0).getTime() -
+      new Date(eventA?.race_date ?? 0).getTime()
     );
   });
 
@@ -550,7 +552,8 @@ export default async function PlayerHistoryPage({
     );
   }).length;
 
-  const recentForm = [...scores].reverse().slice(0, 5);
+  // scores is already newest-first, so no reversal needed here anymore.
+  const recentForm = scores.slice(0, 5);
 
   const initials =
     getInitials(player.display_name) || "RP";
