@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
 import Navbar from "@/app/components/Navbar";
+import LeaderboardTabs from "./LeaderboardTabs";
+import { getCurrentSeason } from "@/app/lib/current-season";
 
 type LeaderboardPlayer = {
   user_id: string;
@@ -486,34 +488,80 @@ export default async function LeaderboardPage({
     );
   }
 
-  return (
-    <main className="min-h-screen bg-black text-white">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
-        <Navbar />
+  // Every distinct competition that has events loaded, for the tab
+  // row above the standings. Driven entirely by real data — a future
+  // season's series will appear automatically once it's actually
+  // underway, no code change needed.
+  const { data: competitionEventRows, error: competitionEventsError } =
+    await supabase
+      .from("events")
+      .select("competition_slug, series, season, race_date, status")
+      .order("race_date", { ascending: true });
 
-        <section className="py-12 sm:py-16">
-          <Link
-            href="/"
-            className="inline-block text-sm font-bold text-neutral-400 transition hover:text-orange-500"
-          >
-            ← Back to Race Centre
-          </Link>
+  if (competitionEventsError) {
+    console.error(
+      "Leaderboard: error loading competitions for tabs:",
+      competitionEventsError
+    );
+  }
 
-          <header className="mt-8">
-            <p className="text-xs font-black uppercase tracking-[0.35em] text-orange-500">
-              {championshipSeason} Racepicks
-            </p>
+  function formatCompetitionLabel(season: number, series: string) {
+    if (series === "Motocross") return `${season} Pro Motocross`;
+    if (series === "Supercross") return `${season} Supercross`;
+    if (series === "SMX") return `${season} SMX Championship`;
+    return `${season} ${series}`;
+  }
 
-            <h1 className="mt-3 text-4xl font-black uppercase tracking-tight sm:text-6xl">
-              Championship
-            </h1>
+  const currentSeason = await getCurrentSeason(supabase);
 
-            <p className="mt-3 text-sm text-neutral-400">
-              Overall standings across all completed rounds.
-            </p>
-          </header>
+  const competitionOrder: string[] = [];
+  const competitionLabelBySlug = new Map<string, string>();
+  const competitionSeasonBySlug = new Map<string, number>();
+  const competitionHasStartedBySlug = new Map<string, boolean>();
 
-          <section className="mt-8 grid gap-4 sm:grid-cols-3">
+  for (const row of competitionEventRows ?? []) {
+    if (!competitionLabelBySlug.has(row.competition_slug)) {
+      competitionLabelBySlug.set(
+        row.competition_slug,
+        formatCompetitionLabel(row.season, row.series)
+      );
+      competitionSeasonBySlug.set(row.competition_slug, row.season);
+      competitionOrder.push(row.competition_slug);
+    }
+
+    if (row.status !== "upcoming") {
+      competitionHasStartedBySlug.set(row.competition_slug, true);
+    }
+  }
+
+  // Only the CURRENT season's competitions, and only once they've
+  // actually started — a season that hasn't begun yet (every event
+  // still "upcoming") stays hidden rather than showing an empty,
+  // premature tab.
+  const competitionsForTabs = competitionOrder
+    .filter(
+      (slug) =>
+        competitionSeasonBySlug.get(slug) === currentSeason &&
+        competitionHasStartedBySlug.get(slug)
+    )
+    .map((slug) => ({
+      slug,
+      label: competitionLabelBySlug.get(slug) ?? slug,
+    }));
+
+  // History exists once any competition belongs to an earlier season
+  // than the current one — this is what makes the "History" link
+  // appear automatically the moment a new season begins, with no
+  // manual toggle needed.
+  const hasHistory = competitionOrder.some(
+    (slug) =>
+      currentSeason !== null &&
+      (competitionSeasonBySlug.get(slug) ?? 0) < currentSeason
+  );
+
+  const overallContent = (
+    <>
+      <section className="mt-8 grid gap-4 sm:grid-cols-3">
             <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-5">
               <p className="text-xs font-bold uppercase tracking-widest text-neutral-500">
                 Championship Leader
@@ -750,6 +798,43 @@ export default async function LeaderboardPage({
               )}
             </section>
           )}
+    </>
+  );
+
+  return (
+    <main className="min-h-screen bg-black text-white">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
+        <Navbar />
+
+        <section className="py-12 sm:py-16">
+          <Link
+            href="/"
+            className="inline-block text-sm font-bold text-neutral-400 transition hover:text-orange-500"
+          >
+            ← Back to Race Centre
+          </Link>
+
+          <header className="mt-8">
+            <p className="text-xs font-black uppercase tracking-[0.35em] text-orange-500">
+              {championshipSeason} Racepicks
+            </p>
+
+            <h1 className="mt-3 text-4xl font-black uppercase tracking-tight sm:text-6xl">
+              Championship
+            </h1>
+
+            <p className="mt-3 text-sm text-neutral-400">
+              Overall standings across all completed rounds, or switch
+              below to see a single season&apos;s own leaderboard.
+            </p>
+          </header>
+
+          <LeaderboardTabs
+            competitions={competitionsForTabs}
+            currentUserId={currentUserId}
+            overallContent={overallContent}
+            hasHistory={hasHistory}
+          />
         </section>
       </div>
     </main>
