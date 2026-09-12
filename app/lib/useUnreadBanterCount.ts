@@ -3,15 +3,23 @@
 import { useEffect, useState } from "react";
 import { createClient } from "./supabase/client";
 
+const REFRESH_INTERVAL_MS = 60_000; // 1 minute
+
 /**
  * Total unread message count across every private group the given
  * user belongs to. "Unread" = messages from OTHER people, posted
  * after that group's last_read_at (or all of them, if the group has
  * never been opened — last_read_at is null).
  *
- * This is the single source of truth both the Navbar badge and the
- * Banter page's "Groups" tab badge read from, so they can never drift
- * out of sync with each other.
+ * Deliberately polling-based rather than a permanent Realtime
+ * subscription: this hook runs inside Navbar, which renders on every
+ * page of the app, so a live socket here would mean every user has an
+ * always-open WebSocket connection for the entire time they're using
+ * Racepicks, on top of whatever page-specific channels (Banter feed,
+ * a group's own chat) are already open. A badge is a low-priority,
+ * "close enough" indicator — refetching on an interval and whenever
+ * the tab regains focus keeps it reasonably fresh without holding
+ * that connection open everywhere, all the time.
  */
 export function useUnreadBanterCount(userId: string | null) {
   const [unreadCount, setUnreadCount] = useState(0);
@@ -80,23 +88,22 @@ export function useUnreadBanterCount(userId: string | null) {
 
     loadUnreadCount();
 
-    const channel = supabase
-      .channel("racepicks-unread-banter")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "chat_group_messages" },
-        () => loadUnreadCount()
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "chat_group_members" },
-        () => loadUnreadCount()
-      )
-      .subscribe();
+    const intervalId = window.setInterval(loadUnreadCount, REFRESH_INTERVAL_MS);
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        loadUnreadCount();
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", loadUnreadCount);
 
     return () => {
       isMounted = false;
-      supabase.removeChannel(channel);
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", loadUnreadCount);
     };
   }, [userId]);
 
