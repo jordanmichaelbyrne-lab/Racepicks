@@ -20,8 +20,8 @@ export default function BanterTabs({
   const { totalUnread: unreadCount } = useUnreadBanterCount(currentUserId);
 
   const tabs: { key: TabKey; label: string }[] = [
-    { key: "feed", label: "Feed" },
-    { key: "groups", label: "Groups" },
+    { key: "feed", label: "Public Social Feed" },
+    { key: "groups", label: "Private Competition" },
   ];
 
   return (
