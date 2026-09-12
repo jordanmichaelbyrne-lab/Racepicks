@@ -75,7 +75,12 @@ export default function GroupChatBoard({
 
     if (error) {
       console.error("Mark-as-read error:", error);
+      return;
     }
+
+    // Tell the navbar badge (and any other listener in this tab) to
+    // recheck right now, instead of waiting for its next poll.
+    window.dispatchEvent(new Event("racepicks:banter-read"));
   }
 
   async function loadMessages() {

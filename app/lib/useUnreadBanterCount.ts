@@ -99,11 +99,17 @@ export function useUnreadBanterCount(userId: string | null) {
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("focus", loadUnreadCount);
 
+    // Fired by GroupChatBoard the instant it marks a group as read, so
+    // the badge updates immediately instead of waiting for the next
+    // interval tick or tab-focus event.
+    window.addEventListener("racepicks:banter-read", loadUnreadCount);
+
     return () => {
       isMounted = false;
       window.clearInterval(intervalId);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", loadUnreadCount);
+      window.removeEventListener("racepicks:banter-read", loadUnreadCount);
     };
   }, [userId]);
 
