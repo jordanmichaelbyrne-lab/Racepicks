@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import Navbar from "../components/Navbar";
 import { createClient } from "../lib/supabase/server";
+import SharePicksButton from "../components/SharePicksButton";
 
 type Rider = {
   id: string;
@@ -652,12 +653,16 @@ const isSmxActive = activeSeries === "SMX";
                     Last updated: {formattedUpdatedAt}
                   </p>
 
-                  <Link
-                    href="/picks"
-                    className="rounded-full bg-orange-500 px-7 py-3 text-center font-black text-black transition hover:bg-orange-400"
-                  >
-                    Edit My Picks
-                  </Link>
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <SharePicksButton eventId={currentEvent.id} />
+
+                    <Link
+                      href="/picks"
+                      className="rounded-full bg-orange-500 px-7 py-3 text-center font-black text-black transition hover:bg-orange-400"
+                    >
+                      Edit My Picks
+                    </Link>
+                  </div>
                 </div>
               </>
             ) : (
