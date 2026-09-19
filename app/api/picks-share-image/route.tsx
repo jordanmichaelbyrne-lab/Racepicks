@@ -12,11 +12,6 @@ type Rider = {
   team_name: string | null;
 };
 
-// Fetches a Google Font's actual font file at request time, rather
-// than bundling one in the repo or hardcoding a version-specific CDN
-// hash (those change whenever Google updates the font). This is the
-// standard pattern for next/og — Satori (which renders the image)
-// needs real font bytes, not a font-family name.
 async function loadGoogleFont(family: string, weight: number) {
   const cssUrl = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(
     family
@@ -35,6 +30,33 @@ async function loadGoogleFont(family: string, weight: number) {
 
   const fontFileResponse = await fetch(match[1]);
   return await fontFileResponse.arrayBuffer();
+}
+
+// Reads a PNG's real width/height straight from its file header, so
+// the logo can be scaled to a fixed target height without guessing
+// its aspect ratio (and getting it wrong, which is what stretched it
+// last time). PNG's IHDR chunk always sits at a fixed byte offset:
+// width is bytes 16-19, height is bytes 20-23, both big-endian.
+async function getPngDimensions(
+  url: string
+): Promise<{ width: number; height: number } | null> {
+  try {
+    const response = await fetch(url);
+    const buffer = await response.arrayBuffer();
+    const view = new DataView(buffer);
+
+    const width = view.getUint32(16, false);
+    const height = view.getUint32(20, false);
+
+    if (!width || !height) {
+      return null;
+    }
+
+    return { width, height };
+  } catch (err) {
+    console.error("Picks share image: could not read logo dimensions:", err);
+    return null;
+  }
 }
 
 function ordinal(position: number) {
@@ -134,18 +156,28 @@ export async function GET(request: Request) {
     console.error("Picks share image: font load failed, using fallback:", err);
   }
 
+  // Scale the logo to a fixed 44px height while preserving its real
+  // aspect ratio, read directly from the file rather than guessed.
+  const LOGO_TARGET_HEIGHT = 44;
+  const logoDimensions = await getPngDimensions(logoUrl);
+  const logoWidth = logoDimensions
+    ? Math.round(
+        (logoDimensions.width / logoDimensions.height) * LOGO_TARGET_HEIGHT
+      )
+    : 180; // fallback width if dimension-reading ever fails
+
   const isOpen = event.status === "open";
 
   return new ImageResponse(
     (
       <div
         style={{
-          width: "1200px",
-          height: "800px",
+          width: "1080px",
+          height: "1350px",
           display: "flex",
           flexDirection: "column",
           background: "#000000",
-          padding: "56px",
+          padding: "48px",
           fontFamily: poppinsBold ? "Poppins" : "sans-serif",
         }}
       >
@@ -153,9 +185,9 @@ export async function GET(request: Request) {
         <img
           src={logoUrl}
           alt="Racepicks"
-          width={220}
-          height={52}
-          style={{ marginBottom: 32 }}
+          width={logoWidth}
+          height={LOGO_TARGET_HEIGHT}
+          style={{ marginBottom: 28 }}
         />
 
         <div
@@ -163,15 +195,15 @@ export async function GET(request: Request) {
             display: "flex",
             flexDirection: "column",
             alignItems: "flex-start",
-            gap: 12,
+            gap: 10,
           }}
         >
           <div
             style={{
               display: "flex",
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: 700,
-              letterSpacing: 4,
+              letterSpacing: 3,
               textTransform: "uppercase",
               color: "#f97316",
             }}
@@ -182,10 +214,11 @@ export async function GET(request: Request) {
           <div
             style={{
               display: "flex",
-              fontSize: 64,
+              fontSize: 48,
               fontWeight: 700,
               color: "#ffffff",
               textTransform: "uppercase",
+              lineHeight: 1.05,
             }}
           >
             {event.venue}
@@ -194,7 +227,7 @@ export async function GET(request: Request) {
           <div
             style={{
               display: "flex",
-              fontSize: 26,
+              fontSize: 22,
               color: "#a3a3a3",
             }}
           >
@@ -204,11 +237,11 @@ export async function GET(request: Request) {
           <div
             style={{
               display: "flex",
-              padding: "10px 24px",
+              padding: "8px 20px",
               borderRadius: 999,
               border: `2px solid ${isOpen ? "#22c55e" : "#525252"}`,
               color: isOpen ? "#22c55e" : "#a3a3a3",
-              fontSize: 20,
+              fontSize: 16,
               fontWeight: 700,
               textTransform: "uppercase",
             }}
@@ -221,7 +254,7 @@ export async function GET(request: Request) {
           style={{
             display: "flex",
             flexDirection: "column",
-            marginTop: 40,
+            marginTop: 32,
             borderRadius: 24,
             border: "1px solid #262626",
             overflow: "hidden",
@@ -233,8 +266,8 @@ export async function GET(request: Request) {
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 28,
-                padding: "28px 32px",
+                gap: 22,
+                padding: "22px 26px",
                 background: row.wildcard ? "#3a1f08" : "#000000",
                 borderTop: index === 0 ? "none" : "1px solid #262626",
               }}
@@ -244,12 +277,12 @@ export async function GET(request: Request) {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  width: 72,
-                  height: 72,
-                  borderRadius: 16,
+                  width: 60,
+                  height: 60,
+                  borderRadius: 14,
                   background: row.wildcard ? "#f97316" : "#171717",
                   color: row.wildcard ? "#000000" : "#ffffff",
-                  fontSize: 26,
+                  fontSize: 20,
                   fontWeight: 700,
                 }}
               >
@@ -260,15 +293,15 @@ export async function GET(request: Request) {
                 style={{
                   display: "flex",
                   flexDirection: "column",
-                  gap: 4,
+                  gap: 3,
                 }}
               >
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 18,
+                    fontSize: 15,
                     fontWeight: 500,
-                    letterSpacing: 2,
+                    letterSpacing: 1.5,
                     textTransform: "uppercase",
                     color: "#a3a3a3",
                   }}
@@ -279,7 +312,7 @@ export async function GET(request: Request) {
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 32,
+                    fontSize: 26,
                     fontWeight: 700,
                     color: "#ffffff",
                   }}
@@ -290,7 +323,7 @@ export async function GET(request: Request) {
                 <div
                   style={{
                     display: "flex",
-                    fontSize: 18,
+                    fontSize: 15,
                     color: "#a3a3a3",
                   }}
                 >
@@ -307,9 +340,9 @@ export async function GET(request: Request) {
           style={{
             display: "flex",
             flexDirection: "column",
-            gap: 12,
+            gap: 10,
             marginTop: "auto",
-            paddingTop: 32,
+            paddingTop: 28,
           }}
         >
           <div
@@ -319,7 +352,7 @@ export async function GET(request: Request) {
               alignItems: "center",
             }}
           >
-            <div style={{ display: "flex", fontSize: 18, color: "#525252" }}>
+            <div style={{ display: "flex", fontSize: 15, color: "#525252" }}>
               Last updated: {updatedLabel}
             </div>
 
@@ -327,7 +360,7 @@ export async function GET(request: Request) {
               style={{
                 display: "flex",
                 alignItems: "baseline",
-                fontSize: 30,
+                fontSize: 24,
                 fontWeight: 700,
                 color: "#ffffff",
               }}
@@ -336,8 +369,8 @@ export async function GET(request: Request) {
               <div
                 style={{
                   display: "flex",
-                  width: 12,
-                  height: 12,
+                  width: 10,
+                  height: 10,
                   background: "#f97316",
                   marginLeft: 4,
                 }}
@@ -349,7 +382,7 @@ export async function GET(request: Request) {
             style={{
               display: "flex",
               justifyContent: "center",
-              fontSize: 18,
+              fontSize: 15,
               color: "#525252",
             }}
           >
@@ -359,8 +392,8 @@ export async function GET(request: Request) {
       </div>
     ),
     {
-      width: 1200,
-      height: 800,
+      width: 1080,
+      height: 1350,
       fonts: poppinsBold
         ? [
             { name: "Poppins", data: poppinsBold, weight: 700, style: "normal" },
