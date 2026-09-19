@@ -2,6 +2,7 @@ import { ImageResponse } from "next/og";
 import { createClient } from "@/app/lib/supabase/server";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 type Rider = {
   id: string;
@@ -46,8 +47,9 @@ function ordinal(position: number) {
 }
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
+  const { searchParams, origin } = new URL(request.url);
   const eventId = searchParams.get("event");
+  const logoUrl = `${origin}/images/logos/Racepicks-Trans.png`;
 
   if (!eventId) {
     return new Response("Missing event id", { status: 400 });
@@ -147,58 +149,72 @@ export async function GET(request: Request) {
           fontFamily: poppinsBold ? "Poppins" : "sans-serif",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            fontSize: 20,
-            fontWeight: 700,
-            letterSpacing: 4,
-            textTransform: "uppercase",
-            color: "#f97316",
-          }}
-        >
-          Current Round
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={logoUrl}
+          alt="Racepicks"
+          width={220}
+          height={52}
+          style={{ marginBottom: 32 }}
+        />
 
         <div
           style={{
             display: "flex",
-            fontSize: 64,
-            fontWeight: 700,
-            color: "#ffffff",
-            textTransform: "uppercase",
-            marginTop: 12,
+            flexDirection: "column",
+            alignItems: "flex-start",
+            gap: 12,
           }}
         >
-          {event.venue}
-        </div>
+          <div
+            style={{
+              display: "flex",
+              fontSize: 20,
+              fontWeight: 700,
+              letterSpacing: 4,
+              textTransform: "uppercase",
+              color: "#f97316",
+            }}
+          >
+            Current Round
+          </div>
 
-        <div
-          style={{
-            display: "flex",
-            fontSize: 26,
-            color: "#a3a3a3",
-            marginTop: 8,
-          }}
-        >
-          {event.season} {event.series} · Round {event.round_number}
-        </div>
+          <div
+            style={{
+              display: "flex",
+              fontSize: 64,
+              fontWeight: 700,
+              color: "#ffffff",
+              textTransform: "uppercase",
+            }}
+          >
+            {event.venue}
+          </div>
 
-        <div
-          style={{
-            display: "flex",
-            marginTop: 20,
-            padding: "10px 24px",
-            borderRadius: 999,
-            border: `2px solid ${isOpen ? "#22c55e" : "#525252"}`,
-            color: isOpen ? "#22c55e" : "#a3a3a3",
-            fontSize: 20,
-            fontWeight: 700,
-            textTransform: "uppercase",
-            width: "fit-content",
-          }}
-        >
-          {isOpen ? "Picks Open" : "Picks Locked"}
+          <div
+            style={{
+              display: "flex",
+              fontSize: 26,
+              color: "#a3a3a3",
+            }}
+          >
+            {event.season} {event.series} · Round {event.round_number}
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              padding: "10px 24px",
+              borderRadius: 999,
+              border: `2px solid ${isOpen ? "#22c55e" : "#525252"}`,
+              color: isOpen ? "#22c55e" : "#a3a3a3",
+              fontSize: 20,
+              fontWeight: 700,
+              textTransform: "uppercase",
+            }}
+          >
+            {isOpen ? "Picks Open" : "Picks Locked"}
+          </div>
         </div>
 
         <div
@@ -240,7 +256,13 @@ export async function GET(request: Request) {
                 #{row.rider?.race_number ?? "—"}
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column" }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4,
+                }}
+              >
                 <div
                   style={{
                     display: "flex",
@@ -260,7 +282,6 @@ export async function GET(request: Request) {
                     fontSize: 32,
                     fontWeight: 700,
                     color: "#ffffff",
-                    marginTop: 4,
                   }}
                 >
                   {row.rider?.full_name ?? "Unknown rider"}
@@ -271,7 +292,6 @@ export async function GET(request: Request) {
                     display: "flex",
                     fontSize: 18,
                     color: "#a3a3a3",
-                    marginTop: 2,
                   }}
                 >
                   {[row.rider?.manufacturer, row.rider?.team_name]
@@ -286,35 +306,54 @@ export async function GET(request: Request) {
         <div
           style={{
             display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
+            flexDirection: "column",
+            gap: 12,
             marginTop: "auto",
             paddingTop: 32,
           }}
         >
-          <div style={{ display: "flex", fontSize: 18, color: "#525252" }}>
-            Last updated: {updatedLabel}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <div style={{ display: "flex", fontSize: 18, color: "#525252" }}>
+              Last updated: {updatedLabel}
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                fontSize: 30,
+                fontWeight: 700,
+                color: "#ffffff",
+              }}
+            >
+              Racepicks
+              <div
+                style={{
+                  display: "flex",
+                  width: 12,
+                  height: 12,
+                  background: "#f97316",
+                  marginLeft: 4,
+                }}
+              />
+            </div>
           </div>
 
           <div
             style={{
               display: "flex",
-              alignItems: "baseline",
-              fontSize: 30,
-              fontWeight: 700,
-              color: "#ffffff",
+              justifyContent: "center",
+              fontSize: 18,
+              color: "#525252",
             }}
           >
-            Racepicks
-            <div
-              style={{
-                display: "flex",
-                width: 12,
-                height: 12,
-                background: "#f97316",
-                marginLeft: 4,
-              }}
-            />
+            www.racepicks.app
           </div>
         </div>
       </div>
@@ -328,6 +367,9 @@ export async function GET(request: Request) {
             { name: "Poppins", data: poppinsMedium!, weight: 500, style: "normal" },
           ]
         : undefined,
+      headers: {
+        "Cache-Control": "no-store, max-age=0",
+      },
     }
   );
 }
