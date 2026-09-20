@@ -18,6 +18,14 @@ export default function SharePicksButton({
     setIsSharing(true);
     setStatusMessage("");
 
+    // Only a genuine failure to fetch the image itself counts as a
+    // real error — every share METHOD below (native share, clipboard,
+    // download) is tried independently, so one method misbehaving in
+    // an embedded WebView (Capacitor's Android/iOS WebView is often
+    // inconsistent here, unlike a real browser) falls through to the
+    // next rather than failing the whole thing.
+    let blob: Blob;
+
     try {
       const response = await fetch(`/api/picks-share-image?event=${eventId}`);
 
@@ -25,13 +33,20 @@ export default function SharePicksButton({
         throw new Error("Could not generate the picks image.");
       }
 
-      const blob = await response.blob();
-      const file = new File([blob], "racepicks-picks.png", {
-        type: "image/png",
-      });
+      blob = await response.blob();
+    } catch (err) {
+      console.error("Share picks: image fetch failed:", err);
+      setStatusMessage("Couldn't create the image — try again.");
+      setIsSharing(false);
+      return;
+    }
 
-      // Mobile: opens the OS share sheet with the image attached —
-      // Messages, Messenger, WhatsApp etc. all show up here directly.
+    const file = new File([blob], "racepicks-picks.png", {
+      type: "image/png",
+    });
+
+    // Tier 1: native share sheet (Messages, Messenger, WhatsApp, etc.)
+    try {
       if (
         typeof navigator.share === "function" &&
         typeof navigator.canShare === "function" &&
@@ -42,36 +57,57 @@ export default function SharePicksButton({
           title: "My Racepicks picks",
           text: "Check out my picks for this round on Racepicks!",
         });
+        setIsSharing(false);
+        return;
+      }
+    } catch (err) {
+      // A user cancelling the native share sheet throws an AbortError
+      // — that's not a failure, just don't fall through to the next
+      // tier for that specific case.
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setIsSharing(false);
         return;
       }
 
-      // Desktop fallback: copy the image so it can be pasted straight
-      // into a chat window.
+      console.error(
+        "Share picks: native share failed, falling back:",
+        err
+      );
+      // Any other error here — including this WebView simply not
+      // supporting file sharing properly — falls through to tier 2.
+    }
+
+    // Tier 2: copy the image so it can be pasted into a chat (desktop
+    // browsers mainly; many embedded WebViews don't support this).
+    try {
       if (navigator.clipboard && "ClipboardItem" in window) {
         await navigator.clipboard.write([
           new ClipboardItem({ "image/png": blob }),
         ]);
         setStatusMessage("Image copied — paste it into a message.");
+        setIsSharing(false);
         return;
       }
+    } catch (err) {
+      console.error(
+        "Share picks: clipboard copy failed, falling back:",
+        err
+      );
+      // Falls through to tier 3 regardless of why this failed.
+    }
 
-      // Last-resort fallback: just download it.
+    // Tier 3: plain download — the most universally supported option,
+    // works even in restrictive embedded WebViews.
+    try {
       const downloadUrl = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = downloadUrl;
       link.download = "racepicks-picks.png";
       link.click();
       URL.revokeObjectURL(downloadUrl);
-      setStatusMessage("Image downloaded.");
+      setStatusMessage("Image saved — find it in your downloads.");
     } catch (err) {
-      // A user cancelling the native share sheet also lands here (it
-      // throws an AbortError) — that's not a real failure, so don't
-      // show an error message for it.
-      if (err instanceof DOMException && err.name === "AbortError") {
-        return;
-      }
-
-      console.error("Share picks error:", err);
+      console.error("Share picks: download fallback failed:", err);
       setStatusMessage("Couldn't share right now — try again.");
     } finally {
       setIsSharing(false);
