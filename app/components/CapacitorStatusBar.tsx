@@ -5,11 +5,17 @@ import { Capacitor } from "@capacitor/core";
 import { StatusBar, Style } from "@capacitor/status-bar";
 
 /**
- * Matches the native status bar to Racepicks' black theme. Only does
- * anything when actually running inside the Capacitor app — on the
- * normal website (a regular browser tab), Capacitor.isNativePlatform()
- * is false and this silently does nothing, so it's safe to render on
- * every page without affecting the web experience at all.
+ * Matches the native status bar to Racepicks' black theme.
+ *
+ * Modern Android (edge-to-edge enforcement, increasingly the default
+ * from Android 15/API 35 onward) largely ignores a solid status bar
+ * background color set via setBackgroundColor — the bar becomes
+ * transparent by default instead, and the app's own content is meant
+ * to show through it. So instead of fighting that, we lean into it:
+ * make the status bar overlay the WebView (transparent), and since
+ * the app's background is already black, it reads as a black bar
+ * automatically. Style.Dark still controls the status bar icon/text
+ * color (light icons, correct for a dark background).
  */
 export default function CapacitorStatusBar() {
   useEffect(() => {
@@ -17,16 +23,20 @@ export default function CapacitorStatusBar() {
       return;
     }
 
-    // Style.Dark = light (white) status bar icons/text, correct for
-    // a dark app background. Style.Light would be the opposite —
-    // dark icons for a light background, which isn't what we want.
     StatusBar.setStyle({ style: Style.Dark }).catch((err) => {
       console.error("StatusBar.setStyle failed:", err);
     });
 
-    // Android-only API — sets the actual bar color, not just the
-    // icon/text style. Capacitor no-ops this harmlessly on iOS rather
-    // than erroring, so no platform check needed here.
+    // Transparent overlay — lets the app's own black background show
+    // through, which is the reliable approach on modern edge-to-edge
+    // Android versions where setBackgroundColor is often ignored.
+    StatusBar.setOverlaysWebView({ overlay: true }).catch((err) => {
+      console.error("StatusBar.setOverlaysWebView failed:", err);
+    });
+
+    // Still attempted for older Android versions (pre-edge-to-edge
+    // enforcement) where this call still works correctly — harmless
+    // no-op on versions/platforms where it's ignored.
     StatusBar.setBackgroundColor({ color: "#000000" }).catch((err) => {
       console.error("StatusBar.setBackgroundColor failed:", err);
     });
