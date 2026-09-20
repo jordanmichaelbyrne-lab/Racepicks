@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 import MobileBottomNav from "./components/MobileBottomNav";
+import CapacitorStatusBar from "./components/CapacitorStatusBar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -50,6 +51,11 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        {/* Sets the native status bar to match the app's black theme —
+            only does anything inside the Capacitor app, no effect on
+            the regular website. */}
+        <CapacitorStatusBar />
+
         {children}
 
         {/* Spacer so the fixed mobile nav doesn't cover page content */}
