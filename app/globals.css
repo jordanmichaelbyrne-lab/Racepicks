@@ -3,6 +3,14 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Real safe-area values from the OS (notch, punch-hole camera,
+     gesture bar, etc). These only resolve to anything non-zero once
+     viewport-fit=cover is set in layout.tsx's viewport export — on
+     the regular website (no Capacitor), they're always 0px, so this
+     is harmless there. */
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 @theme inline {
@@ -23,6 +31,13 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+
+  /* Keeps normal page content (Navbar, headings, etc.) clear of the
+     status bar/notch at the top. Bottom is intentionally NOT padded
+     here — MobileBottomNav is fixed-positioned and needs its own
+     inset handling separately, since fixed elements ignore body
+     padding entirely. */
+  padding-top: var(--safe-area-top);
 }
 
 @keyframes racepicks-loading-progress {

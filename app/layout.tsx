@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -38,6 +38,17 @@ export const metadata: Metadata = {
       "Australia's Supercross, Motocross and SMX tipping competition.",
     images: ["/images/share.jpg"],
   },
+};
+
+// This is the prerequisite for env(safe-area-inset-*) to work at all —
+// without viewport-fit=cover, those values always resolve to 0px, even
+// on a notched/gesture-nav device. Only actually matters inside the
+// Capacitor app (a normal browser tab ignores viewport-fit and just
+// renders normally), so this has no effect on the regular website.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
