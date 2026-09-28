@@ -233,29 +233,30 @@ export default async function Home() {
   const activeSeason = currentEvent.season;
 
   /*
-   * Load all competitions belonging to the active season.
+   * Load competitions across ALL seasons (not just the active one) so
+   * the previous season's championship cards stay reachable after a
+   * season rolls over. Titles are built from each competition's OWN
+   * season — never the active season — so a 2026 card can't get
+   * mislabelled as 2027.
    */
-  const { data: seasonEventRows, error: seasonEventsError } =
-    await supabase
-      .from("events")
-      .select(
-        `
-          competition_slug,
-          series,
-          season,
-          round_number,
-          status
-        `
-      )
-      .eq("season", activeSeason)
-      .order("race_date", { ascending: true });
+  const { data: allEventRows, error: allEventsError } = await supabase
+    .from("events")
+    .select(
+      `
+        competition_slug,
+        series,
+        season,
+        round_number,
+        status
+      `
+    )
+    .order("race_date", { ascending: true });
 
-  if (seasonEventsError) {
-    throw new Error(seasonEventsError.message);
+  if (allEventsError) {
+    throw new Error(allEventsError.message);
   }
 
-  const typedSeasonEvents =
-    (seasonEventRows ?? []) as SeasonEventRow[];
+  const typedEvents = (allEventRows ?? []) as SeasonEventRow[];
 
   const seriesDescriptions: Record<string, string> = {
     Supercross: "Stadium racing from January through May.",
@@ -263,30 +264,30 @@ export default async function Home() {
     SMX: "The season-ending SuperMotocross playoffs.",
   };
 
-  const seriesTitles: Record<string, string> = {
-    Supercross: `${activeSeason} Supercross`,
-    Motocross: `${activeSeason} Motocross`,
-    SMX: `${activeSeason} SMX Championship`,
-  };
+  function seriesTitle(season: number, series: string) {
+    if (series === "Supercross") return `${season} Supercross`;
+    if (series === "Motocross") return `${season} Motocross`;
+    if (series === "SMX") return `${season} SMX Championship`;
+    return `${season} ${series}`;
+  }
 
-  const uniqueCompetitions = Array.from(
-    new Map(
-      typedSeasonEvents.map((event) => [
-        event.competition_slug,
-        {
-          slug: event.competition_slug,
-          series: event.series,
-          season: event.season,
-        },
-      ])
-    ).values()
-  );
+  function buildCompetitions(events: SeasonEventRow[]): SeasonCompetition[] {
+    const unique = Array.from(
+      new Map(
+        events.map((event) => [
+          event.competition_slug,
+          {
+            slug: event.competition_slug,
+            series: event.series,
+            season: event.season,
+          },
+        ])
+      ).values()
+    );
 
-  const seasonCompetitions: SeasonCompetition[] =
-    uniqueCompetitions.map((competition) => {
-      const competitionEvents = typedSeasonEvents.filter(
-        (event) =>
-          event.competition_slug === competition.slug
+    return unique.map((competition) => {
+      const competitionEvents = events.filter(
+        (event) => event.competition_slug === competition.slug
       );
 
       const hasOpenEvent = competitionEvents.some(
@@ -295,15 +296,11 @@ export default async function Home() {
 
       const allCompleted =
         competitionEvents.length > 0 &&
-        competitionEvents.every(
-          (event) => event.status === "completed"
-        );
+        competitionEvents.every((event) => event.status === "completed");
 
       return {
         ...competition,
-        title:
-          seriesTitles[competition.series] ??
-          `${competition.season} ${competition.series}`,
+        title: seriesTitle(competition.season, competition.series),
         description:
           seriesDescriptions[competition.series] ??
           "Racepicks championship competition.",
@@ -315,6 +312,142 @@ export default async function Home() {
             : "Upcoming",
       };
     });
+  }
+
+  const seasonCompetitions = buildCompetitions(
+    typedEvents.filter((event) => event.season === activeSeason)
+  );
+
+  // Most recent earlier season gets its own "last season" block; the
+  // full archive link only appears once more than one past season
+  // exists, so it never points at an empty page.
+  const pastSeasons = Array.from(
+    new Set(
+      typedEvents
+        .map((event) => event.season)
+        .filter((season) => season < activeSeason)
+    )
+  ).sort((first, second) => second - first);
+
+  const previousSeason = pastSeasons[0] ?? null;
+
+  const previousSeasonCompetitions =
+    previousSeason !== null
+      ? buildCompetitions(
+          typedEvents.filter((event) => event.season === previousSeason)
+        )
+      : [];
+
+  const hasOlderHistory = pastSeasons.length > 1;
+
+  function competitionGridClass(count: number) {
+    return `mt-12 grid gap-6 ${
+      count === 2 ? "mx-auto max-w-4xl md:grid-cols-2" : "lg:grid-cols-3"
+    }`;
+  }
+
+  function renderCompetitionCard(competition: SeasonCompetition) {
+    return (
+      <div
+        key={competition.slug}
+        className="flex flex-col rounded-3xl border border-zinc-800 bg-zinc-950 p-8 transition hover:-translate-y-1 hover:border-orange-500/50"
+      >
+        <p className="text-sm font-black uppercase tracking-[0.25em] text-orange-500">
+          {competition.season}
+        </p>
+
+        <h3 className="mt-4 text-3xl font-black">{competition.title}</h3>
+
+        <p className="mt-4 flex-1 leading-7 text-zinc-400">
+          {competition.description}
+        </p>
+
+        <div className="mt-6 flex items-center justify-between border-t border-zinc-800 pt-6">
+          <span className="font-bold text-zinc-300">
+            {competition.roundCount}{" "}
+            {competition.roundCount === 1 ? "Round" : "Rounds"}
+          </span>
+
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider ${
+              competition.status === "Live"
+                ? "bg-green-500/10 text-green-400"
+                : competition.status === "Completed"
+                  ? "bg-blue-500/10 text-blue-400"
+                  : "bg-zinc-900 text-zinc-400"
+            }`}
+          >
+            {competition.status}
+          </span>
+        </div>
+
+        <Link
+          href={`/competitions/${competition.slug}`}
+          className="mt-8 rounded-full border border-zinc-700 px-6 py-3 text-center font-black transition hover:border-orange-500 hover:bg-orange-500 hover:text-black"
+        >
+          {competition.status === "Completed"
+            ? "View Final Standings"
+            : "View Competition"}
+        </Link>
+      </div>
+    );
+  }
+
+  const competitionsSection = (
+    <section className="mx-auto max-w-7xl px-6 py-20">
+      <div className="text-center">
+        <p className="text-sm font-black uppercase tracking-[0.35em] text-orange-500">
+          {activeSeason} Championship Series
+        </p>
+
+        <h2 className="mt-4 text-4xl font-black tracking-tight md:text-6xl">
+          Choose a Competition
+        </h2>
+
+        <p className="mx-auto mt-4 max-w-2xl text-lg text-zinc-400">
+          Follow the current event from the homepage or browse each
+          championship separately.
+        </p>
+      </div>
+
+      <div className={competitionGridClass(seasonCompetitions.length)}>
+        {seasonCompetitions.map(renderCompetitionCard)}
+      </div>
+
+      {previousSeason !== null && previousSeasonCompetitions.length > 0 && (
+        <div className="mt-24 border-t border-zinc-900 pt-16">
+          <div className="text-center">
+            <p className="text-sm font-black uppercase tracking-[0.35em] text-zinc-500">
+              {previousSeason} Championship Series
+            </p>
+
+            <h2 className="mt-4 text-3xl font-black tracking-tight md:text-5xl">
+              Last Season&apos;s Results
+            </h2>
+
+            <p className="mx-auto mt-4 max-w-2xl text-lg text-zinc-500">
+              Revisit the final standings from the {previousSeason} season.
+            </p>
+          </div>
+
+          <div className={competitionGridClass(previousSeasonCompetitions.length)}>
+            {previousSeasonCompetitions.map(renderCompetitionCard)}
+          </div>
+
+          {hasOlderHistory && (
+            <div className="mt-10 text-center">
+              <Link
+                href="/leaderboard/history"
+                className="text-sm font-black uppercase tracking-widest text-orange-500 transition hover:text-orange-400"
+              >
+                View full championship history →
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
 
   const backgroundImage = getEventBackground();
   const picksAreOpen = currentEvent.status === "open";
@@ -416,77 +549,7 @@ export default async function Home() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-7xl px-6 py-20">
-          <div className="text-center">
-            <p className="text-sm font-black uppercase tracking-[0.35em] text-orange-500">
-              {activeSeason} Championship Series
-            </p>
-
-            <h2 className="mt-4 text-4xl font-black tracking-tight md:text-6xl">
-              Choose a Competition
-            </h2>
-
-            <p className="mx-auto mt-4 max-w-2xl text-lg text-zinc-400">
-              Follow the current event from the homepage or browse each
-              championship separately.
-            </p>
-          </div>
-
-          <div
-            className={`mt-12 grid gap-6 ${
-              seasonCompetitions.length === 2
-                ? "mx-auto max-w-4xl md:grid-cols-2"
-                : "lg:grid-cols-3"
-            }`}
-          >
-            {seasonCompetitions.map((competition) => (
-              <div
-                key={competition.slug}
-                className="flex flex-col rounded-3xl border border-zinc-800 bg-zinc-950 p-8 transition hover:-translate-y-1 hover:border-orange-500/50"
-              >
-                <p className="text-sm font-black uppercase tracking-[0.25em] text-orange-500">
-                  {competition.season}
-                </p>
-
-                <h3 className="mt-4 text-3xl font-black">
-                  {competition.title}
-                </h3>
-
-                <p className="mt-4 flex-1 leading-7 text-zinc-400">
-                  {competition.description}
-                </p>
-
-                <div className="mt-6 flex items-center justify-between border-t border-zinc-800 pt-6">
-                  <span className="font-bold text-zinc-300">
-                    {competition.roundCount}{" "}
-                    {competition.roundCount === 1
-                      ? "Round"
-                      : "Rounds"}
-                  </span>
-
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider ${
-                      competition.status === "Live"
-                        ? "bg-green-500/10 text-green-400"
-                        : competition.status === "Completed"
-                          ? "bg-blue-500/10 text-blue-400"
-                          : "bg-zinc-900 text-zinc-400"
-                    }`}
-                  >
-                    {competition.status}
-                  </span>
-                </div>
-
-                <Link
-                  href={`/competitions/${competition.slug}`}
-                  className="mt-8 rounded-full border border-zinc-700 px-6 py-3 text-center font-black transition hover:border-orange-500 hover:bg-orange-500 hover:text-black"
-                >
-                  View Competition
-                </Link>
-              </div>
-            ))}
-          </div>
-        </section>
+        {competitionsSection}
       </main>
     );
   }
@@ -601,77 +664,7 @@ export default async function Home() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-7xl px-6 py-20">
-        <div className="text-center">
-          <p className="text-sm font-black uppercase tracking-[0.35em] text-orange-500">
-            {activeSeason} Championship Series
-          </p>
-
-          <h2 className="mt-4 text-4xl font-black tracking-tight md:text-6xl">
-            Choose a Competition
-          </h2>
-
-          <p className="mx-auto mt-4 max-w-2xl text-lg text-zinc-400">
-            Follow the current event from the homepage or browse each
-            championship separately.
-          </p>
-        </div>
-
-        <div
-          className={`mt-12 grid gap-6 ${
-            seasonCompetitions.length === 2
-              ? "mx-auto max-w-4xl md:grid-cols-2"
-              : "lg:grid-cols-3"
-          }`}
-        >
-          {seasonCompetitions.map((competition) => (
-            <div
-              key={competition.slug}
-              className="flex flex-col rounded-3xl border border-zinc-800 bg-zinc-950 p-8 transition hover:-translate-y-1 hover:border-orange-500/50"
-            >
-              <p className="text-sm font-black uppercase tracking-[0.25em] text-orange-500">
-                {competition.season}
-              </p>
-
-              <h3 className="mt-4 text-3xl font-black">
-                {competition.title}
-              </h3>
-
-              <p className="mt-4 flex-1 leading-7 text-zinc-400">
-                {competition.description}
-              </p>
-
-              <div className="mt-6 flex items-center justify-between border-t border-zinc-800 pt-6">
-                <span className="font-bold text-zinc-300">
-                  {competition.roundCount}{" "}
-                  {competition.roundCount === 1
-                    ? "Round"
-                    : "Rounds"}
-                </span>
-
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider ${
-                    competition.status === "Live"
-                      ? "bg-green-500/10 text-green-400"
-                      : competition.status === "Completed"
-                        ? "bg-blue-500/10 text-blue-400"
-                        : "bg-zinc-900 text-zinc-400"
-                  }`}
-                >
-                  {competition.status}
-                </span>
-              </div>
-
-              <Link
-                href={`/competitions/${competition.slug}`}
-                className="mt-8 rounded-full border border-zinc-700 px-6 py-3 text-center font-black transition hover:border-orange-500 hover:bg-orange-500 hover:text-black"
-              >
-                View Competition
-              </Link>
-            </div>
-          ))}
-        </div>
-      </section>
+      {competitionsSection}
     </main>
   );
 }

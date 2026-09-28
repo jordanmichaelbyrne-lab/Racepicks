@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/app/lib/supabase/server";
-import { getCurrentSeason } from "@/app/lib/current-season";
+import { getFocusSeason } from "@/app/lib/current-season";
 import Navbar from "@/app/components/Navbar";
 
 type EventRow = {
@@ -36,7 +36,7 @@ function formatSeriesDescription(series: string) {
 export default async function LeaderboardHistoryPage() {
   const supabase = await createClient();
 
-  const currentSeason = await getCurrentSeason(supabase);
+  const currentSeason = await getFocusSeason(supabase);
 
   const { data: eventRows, error } = await supabase
     .from("events")
@@ -124,9 +124,18 @@ export default async function LeaderboardHistoryPage() {
 
               return (
                 <section key={season} className="mt-12">
-                  <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
-                    {season} Season
-                  </p>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
+                      {season} Season
+                    </p>
+
+                    <Link
+                      href={`/leaderboard?season=${season}`}
+                      className="text-xs font-black uppercase tracking-widest text-neutral-400 transition hover:text-orange-500"
+                    >
+                      Overall {season} standings →
+                    </Link>
+                  </div>
 
                   <div className="mt-5 grid gap-5 md:grid-cols-3">
                     {competitionsThisSeason.map((competition) => (

@@ -2,12 +2,17 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import Navbar from "@/app/components/Navbar";
 import { createClient } from "@/app/lib/supabase/server";
+import { pickFocusSeason } from "@/app/lib/current-season";
+import { getSeasonStandings } from "@/app/lib/season-standings";
 import GroupChatBoard from "./GroupChatBoard";
 import GroupSettings from "./GroupSettings";
 
 type PageProps = {
   params: Promise<{
     groupId: string;
+  }>;
+  searchParams: Promise<{
+    season?: string;
   }>;
 };
 
@@ -35,8 +40,12 @@ function getMedalStyle(position: number) {
   return "bg-zinc-800 text-zinc-400";
 }
 
-export default async function GroupChatPage({ params }: PageProps) {
+export default async function GroupChatPage({
+  params,
+  searchParams,
+}: PageProps) {
   const { groupId } = await params;
+  const query = await searchParams;
   const supabase = await createClient();
 
   const {
@@ -86,7 +95,7 @@ export default async function GroupChatPage({ params }: PageProps) {
 
   let memberProfilesById = new Map<
     string,
-    { display_name: string | null }
+    { display_name: string | null; avatar_url: string | null }
   >();
 
   if (memberUserIds.length > 0) {
@@ -96,7 +105,7 @@ export default async function GroupChatPage({ params }: PageProps) {
     const { data: memberProfiles, error: memberProfilesError } =
       await supabase
         .from("public_profiles")
-        .select("id, display_name")
+        .select("id, display_name, avatar_url")
         .in("id", memberUserIds);
 
     if (memberProfilesError) {
@@ -106,7 +115,10 @@ export default async function GroupChatPage({ params }: PageProps) {
     memberProfilesById = new Map(
       (memberProfiles ?? []).map((profile) => [
         profile.id,
-        { display_name: profile.display_name },
+        {
+          display_name: profile.display_name,
+          avatar_url: profile.avatar_url,
+        },
       ])
     );
   }
@@ -117,26 +129,74 @@ export default async function GroupChatPage({ params }: PageProps) {
     profiles: memberProfilesById.get(member.user_id) ?? null,
   }));
 
-  // Group leaderboard — the same season-wide `leaderboard` view used
-  // on the main /leaderboard page, just filtered down to this group's
-  // own members. No separate scoring logic needed: it's the real
-  // season standings, viewed through a smaller lens.
-  let groupLeaderboard: GroupLeaderboardRow[] = [];
+  // Group leaderboard — this season's real standings (the same
+  // season-scoped points as the main /leaderboard), filtered down to
+  // this group's members. Points are per SEASON, so a new season
+  // starts everyone at zero; earlier seasons stay one click away via
+  // the season switcher.
+  const { data: seasonEventData, error: seasonEventsError } = await supabase
+    .from("events")
+    .select("season, status, race_date");
 
-  if (memberUserIds.length > 0) {
-    const { data: leaderboardRows, error: leaderboardError } =
-      await supabase
-        .from("leaderboard")
-        .select("user_id, display_name, avatar_url, total_points, rounds_scored")
-        .in("user_id", memberUserIds)
-        .order("total_points", { ascending: false });
-
-    if (leaderboardError) {
-      console.error("Group leaderboard loading error:", leaderboardError);
-    } else {
-      groupLeaderboard = (leaderboardRows ?? []) as GroupLeaderboardRow[];
-    }
+  if (seasonEventsError) {
+    console.error("Group leaderboard: error loading events:", seasonEventsError);
   }
+
+  const seasonEvents = (seasonEventData ?? []) as {
+    season: number;
+    status: string;
+    race_date: string;
+  }[];
+
+  const focusSeason =
+    pickFocusSeason(seasonEvents) ?? new Date().getFullYear();
+
+  const seasonsWithActivity = Array.from(
+    new Set(
+      seasonEvents
+        .filter(
+          (event) =>
+            event.season === focusSeason || event.status !== "upcoming"
+        )
+        .map((event) => event.season)
+    )
+  ).sort((first, second) => second - first);
+
+  const requestedSeason = Number.parseInt(query.season ?? "", 10);
+
+  const viewSeason = seasonsWithActivity.includes(requestedSeason)
+    ? requestedSeason
+    : focusSeason;
+
+  const seasonStandings = await getSeasonStandings(supabase, viewSeason);
+  const standingsByUserId = new Map(
+    seasonStandings.map((row) => [row.user_id, row])
+  );
+
+  // Every member is listed, including anyone with no scored round yet
+  // this season (they show at 0) — it's a friends' mini-competition,
+  // so nobody should vanish from it.
+  const groupLeaderboard: GroupLeaderboardRow[] = memberUserIds
+    .map((memberId) => {
+      const standing = standingsByUserId.get(memberId);
+      const profile = memberProfilesById.get(memberId);
+
+      return {
+        user_id: memberId,
+        display_name:
+          standing?.display_name ??
+          profile?.display_name?.trim() ??
+          "Racepicks Player",
+        avatar_url: standing?.avatar_url ?? profile?.avatar_url ?? null,
+        total_points: standing?.total_points ?? 0,
+        rounds_scored: standing?.rounds_scored ?? 0,
+      };
+    })
+    .sort(
+      (first, second) =>
+        second.total_points - first.total_points ||
+        first.display_name.localeCompare(second.display_name)
+    );
 
   return (
     <main className="min-h-screen bg-black text-white">
@@ -174,10 +234,29 @@ export default async function GroupChatPage({ params }: PageProps) {
 
           {groupLeaderboard.length > 0 && (
             <section className="mt-8 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950">
-              <div className="border-b border-zinc-800 px-6 py-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 px-6 py-4">
                 <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
-                  Group Leaderboard
+                  Group Leaderboard · {viewSeason} Season
                 </p>
+
+                {seasonsWithActivity.length > 1 && (
+                  <div className="flex flex-wrap gap-2">
+                    {seasonsWithActivity.map((season) => (
+                      <Link
+                        key={season}
+                        href={`/banter/groups/${group.id}?season=${season}`}
+                        aria-current={season === viewSeason ? "page" : undefined}
+                        className={`rounded-full border px-3 py-1 text-[11px] font-black uppercase tracking-wide transition ${
+                          season === viewSeason
+                            ? "border-orange-500 bg-orange-500 text-black"
+                            : "border-zinc-700 text-zinc-400 hover:border-orange-500 hover:text-orange-400"
+                        }`}
+                      >
+                        {season}
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="divide-y divide-zinc-800">

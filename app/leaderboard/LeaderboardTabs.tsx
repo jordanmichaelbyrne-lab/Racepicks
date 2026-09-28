@@ -16,7 +16,6 @@ type LeaderboardTabsProps = {
   competitions: Competition[];
   currentUserId: string;
   overallContent: ReactNode;
-  hasHistory: boolean;
 };
 
 function getInitials(displayName: string) {
@@ -46,7 +45,6 @@ export default function LeaderboardTabs({
   competitions,
   currentUserId,
   overallContent,
-  hasHistory,
 }: LeaderboardTabsProps) {
   const [activeSlug, setActiveSlug] = useState<string | null>(null);
   const [cache, setCache] = useState<
@@ -88,6 +86,7 @@ export default function LeaderboardTabs({
 
   return (
     <div>
+      {competitions.length > 0 && (
       <div
         className="mt-8 flex gap-2 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
@@ -123,16 +122,8 @@ export default function LeaderboardTabs({
             </button>
           );
         })}
-
-        {hasHistory && (
-          <Link
-            href="/leaderboard/history"
-            className="shrink-0 rounded-full border border-dashed border-neutral-700 px-5 py-2.5 text-sm font-black uppercase tracking-wide text-neutral-400 transition hover:border-orange-500 hover:text-orange-400"
-          >
-            History →
-          </Link>
-        )}
       </div>
+      )}
 
       {activeSlug === null ? (
         overallContent
@@ -232,7 +223,7 @@ export default function LeaderboardTabs({
                 return (
                   <Link
                     key={player.user_id}
-                    href={`/leaderboard/${player.user_id}`}
+                    href={`/leaderboard/${player.user_id}?season=${activeData.season}`}
                     className={`grid grid-cols-[40px_1fr_auto] items-center gap-3 px-4 py-4 transition hover:bg-neutral-800/40 sm:px-6 md:grid-cols-[80px_1fr_130px_110px] ${
                       isYou ? "bg-orange-500/10" : ""
                     }`}

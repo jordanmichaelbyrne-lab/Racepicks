@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
 import Navbar from "@/app/components/Navbar";
 import LeaderboardTabs from "./LeaderboardTabs";
-import { getCurrentSeason } from "@/app/lib/current-season";
+import { pickFocusSeason } from "@/app/lib/current-season";
+import { getSeasonStandings } from "@/app/lib/season-standings";
 
 type LeaderboardPlayer = {
   user_id: string;
@@ -40,10 +41,32 @@ type PreviousRoundScore = {
   round_points: number;
 };
 
+type EventRow = {
+  id: string;
+  venue: string;
+  series: string;
+  season: number;
+  round_number: number;
+  race_date: string;
+  status: string;
+  competition_slug: string;
+};
+
+type SeasonTile = {
+  season: number;
+  href: string;
+  isViewed: boolean;
+  statusLabel: string;
+  statusClass: string;
+  detailLabel: string;
+  detailValue: string;
+};
+
 type PageProps = {
   searchParams: Promise<{
     q?: string;
     page?: string;
+    season?: string;
   }>;
 };
 
@@ -164,19 +187,20 @@ export default async function LeaderboardPage({
   const currentUserId = user.id;
 
   const { data, error } = await supabase
-    .from("leaderboard")
+    .from("events")
     .select(
       `
-        user_id,
-        display_name,
-        avatar_url,
-        rounds_scored,
-        total_points,
-        best_round
+        id,
+        venue,
+        series,
+        season,
+        round_number,
+        race_date,
+        status,
+        competition_slug
       `
     )
-    .order("total_points", { ascending: false })
-    .order("display_name", { ascending: true });
+    .order("race_date", { ascending: true });
 
   if (error) {
     console.error("Championship loading error:", error);
@@ -209,10 +233,43 @@ export default async function LeaderboardPage({
     );
   }
 
-  // Full, unfiltered, unpaginated standings — always needed for accurate
-  // position numbers, "leader", and "points behind" math, regardless of
-  // what's currently being searched or which page is being viewed.
-  const fullStandings = (data ?? []) as LeaderboardPlayer[];
+  const eventRows = (data ?? []) as EventRow[];
+
+  // Which season to show. By default it's the season the site is
+  // focused on (same choice as the homepage), so once a new season is
+  // next up the board rolls over to a fresh one. ?season=YYYY reaches
+  // any earlier season's final board.
+  const focusSeason = pickFocusSeason(eventRows) ?? new Date().getFullYear();
+
+  const allSeasons = Array.from(
+    new Set(eventRows.map((event) => event.season))
+  ).sort((first, second) => second - first);
+
+  const requestedSeason = Number.parseInt(params.season ?? "", 10);
+
+  const viewSeason = allSeasons.includes(requestedSeason)
+    ? requestedSeason
+    : focusSeason;
+
+  const isFocusSeason = viewSeason === focusSeason;
+
+  const viewSeasonEvents = eventRows.filter(
+    (event) => event.season === viewSeason
+  );
+
+  const seasonBaseHref = isFocusSeason
+    ? "/leaderboard"
+    : `/leaderboard?season=${viewSeason}`;
+
+  // Full, unfiltered, unpaginated standings for the viewed season —
+  // always needed for accurate position numbers, "leader", and "points
+  // behind" math, regardless of what's currently being searched or
+  // which page is being viewed. Season-scoped, so it starts at zero
+  // when a new season begins.
+  const fullStandings: LeaderboardPlayer[] = await getSeasonStandings(
+    supabase,
+    viewSeason
+  );
   const leader = fullStandings[0];
 
   const positionByUserId = new Map(
@@ -225,39 +282,18 @@ export default async function LeaderboardPage({
 
   const currentUserPosition = positionByUserId.get(currentUserId);
 
-  const { count: completedRounds, error: completedRoundsError } =
-    await supabase
-      .from("events")
-      .select("id", {
-        count: "exact",
-        head: true,
-      })
-      .eq("status", "completed");
+  const completedSeasonEvents = viewSeasonEvents.filter(
+    (event) => event.status === "completed"
+  );
 
-  if (completedRoundsError) {
-    console.error(
-      "Completed rounds loading error:",
-      completedRoundsError
-    );
-  }
+  const completedRounds = completedSeasonEvents.length;
 
-  const { data: latestEventData, error: latestEventError } =
-    await supabase
-      .from("events")
-      .select("id, venue, series, season, round_number")
-      .eq("status", "completed")
-      .order("race_date", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+  // Events are ordered by race date, so the last completed one is the
+  // most recent round of THIS season.
+  const latestEvent: LatestEvent | null =
+    completedSeasonEvents[completedSeasonEvents.length - 1] ?? null;
 
-  if (latestEventError) {
-    console.error("Latest completed event error:", latestEventError);
-  }
-
-  const latestEvent = latestEventData as LatestEvent | null;
-
-  const championshipSeason =
-    latestEvent?.season ?? new Date().getFullYear();
+  const championshipSeason = viewSeason;
 
   let previousRoundScoresByUser = new Map<string, number>();
 
@@ -289,33 +325,13 @@ export default async function LeaderboardPage({
     );
   }
 
-  const { data: currentEventData, error: currentEventError } =
-    await supabase
-      .from("events")
-      .select(
-        `
-          id,
-          venue,
-          series,
-          season,
-          round_number,
-          status
-        `
-      )
-      .in("status", ["open", "upcoming"])
-      .order("race_date", { ascending: true });
-
-  if (currentEventError) {
-    console.error("Current event loading error:", currentEventError);
-  }
-
-  const availableEvents =
-    (currentEventData ?? []) as CurrentEvent[];
-
-  const currentEvent =
-    availableEvents.find((event) => event.status === "open") ??
-    availableEvents[0] ??
-    null;
+  // The NEXT RD column only makes sense for the season currently in
+  // play — a finished past season has no "next round".
+  const currentEvent: CurrentEvent | null = isFocusSeason
+    ? (viewSeasonEvents.find((event) => event.status === "open") ??
+      viewSeasonEvents.find((event) => event.status === "upcoming") ??
+      null)
+    : null;
 
   let submittedPickUserIds = new Set<string>();
 
@@ -372,6 +388,10 @@ export default async function LeaderboardPage({
   function buildPageHref(page: number) {
     const queryParams = new URLSearchParams();
 
+    if (!isFocusSeason) {
+      queryParams.set("season", String(viewSeason));
+    }
+
     if (searchQuery) {
       queryParams.set("q", params.q ?? "");
     }
@@ -420,7 +440,7 @@ export default async function LeaderboardPage({
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <Link
-                href={`/leaderboard/${player.user_id}`}
+                href={`/leaderboard/${player.user_id}?season=${viewSeason}`}
                 className="truncate text-sm font-black transition hover:text-orange-400 sm:text-base"
               >
                 {player.display_name}
@@ -452,7 +472,7 @@ export default async function LeaderboardPage({
         <div className="hidden justify-self-end sm:block">
           {hasPreviousRoundScore ? (
             <Link
-              href={`/leaderboard/${player.user_id}#round-history`}
+              href={`/leaderboard/${player.user_id}?season=${viewSeason}#round-history`}
               aria-label={`View ${player.display_name}'s previous round score`}
               title={`View ${player.display_name}'s previous round score`}
               className="flex h-9 items-center justify-center gap-1.5 rounded-lg border border-neutral-700 bg-black/20 px-3 text-xs font-black text-neutral-200 transition hover:border-orange-500 hover:text-orange-400"
@@ -470,7 +490,7 @@ export default async function LeaderboardPage({
         <div className="justify-self-end">
           {hasCurrentPicks ? (
             <Link
-              href={`/leaderboard/${player.user_id}#next-round-picks`}
+              href={`/leaderboard/${player.user_id}?season=${viewSeason}#next-round-picks`}
               aria-label={`View ${player.display_name}'s next round picks`}
               title={`View ${player.display_name}'s next round picks`}
               className="flex h-9 items-center justify-center gap-1.5 rounded-lg border border-orange-500/40 bg-orange-500/10 px-3 text-xs font-black text-orange-400 transition hover:border-orange-500 hover:bg-orange-500 hover:text-black"
@@ -488,23 +508,6 @@ export default async function LeaderboardPage({
     );
   }
 
-  // Every distinct competition that has events loaded, for the tab
-  // row above the standings. Driven entirely by real data — a future
-  // season's series will appear automatically once it's actually
-  // underway, no code change needed.
-  const { data: competitionEventRows, error: competitionEventsError } =
-    await supabase
-      .from("events")
-      .select("competition_slug, series, season, race_date, status")
-      .order("race_date", { ascending: true });
-
-  if (competitionEventsError) {
-    console.error(
-      "Leaderboard: error loading competitions for tabs:",
-      competitionEventsError
-    );
-  }
-
   function formatCompetitionLabel(season: number, series: string) {
     if (series === "Motocross") return `${season} Pro Motocross`;
     if (series === "Supercross") return `${season} Supercross`;
@@ -512,54 +515,116 @@ export default async function LeaderboardPage({
     return `${season} ${series}`;
   }
 
-  const currentSeason = await getCurrentSeason(supabase);
+  // Tabs for the VIEWED season's competitions, and only ones that have
+  // actually started — a series whose rounds are all still "upcoming"
+  // stays hidden rather than showing an empty tab.
+  const competitionsForTabs: { slug: string; label: string }[] = [];
+  const seenCompetitionSlugs = new Set<string>();
 
-  const competitionOrder: string[] = [];
-  const competitionLabelBySlug = new Map<string, string>();
-  const competitionSeasonBySlug = new Map<string, number>();
-  const competitionHasStartedBySlug = new Map<string, boolean>();
-
-  for (const row of competitionEventRows ?? []) {
-    if (!competitionLabelBySlug.has(row.competition_slug)) {
-      competitionLabelBySlug.set(
-        row.competition_slug,
-        formatCompetitionLabel(row.season, row.series)
-      );
-      competitionSeasonBySlug.set(row.competition_slug, row.season);
-      competitionOrder.push(row.competition_slug);
+  for (const event of viewSeasonEvents) {
+    if (seenCompetitionSlugs.has(event.competition_slug)) {
+      continue;
     }
 
-    if (row.status !== "upcoming") {
-      competitionHasStartedBySlug.set(row.competition_slug, true);
+    seenCompetitionSlugs.add(event.competition_slug);
+
+    const hasStarted = viewSeasonEvents.some(
+      (other) =>
+        other.competition_slug === event.competition_slug &&
+        other.status !== "upcoming"
+    );
+
+    if (hasStarted) {
+      competitionsForTabs.push({
+        slug: event.competition_slug,
+        label: formatCompetitionLabel(event.season, event.series),
+      });
     }
   }
 
-  // Only the CURRENT season's competitions, and only once they've
-  // actually started — a season that hasn't begun yet (every event
-  // still "upcoming") stays hidden rather than showing an empty,
-  // premature tab.
-  const competitionsForTabs = competitionOrder
-    .filter(
-      (slug) =>
-        competitionSeasonBySlug.get(slug) === currentSeason &&
-        competitionHasStartedBySlug.get(slug)
-    )
-    .map((slug) => ({
-      slug,
-      label: competitionLabelBySlug.get(slug) ?? slug,
-    }));
+  function formatSeasonDate(date: string) {
+    return new Intl.DateTimeFormat("en-AU", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      timeZone: "Australia/Brisbane",
+    }).format(new Date(date));
+  }
 
-  // History exists once any competition belongs to an earlier season
-  // than the current one — this is what makes the "History" link
-  // appear automatically the moment a new season begins, with no
-  // manual toggle needed.
-  const hasHistory = competitionOrder.some(
-    (slug) =>
-      currentSeason !== null &&
-      (competitionSeasonBySlug.get(slug) ?? 0) < currentSeason
+  // Season tiles — the current season plus every earlier season that
+  // has results, each linking to that season's own board. Only shown
+  // once there is more than one to choose between.
+  const seasonsWithActivity = allSeasons.filter(
+    (season) =>
+      season === focusSeason ||
+      eventRows.some(
+        (event) => event.season === season && event.status !== "upcoming"
+      )
   );
 
-  const overallContent = (
+  const seasonTiles: SeasonTile[] =
+    seasonsWithActivity.length > 1
+      ? await Promise.all(
+          seasonsWithActivity.map(async (season) => {
+            const seasonEvents = eventRows.filter(
+              (event) => event.season === season
+            );
+
+            const started = seasonEvents.some(
+              (event) => event.status !== "upcoming"
+            );
+
+            const complete =
+              seasonEvents.length > 0 &&
+              seasonEvents.every((event) => event.status === "completed");
+
+            let topPlayer: LeaderboardPlayer | null = null;
+
+            if (started) {
+              const standings =
+                season === viewSeason
+                  ? fullStandings
+                  : await getSeasonStandings(supabase, season);
+
+              topPlayer = standings[0] ?? null;
+            }
+
+            let detailLabel = "Standings";
+            let detailValue = "Awaiting first scores";
+
+            if (topPlayer) {
+              detailLabel = complete ? "Champion" : "Leading";
+              detailValue = `${topPlayer.display_name} · ${topPlayer.total_points} pts`;
+            } else if (!started && seasonEvents[0]) {
+              detailLabel = "Season opens";
+              detailValue = formatSeasonDate(seasonEvents[0].race_date);
+            }
+
+            return {
+              season,
+              href:
+                season === focusSeason
+                  ? "/leaderboard"
+                  : `/leaderboard?season=${season}`,
+              isViewed: season === viewSeason,
+              statusLabel: complete
+                ? "Final"
+                : started
+                  ? "In Progress"
+                  : "Upcoming",
+              statusClass: complete
+                ? "bg-blue-500/10 text-blue-400"
+                : started
+                  ? "bg-green-500/10 text-green-400"
+                  : "bg-neutral-800 text-neutral-400",
+              detailLabel,
+              detailValue,
+            };
+          })
+        )
+      : [];
+
+  const standingsContent = (
     <>
       <section className="mt-8 grid gap-4 sm:grid-cols-3">
             <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-5">
@@ -605,7 +670,7 @@ export default async function LeaderboardPage({
           {currentUserEntry && currentUserPosition && (
             <div className="sticky top-4 z-20 mt-8">
               <Link
-                href={`/leaderboard/${currentUserEntry.user_id}`}
+                href={`/leaderboard/${currentUserEntry.user_id}?season=${viewSeason}`}
                 className="flex items-center gap-4 rounded-2xl border border-orange-500 bg-neutral-950/95 p-4 shadow-lg shadow-black/50 backdrop-blur transition hover:border-orange-400 sm:p-5"
               >
                 <div
@@ -670,6 +735,9 @@ export default async function LeaderboardPage({
                   method="get"
                   className="flex w-full max-w-xs items-center gap-2"
                 >
+                  {!isFocusSeason && (
+                    <input type="hidden" name="season" value={viewSeason} />
+                  )}
                   <input
                     type="search"
                     name="q"
@@ -692,7 +760,7 @@ export default async function LeaderboardPage({
                   {searchedStandings.length === 1 ? "" : "s"} for &ldquo;
                   {params.q}&rdquo; ·{" "}
                   <Link
-                    href="/leaderboard"
+                    href={seasonBaseHref}
                     className="font-bold text-orange-500 hover:text-orange-400"
                   >
                     Clear search
@@ -706,7 +774,7 @@ export default async function LeaderboardPage({
                   {podiumPlayers.map((player, index) => (
                     <Link
                       key={player.user_id}
-                      href={`/leaderboard/${player.user_id}`}
+                      href={`/leaderboard/${player.user_id}?season=${viewSeason}`}
                       className={`flex items-center gap-4 rounded-2xl border p-5 transition hover:border-orange-500 ${
                         index === 0
                           ? "border-orange-500/50 bg-orange-500/10 sm:order-2"
@@ -801,6 +869,35 @@ export default async function LeaderboardPage({
     </>
   );
 
+  const firstEventOfSeason = viewSeasonEvents[0] ?? null;
+
+  // A season with no scored rounds yet (e.g. 2027 before Anaheim 1)
+  // shows a clear "not started" card instead of an empty table.
+  const overallContent =
+    fullStandings.length === 0 ? (
+      <section className="mt-8 rounded-3xl border border-neutral-800 bg-neutral-900 p-10 text-center">
+        <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
+          {viewSeason} Season
+        </p>
+
+        <h2 className="mt-3 text-2xl font-black uppercase">
+          {completedRounds === 0 && firstEventOfSeason?.status === "upcoming"
+            ? "Season Not Started Yet"
+            : "No Standings Yet"}
+        </h2>
+
+        <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-neutral-400">
+          {firstEventOfSeason
+            ? `Standings appear here once Round 1 is scored. The season opens with ${firstEventOfSeason.venue} on ${formatSeasonDate(
+                firstEventOfSeason.race_date
+              )}.`
+            : "Standings will appear here once the first round has been scored."}
+        </p>
+      </section>
+    ) : (
+      standingsContent
+    );
+
   return (
     <main className="min-h-screen bg-black text-white">
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
@@ -824,16 +921,61 @@ export default async function LeaderboardPage({
             </h1>
 
             <p className="mt-3 text-sm text-neutral-400">
-              Overall standings across all completed rounds, or switch
-              below to see a single season&apos;s own leaderboard.
+              Overall standings for the {viewSeason} season across all
+              completed rounds
+              {competitionsForTabs.length > 0
+                ? ", or switch below to see a single competition\u2019s own leaderboard"
+                : ""}
+              .
             </p>
           </header>
 
+          {seasonTiles.length > 1 && (
+            <div className="mt-8">
+              <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
+                Seasons
+              </p>
+
+              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {seasonTiles.map((tile) => (
+                  <Link
+                    key={tile.season}
+                    href={tile.href}
+                    aria-current={tile.isViewed ? "page" : undefined}
+                    className={`rounded-2xl border p-5 transition ${
+                      tile.isViewed
+                        ? "border-orange-500 bg-orange-500/10"
+                        : "border-neutral-800 bg-neutral-900 hover:border-orange-500/50"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-lg font-black">
+                        {tile.season} Season
+                      </p>
+
+                      <span
+                        className={`rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wider ${tile.statusClass}`}
+                      >
+                        {tile.statusLabel}
+                      </span>
+                    </div>
+
+                    <p className="mt-3 text-xs font-bold uppercase tracking-widest text-neutral-500">
+                      {tile.detailLabel}
+                    </p>
+
+                    <p className="mt-1 font-black">{tile.detailValue}</p>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
           <LeaderboardTabs
+            key={viewSeason}
             competitions={competitionsForTabs}
             currentUserId={currentUserId}
             overallContent={overallContent}
-            hasHistory={hasHistory}
           />
         </section>
       </div>

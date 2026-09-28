@@ -3,6 +3,11 @@ import { redirect } from "next/navigation";
 import Navbar from "../components/Navbar";
 import { createClient } from "../lib/supabase/server";
 import SharePicksButton from "../components/SharePicksButton";
+import { pickFocusSeason } from "../lib/current-season";
+import {
+  fetchScoreRows,
+  getSeasonStandings,
+} from "../lib/season-standings";
 
 type Rider = {
   id: string;
@@ -58,6 +63,20 @@ function PickResultCard({
       </p>
     </div>
   );
+}
+
+function ordinalLabel(position: number) {
+  const lastTwo = position % 100;
+
+  if (lastTwo >= 11 && lastTwo <= 13) return `${position}th`;
+
+  const last = position % 10;
+
+  if (last === 1) return `${position}st`;
+  if (last === 2) return `${position}nd`;
+  if (last === 3) return `${position}rd`;
+
+  return `${position}th`;
 }
 
 export default async function AccountPage() {
@@ -285,20 +304,20 @@ export default async function AccountPage() {
   ).length;
 
   // Round wins need each event's highest score across all players.
-  const { data: allScoreData, error: allScoresError } = await supabase
-    .from("scores")
-    .select("user_id, event_id, round_points");
+  // Only read for the events THIS player played, and in pages — a plain
+  // "all scores" query stops at 1,000 rows and would silently miscount
+  // once there are more players and seasons.
+  const playerEventIds = Array.from(
+    new Set(scores.map((score) => score.event_id))
+  );
 
-  if (allScoresError) {
-    console.error("Round winner loading error:", allScoresError);
-  }
+  const allScoreRows = await fetchScoreRows(supabase, playerEventIds);
 
-  const allScores =
-    (allScoreData ?? []) as {
-      user_id: string;
-      event_id: string;
-      round_points: number;
-    }[];
+  const allScores = (allScoreRows ?? []) as {
+    user_id: string;
+    event_id: string;
+    round_points: number;
+  }[];
 
   const highestScoreByEvent = new Map<string, number>();
 
@@ -394,6 +413,23 @@ export default async function AccountPage() {
     }
   }
 
+  // Which season the cards below cover — the season the site is
+  // currently focused on. Championship totals are per SEASON, so a new
+  // season starts every card at zero; earlier seasons appear as their
+  // own "Previous Seasons" tiles.
+  const { data: seasonEventData } = await supabase
+    .from("events")
+    .select("season, status, race_date");
+
+  const seasonEvents = (seasonEventData ?? []) as {
+    season: number;
+    status: string;
+    race_date: string;
+  }[];
+
+  const focusSeason =
+    pickFocusSeason(seasonEvents) ?? new Date().getFullYear();
+
   // Per-series championship totals — drives the SX / MX / SMX cards.
   const pointsBySeries = new Map<string, number>();
   const roundsScoredBySeries = new Map<string, number>();
@@ -405,12 +441,56 @@ export default async function AccountPage() {
       continue;
     }
 
+    if (event.season !== focusSeason) {
+      continue;
+    }
+
     const currentPoints = pointsBySeries.get(event.series) ?? 0;
     pointsBySeries.set(event.series, currentPoints + (score.round_points ?? 0));
 
     const currentRounds = roundsScoredBySeries.get(event.series) ?? 0;
     roundsScoredBySeries.set(event.series, currentRounds + 1);
   }
+
+  // One tile per earlier season this player scored in, so last
+  // season's result is always one click away.
+  const currentUserId = user.id;
+
+  const previousSeasons = Array.from(
+    new Set(
+      scores
+        .map((score) => getScoreEvent(score)?.season)
+        .filter(
+          (season): season is number =>
+            typeof season === "number" && season !== focusSeason
+        )
+    )
+  ).sort((first, second) => second - first);
+
+  const previousSeasonSummaries = await Promise.all(
+    previousSeasons.map(async (season) => {
+      const standings = await getSeasonStandings(supabase, season);
+      const index = standings.findIndex(
+        (row) => row.user_id === currentUserId
+      );
+      const row = index >= 0 ? standings[index] : null;
+
+      const eventsInSeason = seasonEvents.filter(
+        (event) => event.season === season
+      );
+
+      return {
+        season,
+        position: index >= 0 ? index + 1 : 0,
+        players: standings.length,
+        totalPoints: row?.total_points ?? 0,
+        roundsScored: row?.rounds_scored ?? 0,
+        isComplete:
+          eventsInSeason.length > 0 &&
+          eventsInSeason.every((event) => event.status === "completed"),
+      };
+    })
+  );
 
   function seriesSummary(seriesName: string) {
     const points = pointsBySeries.get(seriesName) ?? 0;
@@ -479,7 +559,11 @@ const isSmxActive = activeSeries === "SMX";
             </div>
           </div>
 
-          <div className="mt-12 grid gap-5 md:grid-cols-3">
+          <p className="mt-12 text-xs font-black uppercase tracking-[0.3em] text-orange-500">
+            {focusSeason} Season
+          </p>
+
+          <div className="mt-4 grid gap-5 md:grid-cols-3">
   <div
     className={`rounded-3xl border p-7 ${
       isSupercrossActive
@@ -572,6 +656,51 @@ const isSmxActive = activeSeries === "SMX";
     </p>
   </div>
 </div>
+
+          {previousSeasonSummaries.length > 0 && (
+            <div className="mt-8">
+              <p className="text-xs font-black uppercase tracking-[0.3em] text-zinc-500">
+                Previous Seasons
+              </p>
+
+              <div className="mt-3 grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+                {previousSeasonSummaries.map((summary) => (
+                  <Link
+                    key={summary.season}
+                    href={`/leaderboard/${currentUserId}?season=${summary.season}`}
+                    className="rounded-2xl border border-zinc-800 bg-zinc-950 p-5 transition hover:border-orange-500/50"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-lg font-black">
+                        {summary.season} Season
+                      </p>
+
+                      {summary.isComplete && (
+                        <span className="rounded-full bg-blue-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-blue-400">
+                          Final
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="mt-3 text-2xl font-black text-orange-500">
+                      {summary.totalPoints}
+                      <span className="ml-1 text-xs font-bold uppercase text-zinc-500">
+                        pts
+                      </span>
+                    </p>
+
+                    <p className="mt-1 text-sm text-zinc-400">
+                      {summary.position > 0
+                        ? `${ordinalLabel(summary.position)} of ${summary.players} · `
+                        : ""}
+                      {summary.roundsScored} round
+                      {summary.roundsScored === 1 ? "" : "s"}
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
 
           <section className="mt-10 rounded-3xl border border-zinc-800 bg-zinc-950 p-7 md:p-9">
             <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">

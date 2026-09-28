@@ -1,6 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
+import { pickFocusSeason } from "@/app/lib/current-season";
+import {
+  fetchScoreRows,
+  standingsFromScoreRows,
+} from "@/app/lib/season-standings";
 
 type PlayerProfile = {
   id: string;
@@ -85,6 +90,9 @@ type PickPosition = {
 type PageProps = {
   params: Promise<{
     userId: string;
+  }>;
+  searchParams: Promise<{
+    season?: string;
   }>;
 };
 
@@ -189,16 +197,16 @@ function formatDateTime(date: string) {
 
 export default async function PlayerHistoryPage({
   params,
+  searchParams,
 }: PageProps) {
   const { userId } = await params;
+  const query = await searchParams;
   const supabase = await createClient();
 
   const [
     { data: profile, error: profileError },
     { data: scoreData, error: scoresError },
-    { data: leaderboardData, error: leaderboardError },
-    { data: allScoreData, error: allScoresError },
-    { data: currentEventData, error: currentEventError },
+    { data: eventData, error: eventsError },
   ] = await Promise.all([
     // This player is not necessarily the current user — read from the
     // public-safe view, since RLS now restricts direct profiles reads
@@ -231,23 +239,6 @@ export default async function PlayerHistoryPage({
       .eq("user_id", userId),
 
     supabase
-      .from("leaderboard")
-      .select(
-        `
-          user_id,
-          total_points,
-          rounds_scored,
-          best_round
-        `
-      )
-      .order("total_points", { ascending: false })
-      .order("user_id", { ascending: true }),
-
-    supabase
-      .from("scores")
-      .select("user_id, event_id, round_points"),
-
-    supabase
       .from("events")
       .select(
         `
@@ -262,7 +253,6 @@ export default async function PlayerHistoryPage({
           status
         `
       )
-      .in("status", ["open", "upcoming"])
       .order("race_date", { ascending: true }),
   ]);
 
@@ -274,25 +264,38 @@ export default async function PlayerHistoryPage({
     console.error("Player score history error:", scoresError);
   }
 
-  if (leaderboardError) {
-    console.error("Leaderboard loading error:", leaderboardError);
-  }
-
-  if (allScoresError) {
-    console.error("Round winner loading error:", allScoresError);
-  }
-
-  if (currentEventError) {
-    console.error("Current event loading error:", currentEventError);
+  if (eventsError) {
+    console.error("Events loading error:", eventsError);
   }
 
   const player = profile as PlayerProfile;
-  const leaderboardRows =
-    (leaderboardData ?? []) as LeaderboardRow[];
 
-  // Sorted newest-first — Round History renders this list directly,
-  // top to bottom, so this order IS the display order.
-  const scores = ((scoreData ?? []) as ScoreRow[]).sort((a, b) => {
+  const eventRows = (eventData ?? []) as CurrentEvent[];
+
+  // Which season this card covers. Defaults to the season the site is
+  // currently focused on; ?season=YYYY shows any earlier season, so
+  // last season's card is always one click away.
+  const focusSeason = pickFocusSeason(eventRows) ?? new Date().getFullYear();
+
+  const allSeasons = Array.from(
+    new Set(eventRows.map((event) => event.season))
+  ).sort((first, second) => second - first);
+
+  const requestedSeason = Number.parseInt(query.season ?? "", 10);
+
+  const viewSeason = allSeasons.includes(requestedSeason)
+    ? requestedSeason
+    : focusSeason;
+
+  const isFocusSeason = viewSeason === focusSeason;
+
+  const seasonEventIds = eventRows
+    .filter((event) => event.season === viewSeason)
+    .map((event) => event.id);
+
+  // Every score this player has, newest-first — used for the season
+  // switcher (which seasons they played).
+  const allPlayerScores = ((scoreData ?? []) as ScoreRow[]).sort((a, b) => {
     const eventA = getEvent(a);
     const eventB = getEvent(b);
 
@@ -302,15 +305,39 @@ export default async function PlayerHistoryPage({
     );
   });
 
-  const allScores = (allScoreData ?? []) as AllScoreRow[];
+  // Only the viewed season's scores drive everything below, so a new
+  // season starts from zero instead of adding onto last year. Still
+  // newest-first — Round History renders this list directly.
+  const scores = allPlayerScores.filter(
+    (score) => getEvent(score)?.season === viewSeason
+  );
 
-  const availableEvents =
-    (currentEventData ?? []) as CurrentEvent[];
+  const playerSeasons = allSeasons.filter(
+    (season) =>
+      season === focusSeason ||
+      allPlayerScores.some((score) => getEvent(score)?.season === season)
+  );
 
-  const currentEvent =
-    availableEvents.find((event) => event.status === "open") ??
-    availableEvents[0] ??
-    null;
+  // One paginated read of the season's scores feeds both the ranking
+  // (position / points) and the round-wins calculation.
+  const seasonScoreRows = await fetchScoreRows(supabase, seasonEventIds);
+
+  const seasonStandings = seasonScoreRows
+    ? await standingsFromScoreRows(supabase, seasonScoreRows)
+    : [];
+
+  const allScores = (seasonScoreRows ?? []) as AllScoreRow[];
+
+  // The live "next round" only applies to the season in play.
+  const currentEvent: CurrentEvent | null = isFocusSeason
+    ? (eventRows.find(
+        (event) => event.season === viewSeason && event.status === "open"
+      ) ??
+      eventRows.find(
+        (event) => event.season === viewSeason && event.status === "upcoming"
+      ) ??
+      null)
+    : null;
 
   let currentPick: CurrentPick | null = null;
   let selectedRiders: Rider[] = [];
@@ -480,13 +507,12 @@ export default async function PlayerHistoryPage({
     }
   }
 
-  const playerSummary = leaderboardRows.find(
+  const playerIndex = seasonStandings.findIndex(
     (row) => row.user_id === userId
   );
 
-  const playerIndex = leaderboardRows.findIndex(
-    (row) => row.user_id === userId
-  );
+  const playerSummary =
+    playerIndex >= 0 ? seasonStandings[playerIndex] : undefined;
 
   const playerPosition = playerIndex >= 0 ? playerIndex + 1 : 0;
 
@@ -562,7 +588,7 @@ export default async function PlayerHistoryPage({
     <main className="min-h-screen bg-neutral-950 px-4 py-10 text-white sm:px-6">
       <div className="mx-auto max-w-5xl">
         <Link
-          href="/leaderboard"
+          href={isFocusSeason ? "/leaderboard" : `/leaderboard?season=${viewSeason}`}
           className="inline-block text-sm font-bold text-neutral-400 transition hover:text-orange-500"
         >
           ← Back to Leaderboard
@@ -594,10 +620,29 @@ export default async function PlayerHistoryPage({
                 </h1>
 
                 <p className="mt-2 text-sm text-neutral-400">
-                  Racepicks championship history
+                  Racepicks {viewSeason} season
                 </p>
               </div>
             </div>
+
+            {playerSeasons.length > 1 && (
+              <div className="mt-5 flex flex-wrap gap-2">
+                {playerSeasons.map((season) => (
+                  <Link
+                    key={season}
+                    href={`/leaderboard/${userId}?season=${season}`}
+                    aria-current={season === viewSeason ? "page" : undefined}
+                    className={`rounded-full border px-4 py-1.5 text-xs font-black uppercase tracking-wide transition ${
+                      season === viewSeason
+                        ? "border-orange-500 bg-orange-500 text-black"
+                        : "border-neutral-700 text-neutral-300 hover:border-orange-500 hover:text-orange-400"
+                    }`}
+                  >
+                    {season} Season
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="grid gap-px bg-neutral-800 sm:grid-cols-4">
@@ -645,6 +690,7 @@ export default async function PlayerHistoryPage({
           </div>
         </section>
 
+        {isFocusSeason && (
         <section
           id="next-round-picks"
           className="scroll-mt-6 mt-8 overflow-hidden rounded-3xl border border-orange-500/40 bg-neutral-900"
@@ -761,6 +807,7 @@ export default async function PlayerHistoryPage({
             </>
           )}
         </section>
+        )}
 
         <section className="mt-6 grid gap-4 sm:grid-cols-3">
           <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-5">

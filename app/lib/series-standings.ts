@@ -1,4 +1,5 @@
 import { createClient } from "./supabase/server";
+import { fetchScoreRows } from "./season-standings";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -43,17 +44,10 @@ export async function getSeriesStandings(
     return [];
   }
 
-  const { data: seriesScoreRows, error: seriesScoresError } =
-    await supabase
-      .from("scores")
-      .select("user_id, round_points")
-      .in("event_id", seriesEventIds);
+  // Paginated read — a plain query stops at 1,000 rows.
+  const seriesScoreRows = await fetchScoreRows(supabase, seriesEventIds);
 
-  if (seriesScoresError) {
-    console.error(
-      "Series standings: error loading scores:",
-      seriesScoresError
-    );
+  if (!seriesScoreRows) {
     return [];
   }
 
