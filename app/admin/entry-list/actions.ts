@@ -256,6 +256,58 @@ export async function importRacerXEntryList(formData: FormData) {
     );
   }
 
+  // Also record each rider's number and bike for THIS event's season,
+  // so earlier seasons keep the details they were raced with.
+  const { data: importEvent, error: importEventError } = await supabase
+    .from("events")
+    .select("season")
+    .eq("id", eventId)
+    .single();
+
+  if (importEventError || !importEvent) {
+    redirect(
+      `/admin/entry-list?event=${eventId}&importError=${encodeURIComponent(
+        "Could not find the event to save rider details for."
+      )}`
+    );
+  }
+
+  if (savedRiders && savedRiders.length > 0) {
+    const importedByName = new Map(
+      importedRiders.map((rider) => [rider.fullName, rider])
+    );
+
+    const riderSeasonRows = savedRiders.flatMap((saved) => {
+      const imported = importedByName.get(saved.full_name);
+
+      return imported
+        ? [
+            {
+              rider_id: saved.id,
+              season: importEvent.season,
+              class_name: "450",
+              race_number: imported.raceNumber,
+              manufacturer: imported.manufacturer,
+            },
+          ]
+        : [];
+    });
+
+    const { error: riderSeasonError } = await supabase
+      .from("rider_seasons")
+      .upsert(riderSeasonRows, { onConflict: "rider_id,season" });
+
+    if (riderSeasonError) {
+      console.error("Rider season save error:", riderSeasonError);
+
+      redirect(
+        `/admin/entry-list?event=${eventId}&importError=${encodeURIComponent(
+          riderSeasonError.message
+        )}`
+      );
+    }
+  }
+
   if (!savedRiders || savedRiders.length === 0) {
     redirect(
       `/admin/entry-list?event=${eventId}&importError=${encodeURIComponent(
