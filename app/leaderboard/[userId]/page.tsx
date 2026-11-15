@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
 import { pickFocusSeason } from "@/app/lib/current-season";
+import { getRiderSeasonDetails, applyRiderSeason } from "@/app/lib/rider-season";
 import {
   fetchScoreRows,
   standingsFromScoreRows,
@@ -395,7 +396,16 @@ export default async function PlayerHistoryPage({
         console.error("Current pick riders error:", riderError);
       }
 
-      selectedRiders = (riderData ?? []) as Rider[];
+      const riderSeasonDetails = await getRiderSeasonDetails(
+        supabase,
+        selectedRiderIds,
+        currentEvent.season
+      );
+
+      selectedRiders = applyRiderSeason(
+        (riderData ?? []) as Rider[],
+        riderSeasonDetails
+      );
     }
   }
 

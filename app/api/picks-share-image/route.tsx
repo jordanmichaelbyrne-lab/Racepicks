@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 import { createClient } from "@/app/lib/supabase/server";
+import { getRiderSeasonDetails, applyRiderSeason } from "@/app/lib/rider-season";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -122,7 +123,15 @@ export async function GET(request: Request) {
     .select("id, full_name, race_number, manufacturer, team_name")
     .in("id", riderIds);
 
-  const riders = (riderData ?? []) as Rider[];
+  const riderSeasonDetails = await getRiderSeasonDetails(
+    supabase,
+    riderIds,
+    event.season
+  );
+  const riders = applyRiderSeason(
+    (riderData ?? []) as Rider[],
+    riderSeasonDetails
+  );
   const findRider = (id: string) => riders.find((r) => r.id === id) ?? null;
 
   const rows = [

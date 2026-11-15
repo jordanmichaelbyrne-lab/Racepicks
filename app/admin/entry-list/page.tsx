@@ -1,61 +1,20 @@
-import Link from "next/link";
+"use server";
+
+import * as cheerio from "cheerio";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import AdminSubmitButton from "../components/AdminSubmitButton";
 import { createClient } from "@/app/lib/supabase/server";
-import {
-  importRacerXEntryList,
-  saveEventEntries,
-} from "./actions";
+import { notifyPlayersOfWithdrawnRiders } from "@/app/lib/notifications";
 
-type Event = {
-  id: string;
-  series: string;
-  season: number;
-  round_number: number;
-  venue: string;
-  status: string;
-  race_date: string;
-  entry_list_stage: string | null;
-  provisional_entry_imported_at: string | null;
-  final_entry_imported_at: string | null;
-};
-
-type Rider = {
-  id: string;
-  full_name: string;
-  race_number: number | null;
-  team_name: string | null;
+type ImportedRider = {
+  fullName: string;
+  raceNumber: number;
   manufacturer: string | null;
-  nationality: string | null;
-  class_name: string;
 };
 
-type PageProps = {
-  searchParams: Promise<{
-    event?: string;
-    saved?: string;
-    imported?: string;
-    importError?: string;
-    stage?: string;
-  }>;
-};
+type PublicationStage = "provisional" | "final";
 
-function formatDateTime(date: string | null) {
-  if (!date) {
-    return null;
-  }
-
-  return new Intl.DateTimeFormat("en-AU", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Australia/Brisbane",
-  }).format(new Date(date));
-}
-
-export default async function EntryListPage({
-  searchParams,
-}: PageProps) {
-  const params = await searchParams;
+async function requireAdmin() {
   const supabase = await createClient();
 
   const {
@@ -66,445 +25,535 @@ export default async function EntryListPage({
     redirect("/login");
   }
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("role")
     .eq("id", user.id)
     .single();
 
+  if (profileError) {
+    throw new Error(profileError.message);
+  }
+
   if (profile?.role !== "admin") {
     redirect("/");
   }
 
-  const { data: eventData, error: eventsError } = await supabase
-    .from("events")
-    .select(
-      `
-        id,
-        series,
-        season,
-        round_number,
-        venue,
-        status,
-        race_date,
-        entry_list_stage,
-        provisional_entry_imported_at,
-        final_entry_imported_at
-      `
-    )
-    .order("race_date", { ascending: true });
+  return supabase;
+}
 
-  if (eventsError) {
-    console.error("Event loading error:", eventsError);
-  }
+function cleanText(value: string) {
+  return value.replace(/\s+/g, " ").trim();
+}
 
-  const events = (eventData ?? []) as Event[];
+function identifyManufacturer(bikeName: string) {
+  const bike = bikeName.toLowerCase();
 
-  const selectedEventId =
-    params.event && events.some((event) => event.id === params.event)
-      ? params.event
-      : events[0]?.id;
+  if (bike.includes("honda")) return "Honda";
+  if (bike.includes("yamaha")) return "Yamaha";
+  if (bike.includes("kawasaki")) return "Kawasaki";
+  if (bike.includes("husqvarna")) return "Husqvarna";
+  if (bike.includes("gasgas")) return "GasGas";
+  if (bike.includes("suzuki")) return "Suzuki";
+  if (bike.includes("triumph")) return "Triumph";
+  if (bike.includes("ducati")) return "Ducati";
+  if (bike.includes("beta")) return "Beta";
+  if (bike.includes("ktm")) return "KTM";
 
-  const selectedEvent = events.find(
-    (event) => event.id === selectedEventId
-  );
+  return bikeName ? bikeName : null;
+}
 
-  const { data: riderData, error: ridersError } = await supabase
-    .from("riders")
-    .select(
-      `
-        id,
-        full_name,
-        race_number,
-        team_name,
-        manufacturer,
-        nationality,
-        class_name
-      `
-    )
-    .eq("is_active", true)
-    .eq("class_name", "450")
-    .order("race_number", { ascending: true })
-    .order("full_name", { ascending: true });
+function normaliseRiderName(name: string) {
+  return cleanText(name)
+    .replace(/\bUpdated\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
-  if (ridersError) {
-    console.error("Rider loading error:", ridersError);
-  }
+function parseRacerXEntryList(html: string): ImportedRider[] {
+  const $ = cheerio.load(html);
+  const importedRiders: ImportedRider[] = [];
 
-  const riders = (riderData ?? []) as Rider[];
+  $("table tbody tr").each((_index, row) => {
+    const cells = $(row)
+      .find("td")
+      .map((_cellIndex, cell) => cleanText($(cell).text()))
+      .get();
 
-  let enteredRiderIds = new Set<string>();
-
-  if (selectedEventId) {
-    const { data: entryData, error: entriesError } = await supabase
-      .from("event_entries")
-      .select("rider_id")
-      .eq("event_id", selectedEventId)
-      .eq("confirmed", true);
-
-    if (entriesError) {
-      console.error("Entry list loading error:", entriesError);
+    if (cells.length < 4) {
+      return;
     }
 
-    enteredRiderIds = new Set(
-      (entryData ?? []).map((entry) => entry.rider_id)
+    const raceNumber = Number.parseInt(cells[0], 10);
+    const fullName = normaliseRiderName(cells[1]);
+    const bikeName = cells[cells.length - 1];
+
+    if (
+      !Number.isInteger(raceNumber) ||
+      raceNumber <= 0 ||
+      !fullName
+    ) {
+      return;
+    }
+
+    importedRiders.push({
+      raceNumber,
+      fullName,
+      manufacturer: identifyManufacturer(bikeName),
+    });
+  });
+
+  if (importedRiders.length === 0) {
+    $("tr").each((_index, row) => {
+      const cells = $(row)
+        .find("td")
+        .map((_cellIndex, cell) => cleanText($(cell).text()))
+        .get();
+
+      if (cells.length < 4) {
+        return;
+      }
+
+      const raceNumber = Number.parseInt(cells[0], 10);
+      const fullName = normaliseRiderName(cells[1]);
+      const bikeName = cells[cells.length - 1];
+
+      if (
+        !Number.isInteger(raceNumber) ||
+        raceNumber <= 0 ||
+        !fullName
+      ) {
+        return;
+      }
+
+      importedRiders.push({
+        raceNumber,
+        fullName,
+        manufacturer: identifyManufacturer(bikeName),
+      });
+    });
+  }
+
+  const uniqueRiders = new Map<string, ImportedRider>();
+
+  for (const rider of importedRiders) {
+    const key = `${rider.fullName.toLowerCase()}-450`;
+
+    uniqueRiders.set(key, rider);
+  }
+
+  return Array.from(uniqueRiders.values());
+}
+
+function revalidateEntryListPages() {
+  revalidatePath("/");
+  revalidatePath("/account");
+  revalidatePath("/admin");
+  revalidatePath("/admin/entry-list");
+  revalidatePath("/admin/results");
+  revalidatePath("/admin/riders");
+  revalidatePath("/picks");
+}
+
+export async function importRacerXEntryList(formData: FormData) {
+  const supabase = await requireAdmin();
+
+  const eventId = String(formData.get("event_id") ?? "").trim();
+  const entryListUrl = String(
+    formData.get("entry_list_url") ?? ""
+  ).trim();
+
+  if (!eventId) {
+    throw new Error("Event ID is missing.");
+  }
+
+  let parsedUrl: URL;
+
+  try {
+    parsedUrl = new URL(entryListUrl);
+  } catch {
+    redirect(
+      `/admin/entry-list?event=${eventId}&importError=${encodeURIComponent(
+        "Please enter a valid Racer X URL."
+      )}`
     );
   }
 
-  const listIsFinal =
-    selectedEvent?.entry_list_stage === "final" ||
-    Boolean(selectedEvent?.final_entry_imported_at);
+  const allowedHostnames = new Set([
+    "racerxonline.com",
+    "www.racerxonline.com",
+  ]);
 
-  const listIsProvisional =
-    !listIsFinal &&
-    (selectedEvent?.entry_list_stage === "provisional" ||
-      Boolean(selectedEvent?.provisional_entry_imported_at));
+  if (!allowedHostnames.has(parsedUrl.hostname.toLowerCase())) {
+    redirect(
+      `/admin/entry-list?event=${eventId}&importError=${encodeURIComponent(
+        "Only Racer X entry-list URLs are currently supported."
+      )}`
+    );
+  }
 
-  return (
-    <main className="min-h-screen bg-black px-4 py-10 text-white sm:px-6">
-      <div className="mx-auto max-w-6xl">
-        <Link
-          href="/admin"
-          className="text-sm font-semibold text-neutral-400 transition hover:text-orange-500"
-        >
-          ← Back to admin dashboard
-        </Link>
+  if (!parsedUrl.pathname.endsWith("/entry-list")) {
+    redirect(
+      `/admin/entry-list?event=${eventId}&importError=${encodeURIComponent(
+        "The URL must point to a Racer X entry-list page."
+      )}`
+    );
+  }
 
-        <header className="mt-8">
-          <p className="text-xs font-bold uppercase tracking-[0.3em] text-orange-500">
-            Race Control
-          </p>
+  const response = await fetch(entryListUrl, {
+    cache: "no-store",
+    headers: {
+      "User-Agent":
+        "Racepicks Entry List Importer/1.0 (+https://racepicks.app)",
+      Accept: "text/html,application/xhtml+xml",
+    },
+  });
 
-          <h1 className="mt-3 text-4xl font-black uppercase sm:text-6xl">
-            Entry List
-          </h1>
+  if (!response.ok) {
+    redirect(
+      `/admin/entry-list?event=${eventId}&importError=${encodeURIComponent(
+        `Racer X returned HTTP ${response.status}.`
+      )}`
+    );
+  }
 
-          <p className="mt-3 text-sm text-neutral-400">
-            Import, review and publish the confirmed 450 riders for
-            each race weekend.
-          </p>
-        </header>
+  const html = await response.text();
+  const importedRiders = parseRacerXEntryList(html);
 
-        {params.saved === "true" &&
-          params.stage === "provisional" && (
-            <div className="mt-8 rounded-xl border border-green-900 bg-green-950/40 px-5 py-4 text-sm font-semibold text-green-400">
-              Provisional entry list saved successfully.
-            </div>
-          )}
+  if (importedRiders.length === 0) {
+    redirect(
+      `/admin/entry-list?event=${eventId}&importError=${encodeURIComponent(
+        "No riders were found. Racer X may have changed the page layout."
+      )}`
+    );
+  }
 
-        {params.saved === "true" && params.stage === "final" && (
-          <div className="mt-8 rounded-xl border border-green-500/40 bg-green-500/10 px-5 py-4 text-sm font-semibold text-green-300">
-            Final entry list published successfully. The Admin
-            Dashboard checklist has been updated.
-          </div>
-        )}
+  const importedAt = new Date().toISOString();
 
-        {params.imported && (
-          <>
-            <div className="mt-8 rounded-xl border border-green-900 bg-green-950/40 px-5 py-4 text-sm font-semibold text-green-400">
-              Racer X import completed successfully. {params.imported}{" "}
-              riders were imported and selected for this event.
-            </div>
+  const riderRows = importedRiders.map((rider) => ({
+    full_name: rider.fullName,
+    race_number: rider.raceNumber,
+    manufacturer: rider.manufacturer,
+    class_name: "450",
+    is_active: true,
+    updated_at: importedAt,
+  }));
 
-            <div className="mt-4 rounded-xl border border-orange-500/40 bg-orange-500/10 px-5 py-4">
-              <p className="text-sm font-bold text-orange-300">
-                ⚠️ Before publishing — check for injured riders
-              </p>
+  const { data: savedRiders, error: riderError } = await supabase
+    .from("riders")
+    .upsert(riderRows, {
+      onConflict: "full_name,class_name",
+    })
+    .select("id, full_name");
 
-              <p className="mt-1 text-sm leading-6 text-neutral-300">
-                Racer X marks injured/withdrawn riders with a small
-                medical icon next to their photo on the entry-list
-                page, but this import can't detect that icon
-                automatically. Open the Racer X page in another tab,
-                cross-check for any injury markers, then{" "}
-                <strong>uncheck those riders</strong> in the list
-                below before saving or publishing.
-              </p>
-            </div>
-          </>
-        )}
+  if (riderError) {
+    console.error("Racer X rider import error:", riderError);
 
-        {params.importError && (
-          <div className="mt-8 rounded-xl border border-red-900 bg-red-950/40 px-5 py-4 text-sm font-semibold text-red-400">
-            Import failed: {params.importError}
-          </div>
-        )}
+    redirect(
+      `/admin/entry-list?event=${eventId}&importError=${encodeURIComponent(
+        riderError.message
+      )}`
+    );
+  }
 
-        {events.length === 0 ? (
-          <section className="mt-10 rounded-2xl border border-neutral-800 bg-neutral-950 p-10 text-center">
-            <h2 className="text-2xl font-black uppercase">
-              No events found
-            </h2>
+  // Also record each rider's number and bike for THIS event's season,
+  // so earlier seasons keep the details they were raced with.
+  const { data: importEvent, error: importEventError } = await supabase
+    .from("events")
+    .select("season")
+    .eq("id", eventId)
+    .single();
 
-            <p className="mt-3 text-sm text-neutral-400">
-              Create your first event before publishing an entry list.
-            </p>
-          </section>
-        ) : (
-          <>
-            <section className="mt-10 rounded-2xl border border-neutral-800 bg-neutral-950 p-6">
-              <form
-                method="get"
-                className="flex flex-col gap-4 sm:flex-row"
-              >
-                <div className="flex-1">
-                  <label
-                    htmlFor="event"
-                    className="text-xs font-semibold uppercase tracking-widest text-neutral-400"
-                  >
-                    Select Event
-                  </label>
+  if (importEventError || !importEvent) {
+    redirect(
+      `/admin/entry-list?event=${eventId}&importError=${encodeURIComponent(
+        "Could not find the event to save rider details for."
+      )}`
+    );
+  }
 
-                  <select
-                    id="event"
-                    name="event"
-                    defaultValue={selectedEventId}
-                    className="mt-2 w-full rounded-xl border border-neutral-700 bg-neutral-900 px-4 py-3 outline-none transition focus:border-orange-500"
-                  >
-                    {events.map((event) => (
-                      <option key={event.id} value={event.id}>
-                        {event.season} {event.series} · Round{" "}
-                        {event.round_number} · {event.venue}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+  if (savedRiders && savedRiders.length > 0) {
+    const importedByName = new Map(
+      importedRiders.map((rider) => [rider.fullName, rider])
+    );
 
-                <button
-                  type="submit"
-                  className="self-end rounded-xl border border-orange-500 px-6 py-3 font-bold text-orange-500 transition hover:bg-orange-500 hover:text-black"
-                >
-                  Load Event
-                </button>
-              </form>
-            </section>
+    const riderSeasonRows = savedRiders.flatMap((saved) => {
+      const imported = importedByName.get(saved.full_name);
 
-            {selectedEvent && (
-              <section className="mt-8">
-                <section className="mb-8 rounded-2xl border border-neutral-800 bg-neutral-950 p-6">
-                  <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-widest text-neutral-500">
-                        Current List Status
-                      </p>
+      return imported
+        ? [
+            {
+              rider_id: saved.id,
+              season: importEvent.season,
+              class_name: "450",
+              race_number: imported.raceNumber,
+              manufacturer: imported.manufacturer,
+            },
+          ]
+        : [];
+    });
 
-                      <div className="mt-3 flex flex-wrap items-center gap-3">
-                        <span
-                          className={`rounded-full border px-4 py-2 text-xs font-black uppercase tracking-wider ${
-                            listIsFinal
-                              ? "border-green-500/40 bg-green-500/10 text-green-400"
-                              : listIsProvisional
-                                ? "border-orange-500/40 bg-orange-500/10 text-orange-400"
-                                : "border-neutral-700 bg-neutral-900 text-neutral-400"
-                          }`}
-                        >
-                          {listIsFinal
-                            ? "Final"
-                            : listIsProvisional
-                              ? "Provisional"
-                              : "Not Published"}
-                        </span>
+    const { error: riderSeasonError } = await supabase
+      .from("rider_seasons")
+      .upsert(riderSeasonRows, { onConflict: "rider_id,season" });
 
-                        <span className="text-sm text-neutral-500">
-                          {listIsFinal
-                            ? formatDateTime(
-                                selectedEvent.final_entry_imported_at
-                              )
-                            : listIsProvisional
-                              ? formatDateTime(
-                                  selectedEvent.provisional_entry_imported_at
-                                )
-                              : "No entry list has been published yet."}
-                        </span>
-                      </div>
-                    </div>
+    if (riderSeasonError) {
+      console.error("Rider season save error:", riderSeasonError);
 
-                    {listIsFinal && (
-                      <span className="text-sm font-bold text-green-400">
-                        ✓ Final gate published
-                      </span>
-                    )}
-                  </div>
-                </section>
+      redirect(
+        `/admin/entry-list?event=${eventId}&importError=${encodeURIComponent(
+          riderSeasonError.message
+        )}`
+      );
+    }
+  }
 
-                <form
-                  action={importRacerXEntryList}
-                  className="mb-8 rounded-2xl border border-neutral-800 bg-neutral-950 p-6"
-                >
-                  <input
-                    type="hidden"
-                    name="event_id"
-                    value={selectedEvent.id}
-                  />
+  if (!savedRiders || savedRiders.length === 0) {
+    redirect(
+      `/admin/entry-list?event=${eventId}&importError=${encodeURIComponent(
+        "The riders could not be saved."
+      )}`
+    );
+  }
 
-                  <label
-                    htmlFor="entry_list_url"
-                    className="text-xs font-semibold uppercase tracking-widest text-neutral-400"
-                  >
-                    Racer X Entry List URL
-                  </label>
+  const { data: previousEntries, error: previousEntriesError } =
+    await supabase
+      .from("event_entries")
+      .select("rider_id")
+      .eq("event_id", eventId)
+      .eq("confirmed", true);
 
-                  <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-                    <input
-                      id="entry_list_url"
-                      name="entry_list_url"
-                      type="url"
-                      required
-                      placeholder="https://racerxonline.com/mx/2026/southwick/450/entry-list"
-                      className="min-w-0 flex-1 rounded-xl border border-neutral-700 bg-neutral-900 px-4 py-3 text-white outline-none transition focus:border-orange-500"
-                    />
+  if (previousEntriesError) {
+    console.error(
+      "Could not load previous entry list:",
+      previousEntriesError
+    );
+  }
 
-                    <AdminSubmitButton
-  pendingText="Importing Racer X Entry List..."
-  className="rounded-xl bg-orange-500 px-7 py-3 font-black uppercase text-black transition hover:bg-orange-400"
->
-  Import Entry List
-</AdminSubmitButton>
-                  </div>
+  const previousConfirmedRiderIds = (previousEntries ?? []).map(
+    (entry) => entry.rider_id
+  );
 
-                  <p className="mt-3 text-sm text-neutral-500">
-                    This updates the master rider database and replaces
-                    the selected event’s current rider selections.
-                    Review the list before saving or publishing it.
-                  </p>
-                </form>
+  const { error: clearEntriesError } = await supabase
+    .from("event_entries")
+    .delete()
+    .eq("event_id", eventId);
 
-                <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-widest text-orange-500">
-                      {selectedEvent.series} · Round{" "}
-                      {selectedEvent.round_number}
-                    </p>
+  if (clearEntriesError) {
+    console.error(
+      "Clear imported entry list error:",
+      clearEntriesError
+    );
 
-                    <h2 className="mt-2 text-3xl font-black uppercase">
-                      {selectedEvent.venue}
-                    </h2>
+    redirect(
+      `/admin/entry-list?event=${eventId}&importError=${encodeURIComponent(
+        clearEntriesError.message
+      )}`
+    );
+  }
 
-                    <p className="mt-1 text-sm text-neutral-500">
-                      {enteredRiderIds.size} confirmed riders
-                    </p>
-                  </div>
+  const eventEntries = savedRiders.map((rider) => ({
+    event_id: eventId,
+    rider_id: rider.id,
+    confirmed: true,
+  }));
 
-                  <span className="w-fit rounded-full bg-neutral-900 px-3 py-1 text-xs font-bold uppercase text-neutral-400">
-                    {selectedEvent.status}
-                  </span>
-                </div>
+  const { error: entryError } = await supabase
+    .from("event_entries")
+    .insert(eventEntries);
 
-                <form action={saveEventEntries}>
-                  <input
-                    type="hidden"
-                    name="event_id"
-                    value={selectedEvent.id}
-                  />
+  if (entryError) {
+    console.error("Imported entry-list saving error:", entryError);
 
-                  <div className="overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-950">
-                    {riders.length === 0 ? (
-                      <div className="p-10 text-center">
-                        <h3 className="text-xl font-bold">
-                          No active 450 riders
-                        </h3>
+    redirect(
+      `/admin/entry-list?event=${eventId}&importError=${encodeURIComponent(
+        entryError.message
+      )}`
+    );
+  }
+  await notifyPlayersOfWithdrawnRiders(
+    supabase,
+    eventId,
+    previousConfirmedRiderIds,
+    savedRiders.map((rider) => rider.id)
+  );
 
-                        <p className="mt-2 text-sm text-neutral-400">
-                          Add riders in the Rider Manager first.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="divide-y divide-neutral-800">
-                        {riders.map((rider) => (
-                          <label
-                            key={rider.id}
-                            className="flex cursor-pointer items-center gap-4 px-5 py-4 transition hover:bg-neutral-900"
-                          >
-                            <input
-                              type="checkbox"
-                              name="rider_ids"
-                              value={rider.id}
-                              defaultChecked={enteredRiderIds.has(
-                                rider.id
-                              )}
-                              className="h-5 w-5 accent-orange-500"
-                            />
+  const { data: event, error: eventError } = await supabase
+    .from("events")
+    .select("entry_list_stage")
+    .eq("id", eventId)
+    .single();
 
-                            <div className="flex h-12 min-w-12 items-center justify-center rounded-xl bg-orange-500 px-2 font-black text-black">
-                              #{rider.race_number ?? "—"}
-                            </div>
+  if (eventError) {
+    throw new Error(eventError.message);
+  }
 
-                            <div className="min-w-0 flex-1">
-                              <p className="font-black">
-                                {rider.full_name}
-                              </p>
+  const alreadyFinal = event.entry_list_stage === "final";
 
-                              <p className="truncate text-sm text-neutral-400">
-                                {rider.manufacturer ??
-                                  "Unknown manufacturer"}
-                                {rider.team_name
-                                  ? ` · ${rider.team_name}`
-                                  : ""}
-                              </p>
-                            </div>
+  const eventUpdate = alreadyFinal
+    ? {
+        entry_list_url: entryListUrl,
+        entry_list_imported_at: importedAt,
+      }
+    : {
+        entry_list_url: entryListUrl,
+        entry_list_imported_at: importedAt,
+        provisional_entry_imported_at: importedAt,
+        entry_list_stage: "provisional",
+      };
 
-                            <span className="hidden rounded-full bg-neutral-900 px-3 py-1 text-xs font-bold uppercase text-neutral-500 sm:inline">
-                              {rider.class_name}
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+  const { error: eventUpdateError } = await supabase
+    .from("events")
+    .update(eventUpdate)
+    .eq("id", eventId);
 
-                  <div className="mt-6 grid gap-3 lg:grid-cols-[1fr_1fr_auto]">
-                    <AdminSubmitButton
-  name="publication_stage"
-  value="provisional"
-  disabled={listIsFinal}
-  pendingText="Saving Provisional List..."
-  className="rounded-xl border border-neutral-700 px-7 py-3 font-black uppercase text-white transition hover:border-orange-500 hover:text-orange-500 disabled:cursor-not-allowed disabled:opacity-40"
->
-  {listIsFinal
-    ? "Provisional Stage Complete"
-    : "Save Provisional List"}
-</AdminSubmitButton>
+  if (eventUpdateError) {
+    console.error(
+      "Entry-list event update error:",
+      eventUpdateError
+    );
 
-                    <AdminSubmitButton
-  name="publication_stage"
-  value="final"
-  pendingText="Publishing Final Entry List..."
-  className="rounded-xl bg-orange-500 px-7 py-3 font-black uppercase text-black transition hover:bg-orange-400"
->
-  {listIsFinal
-    ? "Republish Final Entry List"
-    : "Publish Final Entry List"}
-</AdminSubmitButton>
+    throw new Error(eventUpdateError.message);
+  }
 
-                    <Link
-                      href="/admin/riders"
-                      className="rounded-xl border border-neutral-700 px-7 py-3 text-center font-bold transition hover:border-orange-500 hover:text-orange-500"
-                    >
-                      Manage Riders
-                    </Link>
-                  </div>
+  revalidateEntryListPages();
 
-                  {!listIsFinal && (
-                    <div className="mt-5 rounded-xl border border-orange-500/30 bg-orange-500/10 p-4">
-                      <p className="text-sm font-bold text-orange-300">
-                        Publish Final Entry List only after you have
-                        reviewed the latest race-weekend list.
-                      </p>
+  redirect(
+    `/admin/entry-list?event=${eventId}&imported=${savedRiders.length}&stage=${
+      alreadyFinal ? "final" : "provisional"
+    }`
+  );
+}
 
-                      <p className="mt-1 text-sm leading-6 text-neutral-400">
-                        Publishing the final list will complete Step 4
-                        on the Admin Dashboard checklist. Double-check
-                        for injured riders (see reminder above) before
-                        publishing.
-                      </p>
-                    </div>
-                  )}
-                </form>
-              </section>
-            )}
-          </>
-        )}
-      </div>
-    </main>
+export async function saveEventEntries(formData: FormData) {
+  const supabase = await requireAdmin();
+
+  const eventId = String(formData.get("event_id") ?? "").trim();
+
+  const requestedStage = String(
+    formData.get("publication_stage") ?? ""
+  ).trim() as PublicationStage;
+
+  const riderIds = formData
+    .getAll("rider_ids")
+    .map((value) => String(value))
+    .filter(Boolean);
+
+  if (!eventId) {
+    throw new Error("Event ID is missing.");
+  }
+
+  if (
+    requestedStage !== "provisional" &&
+    requestedStage !== "final"
+  ) {
+    throw new Error("Choose whether this is a provisional or final list.");
+  }
+
+  if (riderIds.length === 0) {
+    throw new Error(
+      "Select at least one rider before publishing the entry list."
+    );
+  }
+
+  const { data: previousEntries, error: previousEntriesError } =
+    await supabase
+      .from("event_entries")
+      .select("rider_id")
+      .eq("event_id", eventId)
+      .eq("confirmed", true);
+
+  if (previousEntriesError) {
+    console.error(
+      "Could not load previous entry list:",
+      previousEntriesError
+    );
+  }
+
+  const previousConfirmedRiderIds = (previousEntries ?? []).map(
+    (entry) => entry.rider_id
+  );
+
+  const { error: deleteError } = await supabase
+    .from("event_entries")
+    .delete()
+    .eq("event_id", eventId);
+
+  if (deleteError) {
+    console.error("Clear entry list error:", deleteError);
+    throw new Error(deleteError.message);
+  }
+
+  const entries = riderIds.map((riderId) => ({
+    event_id: eventId,
+    rider_id: riderId,
+    confirmed: true,
+  }));
+
+  const { error: insertError } = await supabase
+    .from("event_entries")
+    .insert(entries);
+
+  if (insertError) {
+    console.error("Save entry list error:", insertError);
+    throw new Error(insertError.message);
+  }
+  
+  await notifyPlayersOfWithdrawnRiders(
+    supabase,
+    eventId,
+    previousConfirmedRiderIds,
+    riderIds
+  );
+
+  const updatedAt = new Date().toISOString();
+
+  const { data: event, error: eventError } = await supabase
+    .from("events")
+    .select("entry_list_stage")
+    .eq("id", eventId)
+    .single();
+
+  if (eventError) {
+    throw new Error(eventError.message);
+  }
+
+  const alreadyFinal = event.entry_list_stage === "final";
+
+  if (alreadyFinal && requestedStage === "provisional") {
+    revalidateEntryListPages();
+
+    redirect(
+      `/admin/entry-list?event=${eventId}&saved=true&stage=final`
+    );
+  }
+
+  const eventUpdate =
+    requestedStage === "final"
+      ? {
+          entry_list_stage: "final",
+          final_entry_imported_at: updatedAt,
+          entry_list_imported_at: updatedAt,
+        }
+      : {
+          entry_list_stage: "provisional",
+          provisional_entry_imported_at: updatedAt,
+          entry_list_imported_at: updatedAt,
+        };
+
+  const { error: updateEventError } = await supabase
+    .from("events")
+    .update(eventUpdate)
+    .eq("id", eventId);
+
+  if (updateEventError) {
+    console.error("Entry-list event status error:", updateEventError);
+    throw new Error(updateEventError.message);
+  }
+
+  revalidateEntryListPages();
+
+  redirect(
+    `/admin/entry-list?event=${eventId}&saved=true&stage=${requestedStage}`
   );
 }

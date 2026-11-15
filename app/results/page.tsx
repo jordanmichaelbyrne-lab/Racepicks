@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Navbar from "../components/Navbar";
 import { createClient } from "../lib/supabase/server";
+import { getRiderSeasonDetails, applyRiderSeason } from "../lib/rider-season";
 import SeriesChampionshipModal from "../components/SeriesChampionshipModal";
 import { isSeriesFinaleEvent, formatSeriesName } from "../lib/series-finale";
 
@@ -247,7 +248,16 @@ export default async function ResultsPage() {
         throw new Error(riderError.message);
       }
 
-      const riders = (riderData ?? []) as Rider[];
+      const riderSeasonDetails = await getRiderSeasonDetails(
+        supabase,
+        riderIds,
+        latestEvent.season
+      );
+
+      const riders = applyRiderSeason(
+        (riderData ?? []) as Rider[],
+        riderSeasonDetails
+      );
 
       function findRider(riderId: string) {
         return (

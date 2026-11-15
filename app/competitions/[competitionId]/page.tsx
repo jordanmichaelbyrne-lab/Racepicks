@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Navbar from "@/app/components/Navbar";
 import { createClient } from "@/app/lib/supabase/server";
 import { getSeriesStandings } from "@/app/lib/series-standings";
+import { getRiderSeasonDetails } from "@/app/lib/rider-season";
 
 type CompetitionEvent = {
   id: string;
@@ -346,11 +347,20 @@ export default async function CompetitionPage({
         (riderNameRows ?? []).map((rider) => [rider.id, rider])
       );
 
+      const riderSeasonDetails = await getRiderSeasonDetails(
+        supabase,
+        topRiderIds,
+        season
+      );
+
       mostPickedRiders = topRiderIds.map((riderId) => ({
         riderId,
         fullName:
           riderById.get(riderId)?.full_name ?? "Unknown rider",
-        raceNumber: riderById.get(riderId)?.race_number ?? null,
+        raceNumber:
+          riderSeasonDetails.get(riderId)?.race_number ??
+          riderById.get(riderId)?.race_number ??
+          null,
         pickCount: riderPickCounts.get(riderId) ?? 0,
       }));
     }

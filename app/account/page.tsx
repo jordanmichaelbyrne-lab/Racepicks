@@ -4,6 +4,7 @@ import Navbar from "../components/Navbar";
 import { createClient } from "../lib/supabase/server";
 import SharePicksButton from "../components/SharePicksButton";
 import { pickFocusSeason } from "../lib/current-season";
+import { getRiderSeasonDetails, applyRiderSeason } from "../lib/rider-season";
 import {
   fetchScoreRows,
   getSeasonStandings,
@@ -188,7 +189,18 @@ export default async function AccountPage() {
       throw new Error(error.message);
     }
 
-    selectedRiders = (data ?? []) as Rider[];
+    // Show each rider with the number and bike they have in THIS
+    // event's season, not whatever the riders table says today.
+    const riderSeasonDetails = await getRiderSeasonDetails(
+      supabase,
+      selectedRiderIds,
+      currentEvent?.season
+    );
+
+    selectedRiders = applyRiderSeason(
+      (data ?? []) as Rider[],
+      riderSeasonDetails
+    );
   }
 
   function findRider(riderId?: string) {
@@ -288,14 +300,36 @@ export default async function AccountPage() {
     );
   });
 
-  const firstHits = scores.filter((score) => score.first_points > 0).length;
-  const secondHits = scores.filter((score) => score.second_points > 0).length;
-  const thirdHits = scores.filter((score) => score.third_points > 0).length;
-  const wildcardHits = scores.filter(
+  // Which season this dashboard covers — the season the site is
+  // currently focused on. Everything below (championship cards, stat
+  // tiles, recent form, recent rounds) is for THIS season only, so a
+  // new season starts from zero. Earlier seasons stay reachable via
+  // the "Previous Seasons" tiles.
+  const { data: seasonEventData } = await supabase
+    .from("events")
+    .select("season, status, race_date");
+
+  const seasonEvents = (seasonEventData ?? []) as {
+    season: number;
+    status: string;
+    race_date: string;
+  }[];
+
+  const focusSeason =
+    pickFocusSeason(seasonEvents) ?? new Date().getFullYear();
+
+  const seasonScores = scores.filter(
+    (score) => getScoreEvent(score)?.season === focusSeason
+  );
+
+  const firstHits = seasonScores.filter((score) => score.first_points > 0).length;
+  const secondHits = seasonScores.filter((score) => score.second_points > 0).length;
+  const thirdHits = seasonScores.filter((score) => score.third_points > 0).length;
+  const wildcardHits = seasonScores.filter(
     (score) => score.wildcard_points > 0
   ).length;
 
-  const perfectRounds = scores.filter(
+  const perfectRounds = seasonScores.filter(
     (score) =>
       score.first_points === 25 &&
       score.second_points === 22 &&
@@ -308,7 +342,7 @@ export default async function AccountPage() {
   // "all scores" query stops at 1,000 rows and would silently miscount
   // once there are more players and seasons.
   const playerEventIds = Array.from(
-    new Set(scores.map((score) => score.event_id))
+    new Set(seasonScores.map((score) => score.event_id))
   );
 
   const allScoreRows = await fetchScoreRows(supabase, playerEventIds);
@@ -329,7 +363,7 @@ export default async function AccountPage() {
     }
   }
 
-  const roundWins = scores.filter((score) => {
+  const roundWins = seasonScores.filter((score) => {
     const highestScore = highestScoreByEvent.get(score.event_id) ?? 0;
 
     return score.round_points > 0 && score.round_points === highestScore;
@@ -337,7 +371,7 @@ export default async function AccountPage() {
 
   // Newest-first, most recent 5 scored rounds — used for both the small
   // form squares AND the detailed Recent Rounds list below.
-  const recentForm = [...scores].reverse().slice(0, 5);
+  const recentForm = [...seasonScores].reverse().slice(0, 5);
 
   // Load which riders were actually picked for each of these recent
   // rounds, so we can show real names (not just position + points).
@@ -412,23 +446,6 @@ export default async function AccountPage() {
       );
     }
   }
-
-  // Which season the cards below cover — the season the site is
-  // currently focused on. Championship totals are per SEASON, so a new
-  // season starts every card at zero; earlier seasons appear as their
-  // own "Previous Seasons" tiles.
-  const { data: seasonEventData } = await supabase
-    .from("events")
-    .select("season, status, race_date");
-
-  const seasonEvents = (seasonEventData ?? []) as {
-    season: number;
-    status: string;
-    race_date: string;
-  }[];
-
-  const focusSeason =
-    pickFocusSeason(seasonEvents) ?? new Date().getFullYear();
 
   // Per-series championship totals — drives the SX / MX / SMX cards.
   const pointsBySeries = new Map<string, number>();
@@ -817,7 +834,11 @@ const isSmxActive = activeSeries === "SMX";
 
           <section className="mt-10">
             <div>
-              <section className="mt-8 grid gap-4 sm:grid-cols-3">
+              <p className="mt-8 text-xs font-black uppercase tracking-[0.3em] text-zinc-500">
+                {focusSeason} Season Stats
+              </p>
+
+              <section className="mt-3 grid gap-4 sm:grid-cols-3">
             <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-5">
               <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
                 Round Wins
@@ -869,7 +890,7 @@ const isSmxActive = activeSeries === "SMX";
 
           <section className="mt-8 rounded-3xl border border-zinc-800 bg-zinc-950 p-6">
             <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
-              Recent Form
+              Recent Form · {focusSeason} Season
             </p>
 
             <h2 className="mt-2 text-xl font-black uppercase">
@@ -907,7 +928,7 @@ const isSmxActive = activeSeries === "SMX";
             )}
           </section>
               <p className="mt-8 text-xs font-black uppercase tracking-[0.3em] text-orange-500">
-                Pick History
+                Pick History · {focusSeason} Season
               </p>
 
               <h2 className="mt-3 text-3xl font-black">
@@ -1013,6 +1034,15 @@ const isSmxActive = activeSeries === "SMX";
                   <p className="mt-3 text-zinc-400">
                     Your completed and scored rounds will appear here.
                   </p>
+
+                  {previousSeasonSummaries.length > 0 && (
+                    <Link
+                      href={`/leaderboard/${currentUserId}?season=${previousSeasonSummaries[0].season}`}
+                      className="mt-5 inline-block text-sm font-black text-orange-500 transition hover:text-orange-400"
+                    >
+                      View your {previousSeasonSummaries[0].season} rounds →
+                    </Link>
+                  )}
                 </div>
               )}
             </div>
