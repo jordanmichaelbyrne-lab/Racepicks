@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createAdminClient } from "@/app/lib/supabase/admin";
-import { wrapEmailHtml, standardEmailHeaders } from "@/app/lib/email-template";
+import {
+  wrapEmailHtml,
+  standardEmailHeaders,
+  escapeHtml,
+  emailInfoCard,
+} from "@/app/lib/email-template";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -90,11 +95,11 @@ export async function GET(request: Request) {
 
       return `
         <tr>
-          <td style="padding:10px 0;border-bottom:1px solid #eeeeee;">
-            <strong>${player.display_name ?? "Unnamed Player"}</strong><br/>
-            <span style="color:#888888;font-size:13px;">${player.email ?? "No email"}</span>
+          <td style="padding:10px 0;border-bottom:1px solid #27272a;text-align:left;line-height:1.5;">
+            <strong>${escapeHtml(player.display_name ?? "Unnamed Player")}</strong><br/>
+            <span style="color:#a1a1aa;font-size:13px;">${escapeHtml(player.email ?? "No email")}</span>
           </td>
-          <td style="padding:10px 0;border-bottom:1px solid #eeeeee;text-align:right;color:#888888;font-size:13px;">
+          <td style="padding:10px 0;border-bottom:1px solid #27272a;text-align:right;color:#71717a;font-size:13px;">
             ${joinedLabel}
           </td>
         </tr>
@@ -109,9 +114,9 @@ export async function GET(request: Request) {
     newPlayers.length === 1 ? "" : "s"
   } joined MX Gatepicks in the last 24 hours:
     </p>
-    <table role="presentation" width="100%" style="margin:16px 0;border-collapse:collapse;">
-      ${playerRowsHtml}
-    </table>
+    ${emailInfoCard(
+      `<table role="presentation" width="100%" style="border-collapse:collapse;">${playerRowsHtml}</table>`
+    )}
   `;
 
   try {
@@ -122,6 +127,11 @@ export async function GET(request: Request) {
         newPlayers.length === 1 ? "" : "s"
       } joined MX Gatepicks`,
       html: wrapEmailHtml({
+        headline: `${newPlayers.length} new player${
+          newPlayers.length === 1 ? "" : "s"
+        }`,
+        eyebrow: "Admin digest",
+        footerNote: "Admin notification: new signups in the last 24 hours.",
         bodyHtml,
         ctaText: "View All Players",
         ctaHref: "https://www.mxgatepicks.com/admin/players",

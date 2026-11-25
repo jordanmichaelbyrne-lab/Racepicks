@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createAdminClient } from "@/app/lib/supabase/admin";
 import { getAllPlayerEmails } from "@/app/lib/email-recipients";
-import { wrapEmailHtml, standardEmailHeaders } from "@/app/lib/email-template";
+import {
+  wrapEmailHtml,
+  standardEmailHeaders,
+  escapeHtml,
+  emailPicksClose,
+} from "@/app/lib/email-template";
 import { delay, EMAIL_SEND_DELAY_MS } from "@/app/lib/email-send-delay";
 
 export const dynamic = "force-dynamic";
@@ -84,20 +89,19 @@ export async function GET(request: Request) {
     timeZone: "Australia/Brisbane",
   }).format(new Date(currentEvent.picks_close_at));
 
-  const eventLabel = `${currentEvent.season} ${currentEvent.series} · Round ${currentEvent.round_number} · ${currentEvent.venue}`;
+  const eventEyebrow = `${currentEvent.season} ${currentEvent.series} · Round ${currentEvent.round_number}`;
 
   let sentCount = 0;
   const failedEmails: string[] = [];
 
   for (const player of players) {
     const bodyHtml = `
-      <p>Hi ${player.display_name ?? "there"},</p>
+      <p>Hi ${escapeHtml(player.display_name ?? "there")},</p>
       <p>
-        Picks are now open for <strong>${eventLabel}</strong>.
+        Picks are now open for <strong>${currentEvent.venue}</strong>.
+        Lock in your 1st, 2nd, 3rd and Wildcard before the gate drops.
       </p>
-      <p>
-        Picks close: <strong>${closeTimeLabel}</strong> (Brisbane time)
-      </p>
+      ${emailPicksClose(closeTimeLabel)}
     `;
 
     try {
@@ -106,6 +110,8 @@ export async function GET(request: Request) {
         to: player.email,
         subject: `Picks are open — ${currentEvent.venue}`,
         html: wrapEmailHtml({
+          headline: "Picks are open",
+          eyebrow: eventEyebrow,
           bodyHtml,
           ctaText: "Enter Your Picks",
           ctaHref: "https://www.mxgatepicks.com/picks",

@@ -1,6 +1,12 @@
 import { Resend } from "resend";
 import { createClient } from "./supabase/server";
-import { wrapEmailHtml, standardEmailHeaders } from "./email-template";
+import {
+  wrapEmailHtml,
+  standardEmailHeaders,
+  escapeHtml,
+  emailCallout,
+  emailInfoCard,
+} from "./email-template";
 import { delay, EMAIL_SEND_DELAY_MS } from "./email-send-delay";
 import { isSeriesFinaleEvent, formatSeriesName } from "./series-finale";
 
@@ -127,7 +133,7 @@ export async function notifyPlayersOfWithdrawnRiders(
     return;
   }
 
-  const eventLabel = `${event.season} ${event.series} · Round ${event.round_number} · ${event.venue}`;
+  const eventEyebrow = `${event.season} ${event.series} · Round ${event.round_number}`;
 
   for (const profile of affectedProfiles ?? []) {
     if (!profile.email) {
@@ -144,18 +150,16 @@ export async function notifyPlayersOfWithdrawnRiders(
     const firstName = profile.display_name ?? "there";
 
     const bodyHtml = `
-      <p>Hi ${firstName},</p>
+      <p>Hi ${escapeHtml(firstName)},</p>
       <p>
-        The entry list for <strong>${eventLabel}</strong> has just been
+        The entry list for <strong>${event.venue}</strong> has just been
         updated, and the following rider${
           riderNames.length > 1 ? "s" : ""
         } you picked ${
       riderNames.length > 1 ? "are" : "is"
     } no longer entered:
       </p>
-      <p style="background-color:#fff4e8;border-left:3px solid #f97316;padding:10px 16px;font-weight:700;">
-        ${riderList}
-      </p>
+      ${emailCallout(escapeHtml(riderList))}
       <p>
         Please update your picks before Saturday 10PM so they count
         toward this round.
@@ -168,6 +172,8 @@ export async function notifyPlayersOfWithdrawnRiders(
         to: profile.email,
         subject: `Action needed: your rider is no longer entered — ${event.venue}`,
         html: wrapEmailHtml({
+          headline: "Rider no longer entered",
+          eyebrow: eventEyebrow,
           bodyHtml,
           ctaText: "Update Your Picks",
           ctaHref: "https://www.mxgatepicks.com/picks",
@@ -241,7 +247,7 @@ export async function notifyPlayersOfResults(
     return;
   }
 
-  const eventLabel = `${event.season} ${event.series} · Round ${event.round_number} · ${event.venue}`;
+  const eventEyebrow = `${event.season} ${event.series} · Round ${event.round_number}`;
 
   for (const player of players ?? []) {
     if (!player.email) {
@@ -252,27 +258,25 @@ export async function notifyPlayersOfResults(
 
     const bodyHtml = isFinale
       ? `
-        <p>Hi ${firstName},</p>
+        <p>Hi ${escapeHtml(firstName)},</p>
         <p>
           That's it — the official results are in for
-          <strong>${eventLabel}</strong>, and with it, the
+          <strong>${event.venue}</strong>, and with it, the
           <strong>${event.season} ${seriesLabel} Championship</strong>
           is complete. 🏁
         </p>
-        <p style="background-color:#fff4e8;border-left:3px solid #f97316;padding:10px 16px;font-weight:700;">
-          See who topped the final ${seriesLabel} standings — tap
-          below for the full recap.
-        </p>
+        ${emailCallout(
+          `See who topped the final ${seriesLabel} standings — tap below for the full recap.`
+        )}
       `
       : `
-        <p>Hi ${firstName},</p>
+        <p>Hi ${escapeHtml(firstName)},</p>
         <p>
-          The official results are in for <strong>${eventLabel}</strong>.
+          The official results are in for <strong>${event.venue}</strong>.
         </p>
-        <p style="background-color:#f7f7f7;border-radius:6px;padding:16px 20px;margin:16px 0;font-weight:600;">
-          🏁 No spoilers here — tap below to see how your own picks
-          scored this round.
-        </p>
+        ${emailInfoCard(
+          `🏁 No spoilers here — tap below to see how your own picks scored this round.`
+        )}
       `;
 
     try {
@@ -283,6 +287,12 @@ export async function notifyPlayersOfResults(
           ? `🏁 The ${seriesLabel} Championship is decided — ${event.venue}`
           : `Results are in — ${event.venue}`,
         html: wrapEmailHtml({
+          headline: isFinale
+            ? `${seriesLabel} Championship decided`
+            : "Results are in",
+          eyebrow: isFinale
+            ? `${event.season} ${seriesLabel} Championship`
+            : eventEyebrow,
           bodyHtml,
           ctaText: isFinale ? "View Final Standings" : "See How You Scored",
           ctaHref: isFinale
