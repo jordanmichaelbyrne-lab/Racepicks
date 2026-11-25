@@ -101,7 +101,7 @@ export default function Navbar() {
           <img
             src="/images/logos/MXGatepicks-Trans.png"
             alt="MX Gatepicks"
-            className="h-8 w-auto sm:h-11"
+            className="h-8 w-auto max-w-none object-contain sm:h-11"
           />
         </Link>
 
