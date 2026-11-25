@@ -34,7 +34,7 @@ export async function DELETE() {
       return NextResponse.json(
         {
           error:
-            "Account deletion is not configured correctly. Please contact Racepicks support.",
+            "Account deletion is not configured correctly. Please contact MX Gatepicks support.",
         },
         {
           status: 500,
@@ -53,7 +53,7 @@ export async function DELETE() {
       }
     );
 
-    // Racepicks has a public leaderboard and threaded Banter discussions
+    // MX Gatepicks has a public leaderboard and threaded Banter discussions
     // that reference this user's picks/posts/comments — most of those
     // tables have no real foreign key to profiles, so a hard delete
     // would either cascade-wipe historical scoring data or leave
@@ -113,7 +113,7 @@ export async function DELETE() {
       return NextResponse.json(
         {
           error:
-            "We could not fully delete your account. Please contact Racepicks support.",
+            "We could not fully delete your account. Please contact MX Gatepicks support.",
         },
         {
           status: 500,

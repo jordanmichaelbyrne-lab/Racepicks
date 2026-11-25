@@ -187,7 +187,7 @@ export default async function ProRidersPage({ searchParams }: PageProps) {
 
         <header className="mt-8">
           <p className="text-xs font-bold uppercase tracking-[0.3em] text-orange-500">
-            Race Control · Racepicks Pro
+            Race Control · MX Gatepicks Pro
           </p>
 
           <h1 className="mt-3 text-4xl font-black uppercase sm:text-6xl">

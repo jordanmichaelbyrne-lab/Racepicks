@@ -52,7 +52,7 @@ export default async function PostPage({ params }: PageProps) {
   const isAdmin = profile?.role === "admin";
 
   const displayName =
-    authorProfile?.display_name?.trim() || "Racepicks Player";
+    authorProfile?.display_name?.trim() || "MX Gatepicks Player";
 
   const formattedDate = new Intl.DateTimeFormat("en-AU", {
     dateStyle: "medium",

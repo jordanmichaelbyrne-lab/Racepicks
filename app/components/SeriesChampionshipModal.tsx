@@ -114,7 +114,7 @@ export default function SeriesChampionshipModal({
 
           <p className="mt-3 text-sm leading-6 text-zinc-400">
             That&apos;s the {seriesName} season wrapped. Here&apos;s who
-            topped the standings — the overall Racepicks Championship
+            topped the standings — the overall MX Gatepicks Championship
             keeps rolling until the final SMX round.
           </p>
         </div>

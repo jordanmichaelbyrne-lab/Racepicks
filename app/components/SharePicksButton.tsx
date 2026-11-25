@@ -54,8 +54,8 @@ export default function SharePicksButton({
       ) {
         await navigator.share({
           files: [file],
-          title: "My Racepicks picks",
-          text: "Check out my picks for this round on Racepicks!",
+          title: "My MX Gatepicks picks",
+          text: "Check out my picks for this round on MX Gatepicks!",
         });
         setIsSharing(false);
         return;

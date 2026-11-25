@@ -27,7 +27,7 @@ export default function TermsPage() {
               </h2>
               <p className="mt-3">
                 By creating an account or participating in any
-                competition on Racepicks (&ldquo;the Service&rdquo;,
+                competition on MX Gatepicks (&ldquo;the Service&rdquo;,
                 &ldquo;we&rdquo;, &ldquo;us&rdquo;,
                 &ldquo;our&rdquo;), you agree to be bound by these
                 Terms and Conditions. If you do not agree, please do
@@ -41,7 +41,7 @@ export default function TermsPage() {
               </h2>
               <p className="mt-3">
                 You must be at least <strong>16 years of age</strong>{" "}
-                to create an account or participate in Racepicks. By
+                to create an account or participate in MX Gatepicks. By
                 registering, you confirm that the information you
                 provide is accurate. We reserve the right to refuse
                 registration, or to suspend or terminate an existing
@@ -54,12 +54,12 @@ export default function TermsPage() {
                 3. Description of the service
               </h2>
               <p className="mt-3">
-                Racepicks is a prediction (&ldquo;tipping&rdquo;)
+                MX Gatepicks is a prediction (&ldquo;tipping&rdquo;)
                 competition covering Supercross, Motocross, and SMX
                 events. Players submit predictions for race outcomes
                 (1st, 2nd, 3rd, and a randomly assigned
                 &ldquo;Wildcard&rdquo; position) ahead of each event.
-                Racepicks is currently offered free of charge to
+                MX Gatepicks is currently offered free of charge to
                 enter. We do not guarantee the accuracy, completeness,
                 or timeliness of entry lists, results, or scoring at
                 any point before, during, or after an event.
@@ -96,7 +96,7 @@ export default function TermsPage() {
                 Where a prize is offered for a competition or season,
                 the specific prize, its value, and any conditions of
                 claiming it will be described separately at the time
-                the prize is announced. Entry to Racepicks is free
+                the prize is announced. Entry to MX Gatepicks is free
                 &mdash; no purchase, payment, or entry fee is required
                 to participate in or win any prize offered. Prize
                 winners are determined based on final competition
@@ -130,14 +130,14 @@ export default function TermsPage() {
                 7. Intellectual property and third-party content
               </h2>
               <p className="mt-3">
-                Racepicks is not affiliated with, endorsed by, or
+                MX Gatepicks is not affiliated with, endorsed by, or
                 sponsored by AMA Pro Motocross, Monster Energy
                 Supercross, SuperMotocross (SMX), Racer X, or any
                 rider, team, or manufacturer referenced on the
                 Service. Rider, team, and manufacturer names displayed
-                on Racepicks are used for identification purposes
+                on MX Gatepicks are used for identification purposes
                 only, in connection with publicly available entry and
-                results information. All Racepicks branding, design,
+                results information. All MX Gatepicks branding, design,
                 and original content is owned by us.
               </p>
             </section>
@@ -147,7 +147,7 @@ export default function TermsPage() {
                 8. Limitation of liability
               </h2>
               <p className="mt-3">
-                To the maximum extent permitted by law, Racepicks is
+                To the maximum extent permitted by law, MX Gatepicks is
                 provided &ldquo;as is&rdquo; without warranties of any
                 kind. We are not liable for loss or damage arising
                 from inaccurate or delayed entry-list or results data,
@@ -204,28 +204,28 @@ export default function TermsPage() {
 
             <section>
               <h2 className="text-2xl font-black text-white">
-                12. Racepicks Pro
+                12. MX Gatepicks Pro
               </h2>
               <p className="mt-3">
-                Racepicks Pro is a planned future competition,
-                separate from the core Racepicks Championship described
-                above. Racepicks Pro is not currently operating, and
+                MX Gatepicks Pro is a planned future competition,
+                separate from the core MX Gatepicks Championship described
+                above. MX Gatepicks Pro is not currently operating, and
                 no fees, subscriptions, or prizes are currently being
                 collected or offered in connection with it.
               </p>
               <p className="mt-3">
                 Where we invite you to register interest, respond to a
                 survey or poll, or provide your email address in
-                connection with Racepicks Pro, doing so does not
+                connection with MX Gatepicks Pro, doing so does not
                 create any competition entry, subscription,
                 entitlement, or obligation on either party. It is
                 solely an expression of interest.
               </p>
               <p className="mt-3">
-                If and when Racepicks Pro launches, its own detailed
+                If and when MX Gatepicks Pro launches, its own detailed
                 rules &mdash; including team composition, salary cap,
                 transfers, and scoring &mdash; will be published
-                separately, and participation in Racepicks Pro at that
+                separately, and participation in MX Gatepicks Pro at that
                 time will be subject to those published rules in
                 addition to these Terms.
               </p>

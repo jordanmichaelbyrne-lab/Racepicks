@@ -20,7 +20,7 @@ function getMondayOfWeek(date: Date): Date {
 }
 
 // The transfer window for the CURRENT round: opens Monday of that
-// round's week, closes at the exact same time normal Racepicks picks
+// round's week, closes at the exact same time normal MX Gatepicks picks
 // close for that event. Ties transfers to the active round's real
 // cycle rather than a fixed calendar assumption.
 export async function getCurrentTransferWindow(): Promise<TransferWindow> {

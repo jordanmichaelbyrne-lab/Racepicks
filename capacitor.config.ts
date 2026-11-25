@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.mxgatepicks.app',
-  appName: 'Racepicks',
+  appName: 'MX Gatepicks',
   webDir: 'capacitor-www',
 
   server: {

@@ -133,7 +133,7 @@ export default function ProfileForm({
               maxLength={40}
               autoComplete="nickname"
               className="mt-2 w-full rounded-2xl border border-zinc-700 bg-black px-5 py-4 text-lg font-black text-white outline-none transition placeholder:text-zinc-700 focus:border-orange-500"
-              placeholder="Your public Racepicks name"
+              placeholder="Your public MX Gatepicks name"
             />
           ) : (
             <div className="mt-2 rounded-2xl border border-zinc-800 bg-black p-5">

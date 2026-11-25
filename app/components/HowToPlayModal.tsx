@@ -29,7 +29,7 @@ export default function HowToPlayModal({
     <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
       <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-zinc-800 bg-zinc-950 p-6 sm:p-8">
         <p className="text-xs font-black uppercase tracking-[0.35em] text-orange-500">
-          Welcome to Racepicks
+          Welcome to MX Gatepicks
         </p>
 
         <h1 className="mt-3 text-3xl font-black uppercase tracking-tight sm:text-4xl">

@@ -54,7 +54,7 @@ export default function ProLandingPage() {
             href="/"
             className="text-2xl font-black tracking-tight text-white sm:text-3xl"
           >
-            Racepicks<span className="text-orange-500">.</span>
+            MX Gatepicks<span className="text-orange-500">.</span>
           </Link>
 
           <Link
@@ -74,7 +74,7 @@ export default function ProLandingPage() {
             </span>
 
             <p className="mt-8 text-sm font-black uppercase tracking-[0.35em] text-orange-500">
-              Racepicks Pro
+              MX Gatepicks Pro
             </p>
 
             <h1 className="mt-4 text-5xl font-black uppercase tracking-tight sm:text-7xl lg:text-8xl">
@@ -295,13 +295,13 @@ export default function ProLandingPage() {
           </p>
 
           <h2 className="mt-3 text-3xl font-black uppercase">
-            You Still Play Racepicks.
+            You Still Play MX Gatepicks.
           </h2>
 
           <p className="mt-4 max-w-4xl leading-7 text-zinc-300">
-            Racepicks Pro does not replace the normal Championship. Pro
+            MX Gatepicks Pro does not replace the normal Championship. Pro
             subscribers still make their regular 1st, 2nd, 3rd and Wildcard
-            picks and compete on the main Racepicks leaderboard.
+            picks and compete on the main MX Gatepicks leaderboard.
           </p>
 
           <p className="mt-3 max-w-4xl leading-7 text-zinc-400">
@@ -317,7 +317,7 @@ export default function ProLandingPage() {
           </p>
 
           <h2 className="mt-3 text-2xl font-black uppercase sm:text-3xl">
-            Read How Racepicks Pro Works
+            Read How MX Gatepicks Pro Works
           </h2>
 
           <p className="mx-auto mt-3 max-w-xl leading-7 text-zinc-400">
@@ -339,7 +339,7 @@ export default function ProLandingPage() {
           </p>
 
           <h2 className="mt-3 text-2xl font-black uppercase sm:text-3xl">
-            Join Racepicks Pro
+            Join MX Gatepicks Pro
           </h2>
 
           <p className="mx-auto mt-3 max-w-xl leading-7 text-zinc-400">
@@ -363,7 +363,7 @@ export default function ProLandingPage() {
         <section className="mt-10 rounded-[2rem] border border-zinc-800 bg-zinc-950 p-7 sm:p-10">
           <div className="mx-auto max-w-4xl text-center">
             <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
-              Help Shape Racepicks Pro
+              Help Shape MX Gatepicks Pro
             </p>
 
             <h2 className="mt-3 text-4xl font-black uppercase sm:text-5xl">
@@ -381,7 +381,7 @@ export default function ProLandingPage() {
 
         <footer className="py-12 text-center">
           <p className="text-sm font-black uppercase tracking-[0.3em] text-orange-500">
-            Racepicks Pro
+            MX Gatepicks Pro
           </p>
 
           <p className="mt-3 text-sm text-zinc-500">

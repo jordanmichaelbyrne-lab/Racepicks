@@ -90,7 +90,7 @@ function getCompetitionDescription(series: string) {
     return "The season-ending SuperMotocross playoffs.";
   }
 
-  return "Racepicks championship series.";
+  return "MX Gatepicks championship series.";
 }
 
 function getSeriesCode(series: string) {
@@ -261,7 +261,7 @@ export default async function CompetitionPage({
       ? "Completed"
       : "Upcoming";
 
-  // Racepicks standings for THIS series + season — same calculation
+  // MX Gatepicks standings for THIS series + season — same calculation
   // used by the series-finale celebration popup, but the full ranked
   // list rather than just the top 3, meant to be browsable any time,
   // not only right when the series wraps.
@@ -741,7 +741,7 @@ export default async function CompetitionPage({
             </section>
           )}
 
-          {/* Racepicks Standings — full ranked table for this series
+          {/* MX Gatepicks Standings — full ranked table for this series
               + season, browsable any time (not just right after it
               ends). Empty state shown until at least one round here
               has been scored. */}
@@ -749,7 +749,7 @@ export default async function CompetitionPage({
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
-                  Racepicks Standings
+                  MX Gatepicks Standings
                 </p>
 
                 <h2 className="mt-3 text-4xl font-black">

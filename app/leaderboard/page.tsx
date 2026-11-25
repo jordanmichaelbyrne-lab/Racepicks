@@ -913,7 +913,7 @@ export default async function LeaderboardPage({
 
           <header className="mt-8">
             <p className="text-xs font-black uppercase tracking-[0.35em] text-orange-500">
-              {championshipSeason} Racepicks
+              {championshipSeason} MX Gatepicks
             </p>
 
             <h1 className="mt-3 text-4xl font-black uppercase tracking-tight sm:text-6xl">

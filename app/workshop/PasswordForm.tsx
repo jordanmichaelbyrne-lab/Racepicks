@@ -78,7 +78,7 @@ export default function PasswordForm() {
       </div>
 
       <p className="mt-5 leading-7 text-zinc-400">
-        Keep your Racepicks account secure by using a strong, unique
+        Keep your MX Gatepicks account secure by using a strong, unique
         password.
       </p>
 

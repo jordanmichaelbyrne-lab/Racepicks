@@ -5,7 +5,7 @@ import { Capacitor } from "@capacitor/core";
 import { StatusBar, Style } from "@capacitor/status-bar";
 
 /**
- * Matches the native status bar to Racepicks' black theme.
+ * Matches the native status bar to MX Gatepicks' black theme.
  *
  * Modern Android (edge-to-edge enforcement, increasingly the default
  * from Android 15/API 35 onward) largely ignores a solid status bar

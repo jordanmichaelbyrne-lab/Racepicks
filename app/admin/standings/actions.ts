@@ -177,7 +177,7 @@ function validateRacerXUrl(rawUrl: string) {
   // Racer X names SMX's combined-points class "450smx" rather than
   // plain "450" — it's a genuinely different number (SX + MX +
   // Playoffs combined), not a typo on their end. Everywhere else in
-  // Racepicks still stores this as class_name = "450" for
+  // MX Gatepicks still stores this as class_name = "450" for
   // consistency with how /results and the competition pages query
   // it — only the URL's accepted class segment differs here.
   const expectedClassSegment =
@@ -451,7 +451,7 @@ export async function importChampionshipStandings(
       method: "GET",
       headers: {
         "User-Agent":
-          "Mozilla/5.0 (compatible; Racepicks/1.0; +https://www.mxgatepicks.com)",
+          "Mozilla/5.0 (compatible; MX Gatepicks/1.0; +https://www.mxgatepicks.com)",
         Accept:
           "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       },
@@ -460,7 +460,7 @@ export async function importChampionshipStandings(
   } catch {
     redirect(
       `/admin/standings?error=${encodeURIComponent(
-        "Racepicks could not connect to Racer X."
+        "MX Gatepicks could not connect to Racer X."
       )}`
     );
   }
@@ -485,7 +485,7 @@ export async function importChampionshipStandings(
   if (parsedStandings.length < 5) {
     redirect(
       `/admin/standings?error=${encodeURIComponent(
-        "Racepicks could not detect enough 450 standings rows on that page."
+        "MX Gatepicks could not detect enough 450 standings rows on that page."
       )}`
     );
   }

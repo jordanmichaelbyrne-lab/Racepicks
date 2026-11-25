@@ -274,7 +274,7 @@ export default async function AdminPage() {
     scoredPlayerCount = scoresResponse.count ?? 0;
   }
 
-  // Racepicks Pro — how many active 450 riders still have no Pro
+  // MX Gatepicks Pro — how many active 450 riders still have no Pro
   // configuration for the current Pro season. Approximate but cheap:
   // total active riders minus how many already have a season row.
   const [activeRiderCountResponse, proConfiguredCountResponse] =
@@ -466,7 +466,7 @@ export default async function AdminPage() {
     {
       title: "Audit Log",
       description:
-        "Review every admin action across the core game and Racepicks Pro — who did what, and when.",
+        "Review every admin action across the core game and MX Gatepicks Pro — who did what, and when.",
       status: "View",
       href: "/admin/audit-log",
     },
@@ -698,13 +698,13 @@ export default async function AdminPage() {
             </>
           )}
 
-          {/* Racepicks Pro — separate section, visually distinct from
+          {/* MX Gatepicks Pro — separate section, visually distinct from
               the core game admin tools below */}
           <section className="mt-10 overflow-hidden rounded-3xl border border-orange-500/40 bg-orange-500/5 p-7 sm:p-9">
             <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
-                  Racepicks Pro
+                  MX Gatepicks Pro
                 </p>
 
                 <h2 className="mt-3 text-3xl font-black uppercase">

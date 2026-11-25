@@ -17,23 +17,23 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.mxgatepicks.com"),
-  title: "Racepicks.",
+  title: "MX Gatepicks.",
   description:
     "Australia's Supercross, Motocross and SMX tipping competition.",
 
   openGraph: {
-    title: "Racepicks.",
+    title: "MX Gatepicks.",
     description:
       "Australia's Supercross, Motocross and SMX tipping competition.",
     images: ["/images/share.jpg"],
-    siteName: "Racepicks.",
+    siteName: "MX Gatepicks.",
     locale: "en_AU",
     type: "website",
   },
 
   twitter: {
     card: "summary_large_image",
-    title: "Racepicks.",
+    title: "MX Gatepicks.",
     description:
       "Australia's Supercross, Motocross and SMX tipping competition.",
     images: ["/images/share.jpg"],

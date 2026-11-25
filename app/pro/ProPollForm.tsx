@@ -93,7 +93,7 @@ export default function ProPollForm() {
           Thanks for the feedback! 🏁
         </p>
         <p className="mt-2 text-sm text-green-300/70">
-          Your response helps shape whether and how Racepicks Pro gets
+          Your response helps shape whether and how MX Gatepicks Pro gets
           built.
         </p>
       </div>
@@ -104,7 +104,7 @@ export default function ProPollForm() {
     <div className="mx-auto mt-10 max-w-4xl space-y-10">
       <div>
         <p className="text-sm font-black uppercase tracking-widest text-white">
-          1. Would you play Racepicks Pro?
+          1. Would you play MX Gatepicks Pro?
         </p>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -121,7 +121,7 @@ export default function ProPollForm() {
 
       <div>
         <p className="text-sm font-black uppercase tracking-widest text-white">
-          2. What would Racepicks Pro be worth to you?
+          2. What would MX Gatepicks Pro be worth to you?
         </p>
 
         <p className="mt-2 text-sm text-zinc-500">

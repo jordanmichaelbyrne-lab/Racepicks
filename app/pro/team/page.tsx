@@ -51,13 +51,13 @@ export default async function ProTeamPage() {
         <div className="mx-auto mt-16 max-w-2xl">
           <div className="rounded-3xl border border-orange-500/30 bg-orange-500/10 p-10 text-center">
             <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
-              Racepicks Pro
+              MX Gatepicks Pro
             </p>
             <h1 className="mt-4 text-3xl font-black uppercase">
               Pro Access Required
             </h1>
             <p className="mt-4 text-neutral-300">
-              You need Racepicks Pro access to build a team. Racepicks
+              You need MX Gatepicks Pro access to build a team. MX Gatepicks
               Pro is still being tested ahead of the {SEASON} season —
               subscriptions aren&apos;t live yet.
             </p>
@@ -65,7 +65,7 @@ export default async function ProTeamPage() {
               href="/pro"
               className="mt-6 inline-block rounded-full bg-orange-500 px-7 py-3 font-black text-black transition hover:bg-orange-400"
             >
-              Back to Racepicks Pro
+              Back to MX Gatepicks Pro
             </Link>
           </div>
         </div>
@@ -197,7 +197,7 @@ export default async function ProTeamPage() {
           <header className="mt-8 flex flex-wrap items-end justify-between gap-3">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.3em] text-orange-500">
-                Racepicks Pro · {SEASON}
+                MX Gatepicks Pro · {SEASON}
               </p>
               <h1 className="mt-3 text-4xl font-black uppercase sm:text-5xl">
                 {existingTeam.team_name || "Your Team"}
@@ -415,7 +415,7 @@ export default async function ProTeamPage() {
               className="inline-flex items-center gap-2 font-black text-zinc-400 transition hover:text-orange-500"
             >
               <span>←</span>
-              <span>Back to Racepicks Pro</span>
+              <span>Back to MX Gatepicks Pro</span>
             </Link>
           </div>
         </div>
@@ -513,7 +513,7 @@ export default async function ProTeamPage() {
       <div className="mx-auto max-w-4xl">
         <header className="mt-8">
           <p className="text-xs font-bold uppercase tracking-[0.3em] text-orange-500">
-            Racepicks Pro · {SEASON}
+            MX Gatepicks Pro · {SEASON}
           </p>
           <h1 className="mt-3 text-4xl font-black uppercase sm:text-5xl">
             Build Your Team
@@ -527,7 +527,7 @@ export default async function ProTeamPage() {
         {riders.length === 0 ? (
           <div className="mt-8 rounded-2xl border border-orange-500/30 bg-orange-500/10 p-8 text-center">
             <p className="font-black text-orange-300">
-              Racepicks Pro rider data isn&apos;t ready yet.
+              MX Gatepicks Pro rider data isn&apos;t ready yet.
             </p>
             <p className="mt-2 text-sm text-orange-200/70">
               Check back once the {SEASON} rider pool is fully configured.

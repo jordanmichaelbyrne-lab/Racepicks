@@ -17,7 +17,7 @@ export default function HowToPlayPage() {
           </Link>
 
           <p className="mt-8 text-sm font-black uppercase tracking-[0.35em] text-orange-500">
-            Racepicks
+            MX Gatepicks
           </p>
 
           <h1 className="mt-4 text-5xl font-black tracking-tight md:text-6xl">

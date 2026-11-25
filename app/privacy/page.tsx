@@ -26,8 +26,8 @@ export default function PrivacyPage() {
                 1. Who we are
               </h2>
               <p className="mt-3">
-                Racepicks (&ldquo;we&rdquo;, &ldquo;us&rdquo;,
-                &ldquo;our&rdquo;) operates the Racepicks website and,
+                MX Gatepicks (&ldquo;we&rdquo;, &ldquo;us&rdquo;,
+                &ldquo;our&rdquo;) operates the MX Gatepicks website and,
                 in future, a companion mobile app, providing a
                 Supercross, Motocross, and SMX tipping competition to
                 players in Australia.
@@ -57,7 +57,7 @@ export default function PrivacyPage() {
               </p>
               <p className="mt-3">
                 <strong>Interest poll responses.</strong> If you
-                respond to a survey or poll (such as the Racepicks Pro
+                respond to a survey or poll (such as the MX Gatepicks Pro
                 interest poll), we store your responses and, if you
                 choose to provide it, your email address, so we can
                 gauge interest and contact you about future features
@@ -86,7 +86,7 @@ export default function PrivacyPage() {
                 account, operate the competition, send you
                 competition-related emails, gauge interest in and
                 communicate about potential future features (such as
-                Racepicks Pro), maintain the security and integrity of
+                MX Gatepicks Pro), maintain the security and integrity of
                 the Service, and improve and troubleshoot the Service.
                 We do not sell your personal information to third
                 parties.
@@ -114,7 +114,7 @@ export default function PrivacyPage() {
               </h2>
               <p className="mt-3">
                 We use the following third-party providers to operate
-                Racepicks. Each processes limited data on our behalf,
+                MX Gatepicks. Each processes limited data on our behalf,
                 under their own privacy and security practices:
               </p>
               <ul className="mt-3 list-disc space-y-2 pl-6">
@@ -170,7 +170,7 @@ export default function PrivacyPage() {
                 8. Children&apos;s privacy
               </h2>
               <p className="mt-3">
-                Racepicks is not intended for use by anyone under the
+                MX Gatepicks is not intended for use by anyone under the
                 age of 16, consistent with our{" "}
                 <Link
                   href="/terms"

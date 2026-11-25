@@ -142,7 +142,7 @@ export default function LeaderboardTabs({
       ) : (
         <section className="mt-8">
           <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
-            Racepicks Standings
+            MX Gatepicks Standings
           </p>
 
           <h2 className="mt-3 text-3xl font-black">
@@ -154,7 +154,7 @@ export default function LeaderboardTabs({
             {(() => {
               const leader = activeData.standings[0];
               const isYou = leader.user_id === currentUserId;
-              const displayName = leader.display_name?.trim() || "Racepicks Player";
+              const displayName = leader.display_name?.trim() || "MX Gatepicks Player";
 
               return (
                 <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
@@ -218,7 +218,7 @@ export default function LeaderboardTabs({
                 const position = index + 1;
                 const isYou = player.user_id === currentUserId;
                 const displayName =
-                  player.display_name?.trim() || "Racepicks Player";
+                  player.display_name?.trim() || "MX Gatepicks Player";
 
                 return (
                   <Link

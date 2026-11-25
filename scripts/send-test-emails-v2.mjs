@@ -1,6 +1,6 @@
 // scripts/send-test-emails.mjs
 //
-// One-off test script — sends every Racepicks email template to a single
+// One-off test script — sends every MX Gatepicks email template to a single
 // address so you can eyeball formatting in a real inbox before wiring the
 // cron routes live.
 //
@@ -69,7 +69,7 @@ function wrapEmailHtml({ bodyHtml, ctaText, ctaHref, preheaderText }) {
             <tr>
               <td style="background-color:#000000;padding:24px 32px;">
                 <span style="color:#ffffff;font-size:22px;font-weight:800;letter-spacing:-0.5px;font-family:Arial,Helvetica,sans-serif;">
-                  Racepicks<span style="color:#f97316;">.</span>
+                  MX Gatepicks<span style="color:#f97316;">.</span>
                 </span>
               </td>
             </tr>
@@ -82,7 +82,7 @@ function wrapEmailHtml({ bodyHtml, ctaText, ctaHref, preheaderText }) {
             <tr>
               <td style="padding:20px 32px;background-color:#fafafa;font-size:12px;color:#999999;
                          border-top:1px solid #eeeeee;font-family:Arial,Helvetica,sans-serif;">
-                Racepicks &middot; Australia's Supercross, Motocross &amp; SMX tipping competition.
+                MX Gatepicks &middot; Australia's Supercross, Motocross &amp; SMX tipping competition.
               </td>
             </tr>
           </table>
@@ -162,7 +162,7 @@ const run = async () => {
   for (const email of emails) {
     try {
       await resend.emails.send({
-        from: "Racepicks <notifications@mxgatepicks.com>",
+        from: "MX Gatepicks <notifications@mxgatepicks.com>",
         to: targetEmail,
         subject: email.subject,
         html: wrapEmailHtml(email),

@@ -100,7 +100,7 @@ export default function Navbar() {
         >
           <img
             src="/images/logos/MXGatepicks-Trans.png"
-            alt="Racepicks"
+            alt="MX Gatepicks"
             className="h-10 w-auto sm:h-14"
           />
         </Link>

@@ -160,7 +160,7 @@ export default function SignUpPage() {
 
         <section className="mx-auto max-w-xl py-16">
           <p className="text-sm font-black uppercase tracking-[0.35em] text-orange-500">
-            Join Racepicks
+            Join MX Gatepicks
           </p>
 
           <h1 className="mt-4 text-5xl font-black tracking-tight">
@@ -169,7 +169,7 @@ export default function SignUpPage() {
 
           <p className="mt-4 leading-7 text-zinc-400">
             Create your player profile and join the current
-            Racepicks competitions.
+            MX Gatepicks competitions.
           </p>
 
           <form

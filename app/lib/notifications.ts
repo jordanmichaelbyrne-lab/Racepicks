@@ -164,7 +164,7 @@ export async function notifyPlayersOfWithdrawnRiders(
 
     try {
       const result = await resend.emails.send({
-        from: "Racepicks <notifications@mxgatepicks.com>",
+        from: "MX Gatepicks <notifications@mxgatepicks.com>",
         to: profile.email,
         subject: `Action needed: your rider is no longer entered — ${event.venue}`,
         html: wrapEmailHtml({
@@ -277,7 +277,7 @@ export async function notifyPlayersOfResults(
 
     try {
       const result = await resend.emails.send({
-        from: "Racepicks <notifications@mxgatepicks.com>",
+        from: "MX Gatepicks <notifications@mxgatepicks.com>",
         to: player.email,
         subject: isFinale
           ? `🏁 The ${seriesLabel} Championship is decided — ${event.venue}`

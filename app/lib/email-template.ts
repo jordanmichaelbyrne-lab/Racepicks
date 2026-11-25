@@ -1,4 +1,4 @@
-// Shared branded email wrapper — every Racepicks email should be built
+// Shared branded email wrapper — every MX Gatepicks email should be built
 // with this, so all notifications stay visually consistent in one place.
 //
 // Email clients (Gmail, Outlook, Apple Mail) render HTML inconsistently,
@@ -51,7 +51,7 @@ export function wrapEmailHtml({
             <tr>
               <td style="background-color:#000000;padding:24px 32px;">
                 <span style="color:#ffffff;font-size:22px;font-weight:800;letter-spacing:-0.5px;font-family:Arial,Helvetica,sans-serif;">
-                  Racepicks<span style="color:#f97316;">.</span>
+                  MX Gatepicks<span style="color:#f97316;">.</span>
                 </span>
               </td>
             </tr>
@@ -64,7 +64,7 @@ export function wrapEmailHtml({
             <tr>
               <td style="padding:20px 32px;background-color:#fafafa;font-size:12px;color:#999999;
                          border-top:1px solid #eeeeee;font-family:Arial,Helvetica,sans-serif;">
-                Racepicks &middot; Australia's Supercross, Motocross &amp; SMX tipping competition.
+                MX Gatepicks &middot; Australia's Supercross, Motocross &amp; SMX tipping competition.
                 <br />
                 <a href="mailto:unsubscribe@mxgatepicks.com?subject=Unsubscribe"
                    style="color:#999999;text-decoration:underline;">

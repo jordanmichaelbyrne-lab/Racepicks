@@ -133,7 +133,7 @@ export async function GET(request: Request) {
 
     try {
       const result = await resend.emails.send({
-        from: "Racepicks <notifications@mxgatepicks.com>",
+        from: "MX Gatepicks <notifications@mxgatepicks.com>",
         to: player.email,
         subject: `Picks close in 6 hours — ${currentEvent.venue}`,
         html: wrapEmailHtml({

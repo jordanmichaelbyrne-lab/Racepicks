@@ -121,7 +121,7 @@ export default function DeleteAccountButton() {
               </p>
 
               <p className="mt-2 leading-7 text-zinc-400">
-                Your Racepicks login and profile will be permanently
+                Your MX Gatepicks login and profile will be permanently
                 deleted. You will no longer be able to access this
                 account.
               </p>

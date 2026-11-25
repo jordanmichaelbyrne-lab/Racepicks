@@ -110,7 +110,7 @@ export default function LoginPage() {
           </form>
 
           <p className="mt-6 text-center text-zinc-400">
-            New to Racepicks?{" "}
+            New to MX Gatepicks?{" "}
             <Link
               href="/signup"
               className="font-bold text-orange-500 hover:text-orange-400"

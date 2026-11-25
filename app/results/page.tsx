@@ -103,9 +103,9 @@ export default async function ResultsPage() {
   const supabase = await createClient();
 
   /*
-   * Championship standings are loaded separately from Racepicks
+   * Championship standings are loaded separately from MX Gatepicks
    * event results. This allows the official standings to display
-   * before Racepicks has completed its first round.
+   * before MX Gatepicks has completed its first round.
    */
   const {
     data: latestStandingReference,
@@ -165,7 +165,7 @@ export default async function ResultsPage() {
   }
 
   /*
-   * Load the most recently completed Racepicks event.
+   * Load the most recently completed MX Gatepicks event.
    */
   const { data: latestEventData, error: eventError } =
     await supabase
@@ -309,7 +309,7 @@ export default async function ResultsPage() {
    * logic can never affect the rollover itself.
    *
    * IMPORTANT: this only powers a celebratory popup for that one
-   * series. It never touches the season-long overall Racepicks
+   * series. It never touches the season-long overall MX Gatepicks
    * Championship leaderboard, which keeps accumulating across all
    * three series until the final SMX round.
    */
@@ -409,7 +409,7 @@ export default async function ResultsPage() {
           user_id: userId,
           display_name:
             profileById.get(userId)?.display_name ??
-            "Racepicks Player",
+            "MX Gatepicks Player",
           avatar_url: profileById.get(userId)?.avatar_url ?? null,
           series_points: points,
         }));
@@ -478,7 +478,7 @@ export default async function ResultsPage() {
 
               {Number(latestEvent.points_multiplier ?? 1) > 1 && (
                 <span className="mt-5 inline-block rounded-full bg-orange-500 px-4 py-2 text-xs font-black uppercase text-black">
-                  {latestEvent.points_multiplier}× Racepicks Points
+                  {latestEvent.points_multiplier}× MX Gatepicks Points
                 </span>
               )}
             </section>
@@ -556,7 +556,7 @@ export default async function ResultsPage() {
                 href="/leaderboard"
                 className="rounded-full bg-orange-500 px-7 py-3 text-center font-black text-black transition hover:bg-orange-400"
               >
-                View Racepicks Championship
+                View MX Gatepicks Championship
               </Link>
 
               <Link
@@ -580,7 +580,7 @@ export default async function ResultsPage() {
                 </h2>
 
                 <p className="mt-3 max-w-2xl leading-7 text-zinc-400">
-                  Racepicks race results will appear here after the
+                  MX Gatepicks race results will appear here after the
                   first event has been completed, published and scored.
                   The current official championship standings are
                   available below.
@@ -588,7 +588,7 @@ export default async function ResultsPage() {
               </div>
 
               <span className="w-fit rounded-full border border-zinc-700 bg-black px-4 py-2 text-xs font-black uppercase tracking-wider text-zinc-500">
-                No Racepicks Results Yet
+                No MX Gatepicks Results Yet
               </span>
             </div>
           </section>

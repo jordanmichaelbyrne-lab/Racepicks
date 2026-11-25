@@ -308,7 +308,7 @@ export default function CommentThread({
 
   function renderComment(comment: CommentNode, depth: number) {
     const displayName =
-      comment.profiles?.display_name?.trim() || "Racepicks Player";
+      comment.profiles?.display_name?.trim() || "MX Gatepicks Player";
     const isCurrentUser = comment.user_id === currentUserId;
     const isReplying = activeReplyId === comment.id;
 

@@ -9,22 +9,22 @@ export default function ProHowToPlayPage() {
 
         <section className="py-12 sm:py-16">
           <p className="text-sm font-black uppercase tracking-[0.35em] text-orange-500">
-            Racepicks Pro
+            MX Gatepicks Pro
           </p>
 
           <h1 className="mt-4 text-5xl font-black tracking-tight sm:text-6xl">
-            How Racepicks Pro Works
+            How MX Gatepicks Pro Works
           </h1>
 
           <p className="mt-5 max-w-2xl text-lg leading-8 text-zinc-400">
             A deeper dive into the Team Manager concept — the season-long
-            fantasy competition planned alongside the normal Racepicks
+            fantasy competition planned alongside the normal MX Gatepicks
             game.
           </p>
 
           <div className="mt-6 rounded-2xl border border-orange-500/30 bg-orange-500/10 p-5">
             <p className="text-sm font-bold text-orange-300">
-              Racepicks Pro isn&apos;t live yet.
+              MX Gatepicks Pro isn&apos;t live yet.
             </p>
             <p className="mt-1 text-sm leading-6 text-zinc-300">
               This page describes the current plan so you know what
@@ -40,7 +40,7 @@ export default function ProHowToPlayPage() {
                 The Big Idea
               </h2>
               <p className="mt-3">
-                Racepicks Pro doesn&apos;t replace the normal Racepicks
+                MX Gatepicks Pro doesn&apos;t replace the normal MX Gatepicks
                 game — it adds a second, deeper championship alongside
                 it. You&apos;d still make your regular 1st / 2nd / 3rd /
                 Wildcard picks every round exactly as you do now. Pro adds
@@ -150,7 +150,7 @@ export default function ProHowToPlayPage() {
               </h2>
               <p className="mt-3">
                 Your Pro roster locks at the exact same time as your
-                normal Racepicks picks each round — no separate deadline
+                normal MX Gatepicks picks each round — no separate deadline
                 to track. Once locked, that round&apos;s team is set;
                 any transfer you make applies to a future round.
               </p>
@@ -239,8 +239,8 @@ export default function ProHowToPlayPage() {
                 The Pro Leaderboard
               </h2>
               <p className="mt-3">
-                Racepicks Pro has its own leaderboard, completely
-                separate from the standard Racepicks Championship — so
+                MX Gatepicks Pro has its own leaderboard, completely
+                separate from the standard MX Gatepicks Championship — so
                 you&apos;re tracking two competitions at once, not one
                 replacing the other.
               </p>
@@ -276,7 +276,7 @@ export default function ProHowToPlayPage() {
               href="/pro"
               className="rounded-full bg-orange-500 px-7 py-3 font-black text-black transition hover:bg-orange-400"
             >
-              Back to Racepicks Pro
+              Back to MX Gatepicks Pro
             </Link>
 
             <Link

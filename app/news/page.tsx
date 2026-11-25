@@ -14,7 +14,7 @@ export default function NewsPage() {
             </div>
 
             <p className="mt-8 text-xs font-black uppercase tracking-[0.35em] text-orange-500">
-              Racepicks News
+              MX Gatepicks News
             </p>
 
             <h1 className="mt-4 text-5xl font-black uppercase tracking-tight sm:text-7xl">

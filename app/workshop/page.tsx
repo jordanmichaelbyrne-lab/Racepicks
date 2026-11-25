@@ -19,7 +19,7 @@ type Profile = {
 
 function formatJoinedDate(date: string | null) {
   if (!date) {
-    return "Racepicks Member";
+    return "MX Gatepicks Member";
   }
 
   return `Joined ${new Intl.DateTimeFormat("en-AU", {
@@ -75,7 +75,7 @@ export default async function WorkshopPage() {
     typedProfile?.display_name?.trim() ||
     getMetadataString(metadata, "display_name") ||
     user.email?.split("@")[0] ||
-    "Racepicks Player";
+    "MX Gatepicks Player";
 
   const firstName: string =
     typedProfile?.first_name?.trim() ||
@@ -87,8 +87,8 @@ export default async function WorkshopPage() {
 
   const memberLabel =
     typedProfile?.role === "admin"
-      ? "Racepicks Administrator"
-      : "Racepicks Member";
+      ? "MX Gatepicks Administrator"
+      : "MX Gatepicks Member";
 
   const joinedLabel = formatJoinedDate(
     typedProfile?.created_at ?? user.created_at ?? null
@@ -110,7 +110,7 @@ export default async function WorkshopPage() {
             </h1>
 
             <p className="mt-5 max-w-2xl text-lg leading-8 text-zinc-400">
-              Manage your Racepicks profile, account security and
+              Manage your MX Gatepicks profile, account security and
               membership settings.
             </p>
           </div>
@@ -162,7 +162,7 @@ export default async function WorkshopPage() {
               <div className="flex items-start justify-between gap-5">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
-                    Racepicks
+                    MX Gatepicks
                   </p>
 
                   <h2 className="mt-3 text-3xl font-black">
@@ -191,7 +191,7 @@ export default async function WorkshopPage() {
                 href="/pro/how-to-play"
                 className="mt-3 block text-center text-sm font-bold text-zinc-500 transition hover:text-orange-500"
               >
-                New: How Racepicks Pro Works →
+                New: How MX Gatepicks Pro Works →
               </Link>
             </section>
 
@@ -199,11 +199,11 @@ export default async function WorkshopPage() {
               <div className="flex items-start justify-between gap-5">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
-                    Racepicks
+                    MX Gatepicks
                   </p>
 
                   <h2 className="mt-3 text-3xl font-black">
-                    Racepicks Pro
+                    MX Gatepicks Pro
                   </h2>
                 </div>
 
@@ -224,7 +224,7 @@ export default async function WorkshopPage() {
                 <p className="mt-3 leading-7 text-zinc-400">
                   Build a five-rider fantasy team, manage a salary cap,
                   and compete in a separate season-long championship
-                  alongside your regular Racepicks picks.
+                  alongside your regular MX Gatepicks picks.
                 </p>
               </div>
 
@@ -232,7 +232,7 @@ export default async function WorkshopPage() {
                 href="/pro"
                 className="mt-6 block w-full rounded-full bg-orange-500 px-6 py-3 text-center font-black text-black transition hover:bg-orange-400"
               >
-                Explore Racepicks Pro
+                Explore MX Gatepicks Pro
               </Link>
             </section>
 
@@ -240,7 +240,7 @@ export default async function WorkshopPage() {
               <div className="flex items-start justify-between gap-5">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
-                    Racepicks
+                    MX Gatepicks
                   </p>
 
                   <h2 className="mt-3 text-3xl font-black">
@@ -293,7 +293,7 @@ export default async function WorkshopPage() {
               </div>
 
               <p className="mt-5 leading-7 text-zinc-400">
-                Sign out of Racepicks on this device. Your picks and
+                Sign out of MX Gatepicks on this device. Your picks and
                 account information will remain safely stored.
               </p>
 
@@ -313,7 +313,7 @@ export default async function WorkshopPage() {
                 </h2>
 
                 <p className="mt-3 max-w-2xl leading-7 text-zinc-400">
-                  Permanently delete your Racepicks login, profile and
+                  Permanently delete your MX Gatepicks login, profile and
                   access to this account. This action cannot be undone.
                 </p>
               </div>

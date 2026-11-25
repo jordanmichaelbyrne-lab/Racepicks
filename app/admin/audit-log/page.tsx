@@ -203,7 +203,7 @@ export default async function AdminAuditLogPage({ searchParams }: PageProps) {
 
           <p className="mt-3 max-w-2xl text-sm text-neutral-400">
             Every admin action, who did it, and when — combining the core
-            game and Racepicks Pro. Showing the most recent{" "}
+            game and MX Gatepicks Pro. Showing the most recent{" "}
             {DISPLAY_LIMIT} entries.
           </p>
         </header>

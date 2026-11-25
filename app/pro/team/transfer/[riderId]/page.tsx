@@ -78,14 +78,14 @@ export default async function TransferPage({
 
           <div className="mt-6 rounded-3xl border border-orange-500/30 bg-orange-500/10 p-10 text-center">
             <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
-              Racepicks Pro
+              MX Gatepicks Pro
             </p>
             <h1 className="mt-4 text-3xl font-black uppercase">
               Transfers Are Closed
             </h1>
             <p className="mt-4 text-neutral-300">
               Transfers open every Monday and close when picks lock for
-              the round, same as normal Racepicks.
+              the round, same as normal MX Gatepicks.
             </p>
             {window.windowStart && (
               <p className="mt-4 rounded-2xl border border-neutral-800 bg-black p-4 text-sm text-neutral-400">
@@ -237,7 +237,7 @@ export default async function TransferPage({
 
         <header className="mt-6">
           <p className="text-xs font-bold uppercase tracking-[0.3em] text-orange-500">
-            Racepicks Pro · {SEASON}
+            MX Gatepicks Pro · {SEASON}
           </p>
           <h1 className="mt-3 text-3xl font-black uppercase sm:text-4xl">
             Transfer Rider

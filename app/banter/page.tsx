@@ -29,7 +29,7 @@ export default async function BanterPage() {
 
         <section className="mx-auto max-w-4xl py-10 sm:py-14">
           <p className="text-xs font-black uppercase tracking-[0.35em] text-orange-500">
-            Racepicks Community
+            MX Gatepicks Community
           </p>
 
           <h1 className="mt-4 text-5xl font-black uppercase tracking-tight sm:text-7xl">

@@ -30,7 +30,7 @@ function formatSeriesDescription(series: string) {
   if (series === "Motocross") return "The Pro Motocross outdoor championship.";
   if (series === "Supercross") return "Stadium racing from January through May.";
   if (series === "SMX") return "The season-ending SuperMotocross playoffs.";
-  return "A past Racepicks championship.";
+  return "A past MX Gatepicks championship.";
 }
 
 export default async function LeaderboardHistoryPage() {
@@ -95,7 +95,7 @@ export default async function LeaderboardHistoryPage() {
 
           <header className="mt-8">
             <p className="text-xs font-black uppercase tracking-[0.35em] text-orange-500">
-              Racepicks Archive
+              MX Gatepicks Archive
             </p>
 
             <h1 className="mt-3 text-4xl font-black uppercase tracking-tight sm:text-6xl">
@@ -103,7 +103,7 @@ export default async function LeaderboardHistoryPage() {
             </h1>
 
             <p className="mt-3 max-w-2xl text-sm text-neutral-400">
-              Browse every past Racepicks season and revisit how each
+              Browse every past MX Gatepicks season and revisit how each
               championship played out.
             </p>
           </header>

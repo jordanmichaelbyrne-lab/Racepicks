@@ -630,7 +630,7 @@ export default async function PlayerHistoryPage({
                 </h1>
 
                 <p className="mt-2 text-sm text-neutral-400">
-                  Racepicks {viewSeason} season
+                  MX Gatepicks {viewSeason} season
                 </p>
               </div>
             </div>
@@ -811,7 +811,7 @@ export default async function PlayerHistoryPage({
                 <p className="text-xs text-neutral-500">
                   Last updated{" "}
                   {formatDateTime(currentPick.updated_at)} · Picks
-                  remain visible to all Racepicks players.
+                  remain visible to all MX Gatepicks players.
                 </p>
               </div>
             </>
@@ -952,7 +952,7 @@ export default async function PlayerHistoryPage({
                   >
                     <div>
                       <p className="text-xs font-black uppercase tracking-widest text-orange-500">
-                        {event?.series ?? "Racepicks"} · Round{" "}
+                        {event?.series ?? "MX Gatepicks"} · Round{" "}
                         {event?.round_number ?? "—"}
                       </p>
 

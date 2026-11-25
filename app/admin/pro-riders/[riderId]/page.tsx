@@ -85,7 +85,7 @@ export default async function ProRiderEditPage({
 
         <header className="mt-8">
           <p className="text-xs font-bold uppercase tracking-[0.3em] text-orange-500">
-            {season} Season · Racepicks Pro
+            {season} Season · MX Gatepicks Pro
           </p>
 
           <h1 className="mt-3 text-4xl font-black uppercase sm:text-5xl">
@@ -114,7 +114,7 @@ export default async function ProRiderEditPage({
               className="h-5 w-5 accent-orange-500"
             />
             <label htmlFor="pro_eligible" className="font-black">
-              Rider is eligible for Racepicks Pro
+              Rider is eligible for MX Gatepicks Pro
             </label>
           </div>
 

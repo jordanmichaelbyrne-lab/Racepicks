@@ -31,7 +31,7 @@ export async function saveTeam(
   if (!profile?.pro_access) {
     return {
       success: false,
-      error: "You don't have Racepicks Pro access yet.",
+      error: "You don't have MX Gatepicks Pro access yet.",
     };
   }
 

@@ -156,7 +156,7 @@ export default async function Home() {
 
           <section className="flex min-h-[75vh] flex-col items-center justify-center text-center">
             <p className="text-sm font-black uppercase tracking-[0.4em] text-orange-500">
-              Racepicks
+              MX Gatepicks
             </p>
 
             <h1 className="mt-5 text-5xl font-black sm:text-7xl">
@@ -303,7 +303,7 @@ export default async function Home() {
         title: seriesTitle(competition.season, competition.series),
         description:
           seriesDescriptions[competition.series] ??
-          "Racepicks championship competition.",
+          "MX Gatepicks championship competition.",
         roundCount: competitionEvents.length,
         status: hasOpenEvent
           ? "Live"
@@ -641,7 +641,7 @@ export default async function Home() {
             <p className="mt-8 max-w-3xl text-base leading-7 text-zinc-300 md:text-xl">
               Pick your 1st, 2nd and 3rd place riders, then choose the
               rider you believe will finish in the wildcard position.
-              Correct picks earn points toward the Racepicks
+              Correct picks earn points toward the MX Gatepicks
               leaderboard.
             </p>
 

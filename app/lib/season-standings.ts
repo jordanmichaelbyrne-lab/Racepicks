@@ -163,7 +163,7 @@ export async function standingsFromScoreRows(
 
       return {
         user_id: userId,
-        display_name: profile?.display_name?.trim() || "Racepicks Player",
+        display_name: profile?.display_name?.trim() || "MX Gatepicks Player",
         avatar_url: profile?.avatar_url ?? null,
         rounds_scored: totals.rounds,
         total_points: totals.points,

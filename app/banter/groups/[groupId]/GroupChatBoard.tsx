@@ -401,7 +401,7 @@ export default function GroupChatBoard({
               {messages.map((chatMessage) => {
                 const displayName =
                   chatMessage.profiles?.display_name?.trim() ||
-                  "Racepicks Player";
+                  "MX Gatepicks Player";
                 const isCurrentUser =
                   chatMessage.user_id === currentUserId;
 

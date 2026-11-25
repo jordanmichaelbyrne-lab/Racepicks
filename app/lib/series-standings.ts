@@ -14,7 +14,7 @@ export type SeriesStandingRow = {
 
 /**
  * Full ranked standings for one series within one season (e.g. every
- * player's Racepicks points across just the 2026 Pro Motocross rounds).
+ * player's MX Gatepicks points across just the 2026 Pro Motocross rounds).
  * Same underlying calculation as the series-finale celebration popup,
  * but returns everyone, not just the top 3 — meant for a permanent,
  * browsable standings table rather than a one-time announcement.
@@ -110,7 +110,7 @@ export async function getSeriesStandings(
   return sorted.map(([userId, totals]) => ({
     user_id: userId,
     display_name:
-      profileById.get(userId)?.display_name ?? "Racepicks Player",
+      profileById.get(userId)?.display_name ?? "MX Gatepicks Player",
     avatar_url: profileById.get(userId)?.avatar_url ?? null,
     series_points: totals.points,
     rounds_scored: totals.rounds,

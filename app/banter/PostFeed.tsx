@@ -328,7 +328,7 @@ export default function PostFeed({
       ) : (
         posts.map((post) => {
           const displayName =
-            post.profiles?.display_name?.trim() || "Racepicks Player";
+            post.profiles?.display_name?.trim() || "MX Gatepicks Player";
           const isCurrentUser = post.user_id === currentUserId;
 
           return (

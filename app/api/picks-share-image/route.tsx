@@ -193,7 +193,7 @@ export async function GET(request: Request) {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={logoUrl}
-          alt="Racepicks"
+          alt="MX Gatepicks"
           width={logoWidth}
           height={LOGO_TARGET_HEIGHT}
           style={{ marginBottom: 28 }}
@@ -374,7 +374,7 @@ export async function GET(request: Request) {
                 color: "#ffffff",
               }}
             >
-              Racepicks
+              MX Gatepicks
               <div
                 style={{
                   display: "flex",

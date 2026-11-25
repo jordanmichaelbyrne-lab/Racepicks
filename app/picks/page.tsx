@@ -72,7 +72,7 @@ export default async function PicksPage() {
       
           <section className="mx-auto max-w-3xl py-20 text-center">
             <p className="text-sm font-black uppercase tracking-[0.35em] text-orange-500">
-              Racepicks
+              MX Gatepicks
             </p>
 
             <h1 className="mt-4 text-5xl font-black">

@@ -7,11 +7,11 @@ export default function ProLoading() {
         </div>
 
         <h1 className="mt-7 text-4xl font-black tracking-tight">
-          Racepicks<span className="text-orange-500">.</span>
+          MX Gatepicks<span className="text-orange-500">.</span>
         </h1>
 
         <p className="mt-3 text-sm font-black uppercase tracking-[0.3em] text-zinc-500">
-          Loading Racepicks Pro
+          Loading MX Gatepicks Pro
         </p>
 
         <div className="mt-8 h-1.5 overflow-hidden rounded-full bg-zinc-900">

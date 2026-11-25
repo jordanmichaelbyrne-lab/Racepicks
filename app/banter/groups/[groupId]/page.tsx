@@ -186,7 +186,7 @@ export default async function GroupChatPage({
         display_name:
           standing?.display_name ??
           profile?.display_name?.trim() ??
-          "Racepicks Player",
+          "MX Gatepicks Player",
         avatar_url: standing?.avatar_url ?? profile?.avatar_url ?? null,
         total_points: standing?.total_points ?? 0,
         rounds_scored: standing?.rounds_scored ?? 0,
@@ -228,7 +228,7 @@ export default async function GroupChatPage({
               user_id: member.user_id,
               role: member.role,
               display_name:
-                member.profiles?.display_name?.trim() || "Racepicks Player",
+                member.profiles?.display_name?.trim() || "MX Gatepicks Player",
             }))}
           />
 
@@ -264,7 +264,7 @@ export default async function GroupChatPage({
                   const position = index + 1;
                   const isYou = player.user_id === user.id;
                   const displayName =
-                    player.display_name?.trim() || "Racepicks Player";
+                    player.display_name?.trim() || "MX Gatepicks Player";
 
                   return (
                     <div

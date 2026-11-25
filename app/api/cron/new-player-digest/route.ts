@@ -107,7 +107,7 @@ export async function GET(request: Request) {
     <p>
       <strong>${newPlayers.length}</strong> new player${
     newPlayers.length === 1 ? "" : "s"
-  } joined Racepicks in the last 24 hours:
+  } joined MX Gatepicks in the last 24 hours:
     </p>
     <table role="presentation" width="100%" style="margin:16px 0;border-collapse:collapse;">
       ${playerRowsHtml}
@@ -116,11 +116,11 @@ export async function GET(request: Request) {
 
   try {
     const result = await resend.emails.send({
-      from: "Racepicks <notifications@mxgatepicks.com>",
+      from: "MX Gatepicks <notifications@mxgatepicks.com>",
       to: adminEmail,
       subject: `${newPlayers.length} new player${
         newPlayers.length === 1 ? "" : "s"
-      } joined Racepicks`,
+      } joined MX Gatepicks`,
       html: wrapEmailHtml({
         bodyHtml,
         ctaText: "View All Players",

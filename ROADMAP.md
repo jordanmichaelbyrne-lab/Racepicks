@@ -1,6 +1,6 @@
-# Racepicks Roadmap & Vision
+# MX Gatepicks Roadmap & Vision
 
-This file captures the long-term direction for Racepicks, so future
+This file captures the long-term direction for MX Gatepicks, so future
 work (by Jordan, or any AI assistant helping out) stays aligned with
 where the app is headed — not just what's immediately in front of us.
 
@@ -17,7 +17,7 @@ where the app is headed — not just what's immediately in front of us.
 
 ## 2027 Plan: Public Launch
 
-- Open Racepicks to the public for the full 2027 season.
+- Open MX Gatepicks to the public for the full 2027 season.
 - Same three series (SX, MX, SMX), expecting 50+ players.
 - Continue refining based on 2026 beta feedback.
 - Trademark filed (word mark + logo) ahead of public launch.
@@ -169,7 +169,7 @@ capture for anyone (signed in or not).
 
 
 
-## Racepicks Pro — Team Manager (Target: 2027, In Active Development)
+## MX Gatepicks Pro — Team Manager (Target: 2027, In Active Development)
 
 **Status:** Committed to a 2027 target. A `/pro` landing page with a
 live interest poll (question 1: would you play; question 2: price
@@ -187,11 +187,11 @@ earlier in this file's history, **this version is the current one.**
 
 ### Relationship to the core game
 
-Racepicks Pro is a **completely separate championship** running
-alongside the normal Racepicks Championship — Pro subscribers keep
+MX Gatepicks Pro is a **completely separate championship** running
+alongside the normal MX Gatepicks Championship — Pro subscribers keep
 making their normal 1st/2nd/3rd/Wildcard picks exactly as before, and
 additionally manage a season-long fantasy team with its own
-leaderboard and scoring. *"Pro does not replace Racepicks. It adds
+leaderboard and scoring. *"Pro does not replace MX Gatepicks. It adds
 another championship."*
 
 ### 1. Team structure
@@ -301,7 +301,7 @@ it's solving.
 
 ### 8. Team lock
 
-Pro roster locks at the **exact same time** as normal Racepicks picks
+Pro roster locks at the **exact same time** as normal MX Gatepicks picks
 — no separate clock. Once locked, that round's 5-rider roster is
 snapshotted; any transfer made after that applies to a future
 eligible round, never rewrites the locked snapshot. Matters for
@@ -365,7 +365,7 @@ small extension of the existing results form.
 ### 11. DNS / DNQ / DNF / disrupted events
 
 Same "official result is the source of truth" philosophy as the core
-Racepicks game:
+MX Gatepicks game:
 - **DNS:** no finishing-position points.
 - **SX DNQ:** treated identically to DNS, no special case.
 - **DNF:** score whatever position the sanctioning body officially
@@ -437,7 +437,7 @@ rider-management game.
 
 ### 15. Pro leaderboard
 
-Fully separate from the standard Racepicks leaderboard. Suggested
+Fully separate from the standard MX Gatepicks leaderboard. Suggested
 layout: `POS | MANAGER | TEAM | ROUND | TOTAL | BEHIND`, with the
 ability to open another manager's team once the relevant round has
 locked (matches the existing core-game leaderboard's
@@ -467,7 +467,7 @@ how dense this specification already naturally divides.
 
 ### The philosophy, worth keeping visible in the actual product
 
-*"Racepicks Pro rewards season-long team management — not just
+*"MX Gatepicks Pro rewards season-long team management — not just
 picking race winners. Build within the salary cap, identify
 undervalued riders, balance Factory stars against Challengers, manage
 limited transfers, react to injuries and form, and carry your team

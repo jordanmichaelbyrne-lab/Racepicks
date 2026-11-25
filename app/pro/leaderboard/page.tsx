@@ -39,7 +39,7 @@ export default async function ProLeaderboardPage() {
         <div className="mx-auto max-w-3xl">
           <header className="mt-8">
             <p className="text-xs font-bold uppercase tracking-[0.3em] text-orange-500">
-              Racepicks Pro · {SEASON}
+              MX Gatepicks Pro · {SEASON}
             </p>
             <h1 className="mt-3 text-4xl font-black uppercase sm:text-5xl">
               Pro Leaderboard
@@ -111,7 +111,7 @@ export default async function ProLeaderboardPage() {
       <div className="mx-auto max-w-3xl">
         <header className="mt-8">
           <p className="text-xs font-bold uppercase tracking-[0.3em] text-orange-500">
-            Racepicks Pro · {SEASON}
+            MX Gatepicks Pro · {SEASON}
           </p>
           <h1 className="mt-3 text-4xl font-black uppercase sm:text-5xl">
             Pro Leaderboard
@@ -191,7 +191,7 @@ export default async function ProLeaderboardPage() {
             className="inline-flex items-center gap-2 font-black text-zinc-400 transition hover:text-orange-500"
           >
             <span>←</span>
-            <span>Back to Racepicks Pro</span>
+            <span>Back to MX Gatepicks Pro</span>
           </Link>
         </div>
       </div>
