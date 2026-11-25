@@ -204,7 +204,7 @@ export async function importRacerXEntryList(formData: FormData) {
     cache: "no-store",
     headers: {
       "User-Agent":
-        "Racepicks Entry List Importer/1.0 (+https://racepicks.app)",
+        "Racepicks Entry List Importer/1.0 (+https://www.mxgatepicks.com)",
       Accept: "text/html,application/xhtml+xml",
     },
   });

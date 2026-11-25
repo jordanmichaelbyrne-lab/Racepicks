@@ -237,7 +237,7 @@ export default function TermsPage() {
               </h2>
               <p className="mt-3">
                 Questions about these terms can be sent to{" "}
-                <strong>support@racepicks.app</strong>.
+                <strong>support@mxgatepicks.com</strong>.
               </p>
             </section>
           </div>

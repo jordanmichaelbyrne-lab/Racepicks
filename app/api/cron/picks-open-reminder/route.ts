@@ -102,13 +102,13 @@ export async function GET(request: Request) {
 
     try {
       const result = await resend.emails.send({
-        from: "Racepicks <notifications@racepicks.app>",
+        from: "Racepicks <notifications@mxgatepicks.com>",
         to: player.email,
         subject: `Picks are open — ${currentEvent.venue}`,
         html: wrapEmailHtml({
           bodyHtml,
           ctaText: "Enter Your Picks",
-          ctaHref: "https://racepicks.app/picks",
+          ctaHref: "https://www.mxgatepicks.com/picks",
           preheaderText: `Picks are open for ${currentEvent.venue}`,
         }),
         headers: standardEmailHeaders,

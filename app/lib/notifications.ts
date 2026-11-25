@@ -164,13 +164,13 @@ export async function notifyPlayersOfWithdrawnRiders(
 
     try {
       const result = await resend.emails.send({
-        from: "Racepicks <notifications@racepicks.app>",
+        from: "Racepicks <notifications@mxgatepicks.com>",
         to: profile.email,
         subject: `Action needed: your rider is no longer entered — ${event.venue}`,
         html: wrapEmailHtml({
           bodyHtml,
           ctaText: "Update Your Picks",
-          ctaHref: "https://racepicks.app/picks",
+          ctaHref: "https://www.mxgatepicks.com/picks",
           preheaderText: `${riderList} is no longer entered for ${event.venue}`,
         }),
         headers: standardEmailHeaders,
@@ -277,7 +277,7 @@ export async function notifyPlayersOfResults(
 
     try {
       const result = await resend.emails.send({
-        from: "Racepicks <notifications@racepicks.app>",
+        from: "Racepicks <notifications@mxgatepicks.com>",
         to: player.email,
         subject: isFinale
           ? `🏁 The ${seriesLabel} Championship is decided — ${event.venue}`
@@ -286,8 +286,8 @@ export async function notifyPlayersOfResults(
           bodyHtml,
           ctaText: isFinale ? "View Final Standings" : "See How You Scored",
           ctaHref: isFinale
-            ? "https://racepicks.app/results"
-            : "https://racepicks.app/account",
+            ? "https://www.mxgatepicks.com/results"
+            : "https://www.mxgatepicks.com/account",
           preheaderText: isFinale
             ? `The ${event.season} ${seriesLabel} Championship is complete — see the final standings`
             : `Results are in for ${event.venue} — no spoilers, see how you scored`,

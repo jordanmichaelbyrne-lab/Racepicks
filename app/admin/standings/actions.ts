@@ -451,7 +451,7 @@ export async function importChampionshipStandings(
       method: "GET",
       headers: {
         "User-Agent":
-          "Mozilla/5.0 (compatible; Racepicks/1.0; +https://racepicks.app)",
+          "Mozilla/5.0 (compatible; Racepicks/1.0; +https://www.mxgatepicks.com)",
         Accept:
           "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       },

@@ -72,7 +72,7 @@ function ordinal(position: number) {
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const eventId = searchParams.get("event");
-  const logoUrl = `${origin}/images/logos/Racepicks-Trans.png`;
+  const logoUrl = `${origin}/images/logos/MXGatepicks-Trans.png`;
 
   if (!eventId) {
     return new Response("Missing event id", { status: 400 });
@@ -395,7 +395,7 @@ export async function GET(request: Request) {
               color: "#525252",
             }}
           >
-            www.racepicks.app
+            www.mxgatepicks.com
           </div>
         </div>
       </div>

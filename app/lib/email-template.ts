@@ -66,7 +66,7 @@ export function wrapEmailHtml({
                          border-top:1px solid #eeeeee;font-family:Arial,Helvetica,sans-serif;">
                 Racepicks &middot; Australia's Supercross, Motocross &amp; SMX tipping competition.
                 <br />
-                <a href="mailto:unsubscribe@racepicks.app?subject=Unsubscribe"
+                <a href="mailto:unsubscribe@mxgatepicks.com?subject=Unsubscribe"
                    style="color:#999999;text-decoration:underline;">
                   Manage notification preferences
                 </a>
@@ -86,6 +86,6 @@ export function wrapEmailHtml({
 // sender — even for transactional-style emails like these, having zero
 // unsubscribe mechanism can itself contribute to junk-folder routing.
 export const standardEmailHeaders = {
-  "List-Unsubscribe": "<mailto:unsubscribe@racepicks.app?subject=Unsubscribe>",
+  "List-Unsubscribe": "<mailto:unsubscribe@mxgatepicks.com?subject=Unsubscribe>",
   "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
 };

@@ -96,7 +96,7 @@ export default async function AdminRidersPage({ searchParams }: PageProps) {
           </h1>
 
           <p className="mt-3 text-sm text-neutral-400">
-            Add riders and control who is available for RacePicks.
+            Add riders and control who is available for MX Gatepicks.
           </p>
         </header>
 

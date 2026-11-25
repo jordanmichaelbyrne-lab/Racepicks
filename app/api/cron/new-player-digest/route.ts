@@ -116,7 +116,7 @@ export async function GET(request: Request) {
 
   try {
     const result = await resend.emails.send({
-      from: "Racepicks <notifications@racepicks.app>",
+      from: "Racepicks <notifications@mxgatepicks.com>",
       to: adminEmail,
       subject: `${newPlayers.length} new player${
         newPlayers.length === 1 ? "" : "s"
@@ -124,7 +124,7 @@ export async function GET(request: Request) {
       html: wrapEmailHtml({
         bodyHtml,
         ctaText: "View All Players",
-        ctaHref: "https://racepicks.app/admin/players",
+        ctaHref: "https://www.mxgatepicks.com/admin/players",
         preheaderText: `${newPlayers.length} new signup${
           newPlayers.length === 1 ? "" : "s"
         } in the last 24 hours`,

@@ -105,7 +105,7 @@ const emails = [
       <p>Picks close: <strong>${closeTimeLabel}</strong></p>
     `,
     ctaText: "Enter Your Picks",
-    ctaHref: "https://racepicks.app/picks",
+    ctaHref: "https://www.mxgatepicks.com/picks",
   },
   {
     subject: "[TEST] Final chance — picks close soon for Washougal",
@@ -115,7 +115,7 @@ const emails = [
       <p>Picks close: <strong>${closeTimeLabel}</strong></p>
     `,
     ctaText: "Enter Your Picks Now",
-    ctaHref: "https://racepicks.app/picks",
+    ctaHref: "https://www.mxgatepicks.com/picks",
   },
   {
     subject: "[TEST] Picks close in 6 hours — Washougal",
@@ -125,7 +125,7 @@ const emails = [
       <p>Picks close: <strong>${closeTimeLabel}</strong></p>
     `,
     ctaText: "Enter Your Picks Now",
-    ctaHref: "https://racepicks.app/picks",
+    ctaHref: "https://www.mxgatepicks.com/picks",
   },
   {
     subject: "[TEST] Results are in — Washougal",
@@ -141,7 +141,7 @@ const emails = [
       <p>Check the leaderboard to see how your picks scored:</p>
     `,
     ctaText: "View the Leaderboard",
-    ctaHref: "https://racepicks.app/leaderboard",
+    ctaHref: "https://www.mxgatepicks.com/leaderboard",
   },
   {
     subject: "[TEST] Action needed: your rider is no longer entered — Washougal",
@@ -152,7 +152,7 @@ const emails = [
       <p>Please update your picks before Saturday 10PM so they count toward this round.</p>
     `,
     ctaText: "Update Your Picks",
-    ctaHref: "https://racepicks.app/picks",
+    ctaHref: "https://www.mxgatepicks.com/picks",
   },
 ];
 
@@ -162,7 +162,7 @@ const run = async () => {
   for (const email of emails) {
     try {
       await resend.emails.send({
-        from: "Racepicks <notifications@racepicks.app>",
+        from: "Racepicks <notifications@mxgatepicks.com>",
         to: targetEmail,
         subject: email.subject,
         html: wrapEmailHtml(email),

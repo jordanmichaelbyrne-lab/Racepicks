@@ -146,7 +146,7 @@ export async function importRaceResultSlotFromUrl(formData: FormData) {
   let html: string;
   try {
     const response = await fetch(sourceUrl, {
-      headers: { "User-Agent": "Mozilla/5.0 (RacepicksBot)" },
+      headers: { "User-Agent": "Mozilla/5.0 (MXGatepicksBot)" },
     });
     if (!response.ok) {
       throw new Error(`Racer X returned ${response.status}`);

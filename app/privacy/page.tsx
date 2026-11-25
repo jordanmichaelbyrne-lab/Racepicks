@@ -213,7 +213,7 @@ export default function PrivacyPage() {
               <p className="mt-3">
                 For any questions about this Privacy Policy, or to
                 exercise your rights under Section 7, contact us at{" "}
-                <strong>support@racepicks.app</strong>.
+                <strong>support@mxgatepicks.com</strong>.
               </p>
             </section>
           </div>

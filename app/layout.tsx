@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://racepicks.app"),
+  metadataBase: new URL("https://www.mxgatepicks.com"),
   title: "Racepicks.",
   description:
     "Australia's Supercross, Motocross and SMX tipping competition.",
