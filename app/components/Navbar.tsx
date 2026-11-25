@@ -93,19 +93,19 @@ export default function Navbar() {
 
   return (
     <nav className="relative py-3">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3 md:grid md:grid-cols-[1fr_auto_1fr]">
         <Link
           href="/"
-          className="shrink-0 transition hover:opacity-80"
+          className="shrink-0 transition hover:opacity-80 md:justify-self-start"
         >
           <img
             src="/images/logos/MXGatepicks-Trans.png"
             alt="MX Gatepicks"
-            className="h-10 w-auto sm:h-14"
+            className="h-8 w-auto sm:h-11"
           />
         </Link>
 
-        <div className="hidden items-center gap-8 md:flex">
+        <div className="hidden items-center gap-5 md:flex lg:gap-8">
           {navItems.map((item) =>
             item.href === "/pro" ? (
               <Link
@@ -141,7 +141,7 @@ export default function Navbar() {
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3 md:justify-self-end">
           {isLoading ? (
             <>
               <div className="h-10 w-10 rounded-full border border-zinc-700" />
