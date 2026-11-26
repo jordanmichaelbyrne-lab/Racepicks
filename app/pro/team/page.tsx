@@ -42,35 +42,7 @@ export default async function ProTeamPage() {
     .maybeSingle();
 
   if (!profile?.pro_access) {
-    return (
-      <main className="min-h-screen bg-black px-4 py-10 text-white sm:px-6">
-        <div className="mx-auto max-w-7xl">
-          <Navbar />
-        </div>
-
-        <div className="mx-auto mt-16 max-w-2xl">
-          <div className="rounded-3xl border border-orange-500/30 bg-orange-500/10 p-10 text-center">
-            <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
-              MX Gatepicks Pro
-            </p>
-            <h1 className="mt-4 text-3xl font-black uppercase">
-              Pro Access Required
-            </h1>
-            <p className="mt-4 text-neutral-300">
-              You need MX Gatepicks Pro access to build a team. MX Gatepicks
-              Pro is still being tested ahead of the {SEASON} season —
-              subscriptions aren&apos;t live yet.
-            </p>
-            <Link
-              href="/pro"
-              className="mt-6 inline-block rounded-full bg-orange-500 px-7 py-3 font-black text-black transition hover:bg-orange-400"
-            >
-              Back to MX Gatepicks Pro
-            </Link>
-          </div>
-        </div>
-      </main>
-    );
+    redirect("/pro");
   }
 
   const { data: existingTeam } = await supabase
@@ -203,12 +175,20 @@ export default async function ProTeamPage() {
                 {existingTeam.team_name || "Your Team"}
               </h1>
             </div>
-            <Link
-              href="/pro/leaderboard"
-              className="rounded-full border border-orange-500 px-5 py-2 text-sm font-black text-orange-500 transition hover:bg-orange-500 hover:text-black"
-            >
-              Leaderboard →
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                href="/pro/how-to-play"
+                className="rounded-full border border-neutral-700 px-5 py-2 text-sm font-black text-neutral-300 transition hover:border-orange-500 hover:text-orange-500"
+              >
+                How it works
+              </Link>
+              <Link
+                href="/pro/leaderboard"
+                className="rounded-full border border-orange-500 px-5 py-2 text-sm font-black text-orange-500 transition hover:bg-orange-500 hover:text-black"
+              >
+                Leaderboard →
+              </Link>
+            </div>
           </header>
 
           {/* Top stats */}
@@ -409,15 +389,6 @@ export default async function ProTeamPage() {
             </div>
           </section>
 
-          <div className="mt-8 text-center">
-            <Link
-              href="/pro"
-              className="inline-flex items-center gap-2 font-black text-zinc-400 transition hover:text-orange-500"
-            >
-              <span>←</span>
-              <span>Back to MX Gatepicks Pro</span>
-            </Link>
-          </div>
         </div>
       </main>
     );

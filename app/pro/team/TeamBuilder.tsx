@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { saveTeam } from "./actions";
 import ConfirmModal from "@/app/components/ConfirmModal";
 
@@ -45,6 +46,7 @@ export default function TeamBuilder({
   bonusTable: BonusRow[];
   challengerBonusTable: ChallengerBonusRow[];
 }) {
+  const router = useRouter();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [manufacturer, setManufacturer] = useState("");
   const [teamName, setTeamName] = useState("");
@@ -115,6 +117,7 @@ export default function TeamBuilder({
       if (result.success) {
         setShowConfirm(false);
         setSuccess(true);
+        router.refresh();
       } else {
         setShowConfirm(false);
         setError(result.error ?? "Something went wrong.");
@@ -127,7 +130,7 @@ export default function TeamBuilder({
       <div className="rounded-2xl border border-green-500/30 bg-green-500/10 p-8 text-center">
         <p className="text-2xl font-black text-green-400">Team Saved! 🏁</p>
         <p className="mt-2 text-sm text-green-300/70">
-          Refresh the page to see your team.
+          Loading your team…
         </p>
       </div>
     );

@@ -177,12 +177,20 @@ export default async function ProRidersPage({ searchParams }: PageProps) {
             ← Back to admin dashboard
           </Link>
 
-          <Link
-            href={`/admin/pro-results?season=${season}`}
-            className="rounded-full border border-orange-500 px-5 py-2 text-sm font-black text-orange-500 transition hover:bg-orange-500 hover:text-black"
-          >
-            Pro Results Entry →
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href={`/admin/pro-riders/monday-review?season=${season}`}
+              className="rounded-full bg-orange-500 px-5 py-2 text-sm font-black text-black transition hover:bg-orange-400"
+            >
+              Monday Salary Review
+            </Link>
+            <Link
+              href={`/admin/pro-results?season=${season}`}
+              className="rounded-full border border-orange-500 px-5 py-2 text-sm font-black text-orange-500 transition hover:bg-orange-500 hover:text-black"
+            >
+              Pro Results Entry →
+            </Link>
+          </div>
         </div>
 
         <header className="mt-8">

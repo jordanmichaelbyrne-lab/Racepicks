@@ -1,5 +1,10 @@
 import Link from "next/link";
-import ProPollForm from "./ProPollForm";
+import { redirect } from "next/navigation";
+import { createClient } from "@/app/lib/supabase/server";
+import Navbar from "@/app/components/Navbar";
+import EnterProButton from "./EnterProButton";
+import { enterPro } from "./enterActions";
+import { PRO_FREE_FOR_SEASON, PRO_SEASON } from "@/app/pro/lib/proConfig";
 
 const proFeatures = [
   {
@@ -20,12 +25,12 @@ const proFeatures = [
   {
     title: "Limited Transfers",
     description:
-      "3 Primary transfers, 5 Challenger transfers, plus free injury replacements when eligible.",
+      "3 Factory transfers, 5 Challenger transfers, plus free injury replacements when eligible.",
   },
   {
     title: "Manufacturer Pick",
     description:
-      "Choose one bike manufacturer for the entire SMX season and earn small performance bonuses.",
+      "Choose one bike manufacturer for the whole season and earn small performance bonuses.",
   },
   {
     title: "Full SMX Season",
@@ -45,33 +50,94 @@ const scoringFeatures = [
   "Small manufacturer bonus system",
 ];
 
-export default function ProLandingPage() {
+export default async function ProLandingPage() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let hasAccess = false;
+
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("pro_access")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    hasAccess = Boolean(profile?.pro_access);
+
+    // Already entered and set up: the Pro link goes straight to the game.
+    const { data: team } = await supabase
+      .from("pro_teams")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("season", PRO_SEASON)
+      .maybeSingle();
+
+    if (team) {
+      redirect("/pro/team");
+    }
+  }
+
+  const { count: teamCount } = await supabase
+    .from("pro_teams")
+    .select("id", { count: "exact", head: true })
+    .eq("season", PRO_SEASON);
+
+  function EntryButton() {
+    if (!user) {
+      return (
+        <>
+          <Link
+            href="/signup"
+            className="w-full rounded-full bg-orange-500 px-8 py-4 text-center text-lg font-black uppercase text-black transition hover:bg-orange-400 sm:w-auto"
+          >
+            Sign up to enter
+          </Link>
+          <Link
+            href="/login"
+            className="text-sm font-bold text-zinc-400 transition hover:text-white"
+          >
+            Already have an account? Log in
+          </Link>
+        </>
+      );
+    }
+
+    if (hasAccess) {
+      return (
+        <Link
+          href="/pro/team"
+          className="w-full rounded-full bg-orange-500 px-8 py-4 text-center text-lg font-black uppercase text-black transition hover:bg-orange-400 sm:w-auto"
+        >
+          Build your team →
+        </Link>
+      );
+    }
+
+    return (
+      <form action={enterPro} className="w-full sm:w-auto">
+        <EnterProButton label="Enter MX Gatepicks Pro" />
+      </form>
+    );
+  }
+
   return (
-    <main className="min-h-screen bg-black text-white">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-        <div className="flex items-center justify-between">
-          <Link
-            href="/"
-            className="text-2xl font-black tracking-tight text-white sm:text-3xl"
-          >
-            MX Gatepicks<span className="text-orange-500">.</span>
-          </Link>
+    <main className="min-h-screen bg-black px-4 py-10 text-white sm:px-6">
+      <div className="mx-auto max-w-7xl">
+        <Navbar />
 
-          <Link
-            href="/"
-            className="rounded-full border border-zinc-700 px-4 py-2 text-sm font-bold text-zinc-300 transition hover:border-orange-500 hover:text-orange-500"
-          >
-            Back Home
-          </Link>
-        </div>
-
-        <section className="relative overflow-hidden rounded-[2rem] border border-orange-500/20 bg-zinc-950 px-6 py-16 text-center sm:mt-8 sm:px-10 sm:py-24">
+        <section className="relative mt-6 overflow-hidden rounded-[2rem] border border-orange-500/20 bg-zinc-950 px-6 py-14 text-center sm:px-10 sm:py-20">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(249,115,22,0.18),transparent_40%)]" />
 
           <div className="relative">
-            <span className="inline-flex rounded-full border border-orange-500/40 bg-orange-500/10 px-4 py-2 text-xs font-black uppercase tracking-[0.3em] text-orange-400">
-              Coming 2027
-            </span>
+            {PRO_FREE_FOR_SEASON && (
+              <span className="inline-flex rounded-full border border-green-500/40 bg-green-500/10 px-4 py-2 text-xs font-black uppercase tracking-[0.3em] text-green-400">
+                Free to play in {PRO_SEASON}
+              </span>
+            )}
 
             <p className="mt-8 text-sm font-black uppercase tracking-[0.35em] text-orange-500">
               MX Gatepicks Pro
@@ -82,23 +148,20 @@ export default function ProLandingPage() {
             </h1>
 
             <p className="mx-auto mt-6 max-w-3xl text-lg leading-8 text-zinc-400 sm:text-xl">
-              Build your own five-rider race team. Manage the salary cap.
-              Make strategic transfers. Compete across the entire
-              SuperMotocross season.
+              Build your own five-rider race team. Manage the salary cap. Make
+              strategic transfers. Compete across the entire SuperMotocross
+              season.
             </p>
 
-            <div className="mt-10 flex flex-wrap justify-center gap-3">
-              <span className="rounded-full bg-orange-500 px-5 py-3 text-sm font-black uppercase text-black">
-                5 Riders
-              </span>
+            <div className="mt-10 flex flex-col items-center gap-3">
+              <EntryButton />
 
-              <span className="rounded-full border border-zinc-700 px-5 py-3 text-sm font-black uppercase text-white">
-                $31M Cap
-              </span>
-
-              <span className="rounded-full border border-zinc-700 px-5 py-3 text-sm font-black uppercase text-white">
-                Full SMX Season
-              </span>
+              {typeof teamCount === "number" && teamCount > 0 && (
+                <p className="text-xs text-neutral-500">
+                  {teamCount} {teamCount === 1 ? "team" : "teams"} entered so
+                  far
+                </p>
+              )}
             </div>
           </div>
         </section>
@@ -112,11 +175,9 @@ export default function ProLandingPage() {
               <p className="text-xs font-black uppercase tracking-[0.25em] text-orange-500">
                 Pro Feature
               </p>
-
               <h2 className="mt-3 text-2xl font-black uppercase">
                 {feature.title}
               </h2>
-
               <p className="mt-3 leading-7 text-zinc-400">
                 {feature.description}
               </p>
@@ -124,127 +185,13 @@ export default function ProLandingPage() {
           ))}
         </section>
 
-        <section className="mt-10 grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="rounded-3xl border border-zinc-800 bg-zinc-950 p-7 sm:p-9">
-            <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
-              Build Your Team
-            </p>
-
-            <h2 className="mt-3 text-3xl font-black uppercase sm:text-4xl">
-              Your Factory. Your Riders.
-            </h2>
-
-            <p className="mt-4 max-w-2xl leading-7 text-zinc-400">
-              Choose five riders and decide whether to build around factory
-              firepower or take a bigger swing on Challenger value.
-            </p>
-
-            <div className="mt-8 grid gap-4 sm:grid-cols-2">
-              <div className="rounded-2xl border border-zinc-800 bg-black p-5">
-                <p className="text-xs font-black uppercase tracking-widest text-zinc-500">
-                  Factory Heavy
-                </p>
-
-                <p className="mt-2 text-2xl font-black text-white">
-                  3 Factory
-                </p>
-
-                <p className="text-lg font-black text-orange-500">
-                  2 Challenger
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-zinc-800 bg-black p-5">
-                <p className="text-xs font-black uppercase tracking-widest text-zinc-500">
-                  Challenger Heavy
-                </p>
-
-                <p className="mt-2 text-2xl font-black text-white">
-                  2 Factory
-                </p>
-
-                <p className="text-lg font-black text-orange-500">
-                  3 Challenger
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-orange-500/30 bg-orange-500/5 p-7 sm:p-9">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
-                  Example Team
-                </p>
-
-                <h2 className="mt-3 text-3xl font-black uppercase">
-                  Byrne Racing
-                </h2>
-              </div>
-
-              <span className="rounded-full bg-orange-500 px-3 py-2 text-xs font-black uppercase text-black">
-                Pro
-              </span>
-            </div>
-
-            <div className="mt-8 space-y-4">
-              {[
-                ["Rider 01", "Factory"],
-                ["Rider 02", "Factory"],
-                ["Rider 03", "Challenger"],
-                ["Rider 04", "Challenger"],
-                ["Rider 05", "Challenger"],
-              ].map(([rider, type]) => (
-                <div
-                  key={rider}
-                  className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-black/60 px-4 py-4"
-                >
-                  <span className="font-black">{rider}</span>
-
-                  <span
-                    className={`text-xs font-black uppercase tracking-wider ${
-                      type === "Factory"
-                        ? "text-white"
-                        : "text-orange-500"
-                    }`}
-                  >
-                    {type}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl bg-black/60 p-4">
-                <p className="text-xs uppercase tracking-widest text-zinc-500">
-                  Team Value
-                </p>
-
-                <p className="mt-2 text-xl font-black">$30.6M</p>
-              </div>
-
-              <div className="rounded-2xl bg-black/60 p-4">
-                <p className="text-xs uppercase tracking-widest text-zinc-500">
-                  Manufacturer
-                </p>
-
-                <p className="mt-2 text-xl font-black text-orange-500">
-                  KTM
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
         <section className="mt-10 rounded-3xl border border-zinc-800 bg-zinc-950 p-7 sm:p-9">
           <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
             Scoring
           </p>
-
           <h2 className="mt-3 text-3xl font-black uppercase sm:text-4xl">
             Every Round Matters
           </h2>
-
           <p className="mt-4 max-w-3xl leading-7 text-zinc-400">
             The Pro championship runs from the opening Supercross round
             through Pro Motocross and all the way to the final SMX Playoff.
@@ -267,23 +214,18 @@ export default function ProLandingPage() {
               <p className="text-xs font-bold uppercase tracking-widest text-zinc-500">
                 SMX Playoff 1
               </p>
-
               <p className="mt-2 text-3xl font-black">×1</p>
             </div>
-
             <div className="rounded-2xl border border-orange-500/30 bg-orange-500/5 p-5">
               <p className="text-xs font-bold uppercase tracking-widest text-orange-500">
                 SMX Playoff 2
               </p>
-
               <p className="mt-2 text-3xl font-black">×1.5</p>
             </div>
-
             <div className="rounded-2xl border border-orange-500 bg-orange-500 p-5 text-black">
               <p className="text-xs font-black uppercase tracking-widest">
                 SMX Final
               </p>
-
               <p className="mt-2 text-3xl font-black">×2</p>
             </div>
           </div>
@@ -293,101 +235,35 @@ export default function ProLandingPage() {
           <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
             Important
           </p>
-
           <h2 className="mt-3 text-3xl font-black uppercase">
             You Still Play MX Gatepicks.
           </h2>
-
           <p className="mt-4 max-w-4xl leading-7 text-zinc-300">
             MX Gatepicks Pro does not replace the normal Championship. Pro
-            subscribers still make their regular 1st, 2nd, 3rd and Wildcard
-            picks and compete on the main MX Gatepicks leaderboard.
+            players still make their regular 1st, 2nd, 3rd and Wildcard picks
+            and compete on the main MX Gatepicks leaderboard.
           </p>
-
           <p className="mt-3 max-w-4xl leading-7 text-zinc-400">
             Team Manager is a second competition running alongside it, with
-            deeper strategy, its own leaderboard and larger prize pools
-            planned.
+            deeper strategy and its own leaderboard.
           </p>
         </section>
 
         <section className="mt-10 rounded-3xl border border-zinc-800 bg-zinc-950 p-7 text-center sm:p-9">
-          <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
-            Want the full details first?
-          </p>
-
-          <h2 className="mt-3 text-2xl font-black uppercase sm:text-3xl">
-            Read How MX Gatepicks Pro Works
+          <h2 className="text-2xl font-black uppercase sm:text-3xl">
+            Ready to build your team?
           </h2>
 
-          <p className="mx-auto mt-3 max-w-xl leading-7 text-zinc-400">
-            Team structure, salary cap, transfers, scoring — the complete
-            breakdown of the plan before you vote below.
-          </p>
-
-          <Link
-            href="/pro/how-to-play"
-            className="mt-6 inline-block rounded-full border border-orange-500 px-7 py-3 font-black text-orange-500 transition hover:bg-orange-500 hover:text-black"
-          >
-            Read the Full Rules
-          </Link>
-        </section>
-
-        <section className="mt-10 rounded-3xl border border-orange-500/30 bg-orange-500/10 p-7 text-center sm:p-9">
-          <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
-            Ready to Play?
-          </p>
-
-          <h2 className="mt-3 text-2xl font-black uppercase sm:text-3xl">
-            Join MX Gatepicks Pro
-          </h2>
-
-          <p className="mx-auto mt-3 max-w-xl leading-7 text-zinc-400">
-            Build your team, manage your salary cap, and compete for the{" "}
-            {new Date().getFullYear() < 2027 ? "2027" : "current"} season.
-          </p>
-
-          <button
-            type="button"
-            disabled
-            className="mt-6 cursor-not-allowed rounded-full border border-zinc-700 px-7 py-3 font-black text-zinc-500"
-          >
-            Join Pro — Coming Soon
-          </button>
-
-          <p className="mt-3 text-xs text-zinc-600">
-            Subscriptions aren&apos;t live yet — vote below to help shape it.
-          </p>
-        </section>
-
-        <section className="mt-10 rounded-[2rem] border border-zinc-800 bg-zinc-950 p-7 sm:p-10">
-          <div className="mx-auto max-w-4xl text-center">
-            <p className="text-xs font-black uppercase tracking-[0.3em] text-orange-500">
-              Help Shape MX Gatepicks Pro
-            </p>
-
-            <h2 className="mt-3 text-4xl font-black uppercase sm:text-5xl">
-              Would You Play?
-            </h2>
-
-            <p className="mx-auto mt-4 max-w-2xl leading-7 text-zinc-400">
-              We&apos;re testing interest before launching the full 2027 Pro
-              competition.
-            </p>
+          <div className="mt-6 flex flex-col items-center gap-3">
+            <EntryButton />
+            <Link
+              href="/pro/how-to-play"
+              className="text-sm font-black text-orange-500 transition hover:text-orange-400"
+            >
+              Read the full rules →
+            </Link>
           </div>
-
-          <ProPollForm />
         </section>
-
-        <footer className="py-12 text-center">
-          <p className="text-sm font-black uppercase tracking-[0.3em] text-orange-500">
-            MX Gatepicks Pro
-          </p>
-
-          <p className="mt-3 text-sm text-zinc-500">
-            Team Manager · Coming 2027
-          </p>
-        </footer>
       </div>
     </main>
   );

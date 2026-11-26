@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/app/lib/supabase/server";
 import MondayReviewClient from "./MondayReviewClient";
+import MondayToolbar from "./MondayToolbar";
 
 type PageProps = {
   searchParams: Promise<{ season?: string }>;
@@ -91,13 +92,15 @@ export default async function MondaySalaryReviewPage({
           </h1>
 
           <p className="mt-3 max-w-2xl text-sm text-neutral-400">
-            Type a suggested price for each rider, then Accept or Skip.
-            Accepted changes are logged permanently to salary history.
-            Changes over ±5% will ask you to confirm.
+            Use Auto-suggest to fill in prices from recent results, or type
+            your own, then Accept or Skip. Accepted changes are logged
+            permanently to salary history. Changes over ±5% will ask you to
+            confirm.
           </p>
         </header>
 
         <div className="mt-8">
+          <MondayToolbar season={season} />
           <MondayReviewClient initialRiders={initialRiders} season={season} />
         </div>
       </div>

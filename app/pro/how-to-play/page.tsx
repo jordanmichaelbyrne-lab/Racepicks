@@ -24,13 +24,12 @@ export default function ProHowToPlayPage() {
 
           <div className="mt-6 rounded-2xl border border-orange-500/30 bg-orange-500/10 p-5">
             <p className="text-sm font-bold text-orange-300">
-              MX Gatepicks Pro isn&apos;t live yet.
+              MX Gatepicks Pro is free to play in 2027.
             </p>
             <p className="mt-1 text-sm leading-6 text-zinc-300">
-              This page describes the current plan so you know what
-              you&apos;d be signing up for. Some numbers below are still
-              being finalized and are marked as such — nothing here is a
-              locked promise until Pro actually launches.
+              Some numbers below are still being finalized and are marked
+              as such — nothing marked as provisional is locked until the
+              season starts.
             </p>
           </div>
 
@@ -276,15 +275,7 @@ export default function ProHowToPlayPage() {
               href="/pro"
               className="rounded-full bg-orange-500 px-7 py-3 font-black text-black transition hover:bg-orange-400"
             >
-              Back to MX Gatepicks Pro
-            </Link>
-
-            <Link
-              href="/workshop"
-              className="inline-flex items-center gap-2 font-black text-zinc-400 transition hover:text-orange-500"
-            >
-              <span>←</span>
-              <span>Back to Workshop</span>
+              Enter MX Gatepicks Pro
             </Link>
           </div>
         </section>
